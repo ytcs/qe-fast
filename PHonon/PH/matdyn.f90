@@ -1156,13 +1156,12 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,bg,rws,nrws,f_of_q,fd)
           ipol, jpol, na, nb, m1, m2, m3, i,j
   INTEGER, SAVE :: fact=2
   !
-10 CONTINUE
-  !
   nr1_=fact*nr1
   nr2_=fact*nr2
   nr3_=fact*nr3
   FIRST_TIME : IF (first) THEN
     first=.false.
+10  CONTINUE
     ALLOCATE( wscache(-nr3_:nr3_, -nr2_:nr2_, -nr1_:nr1_, nat,nat) )
     DO na=1, nat
        DO nb=1, nat
@@ -1189,6 +1188,10 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,bg,rws,nrws,f_of_q,fd)
              fact = fact + 1
              IF ( fact <= 4 ) THEN
                 WRITE(stdout,'("frc_blk: wrong total_weight - increasing fact to ",i1)') fact
+                nr1_=fact*nr1
+                nr2_=fact*nr2
+                nr3_=fact*nr3
+                DEALLOCATE( wscache )
                 GO TO 10
              ELSE
                 CALL errore ('frc_blk','wrong total_weight',1)
