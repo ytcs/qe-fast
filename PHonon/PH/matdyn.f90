@@ -1141,20 +1141,26 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,bg,rws,nrws,f_of_q,fd)
   USE io_global,  ONLY : stdout
   !
   IMPLICIT NONE
-  INTEGER nr1, nr2, nr3, nat, n1, n2, n3, nr1_, nr2_, nr3_, &
-          ipol, jpol, na, nb, m1, m2, m3, nint, i,j, nrws, nax
-  COMPLEX(DP) dyn(3,3,nat,nat), f_of_q(3,3,nat,nat)
-  REAL(DP) frc(nr1,nr2,nr3,3,3,nat,nat), tau(3,nat), q(3), arg, &
-               at(3,3), bg(3,3), r(3), weight, r_ws(3),  &
-               total_weight, rws(0:3,nrws), alat
-  REAL(DP), EXTERNAL :: wsweight
-  REAL(DP),SAVE,ALLOCATABLE :: wscache(:,:,:,:,:)
-  LOGICAL,SAVE :: first=.true.
-  LOGICAL :: fd
+  INTEGER, INTENT(IN) ::  nr1, nr2, nr3, nat, nrws
+  COMPLEX(DP), INTENT(INOUT) :: dyn(3,3,nat,nat)
+  COMPLEX(DP), INTENT(IN) :: f_of_q(3,3,nat,nat)
+  REAL(DP), INTENT(IN) :: frc(nr1,nr2,nr3,3,3,nat,nat), tau(3,nat), &
+                          q(3), at(3,3), bg(3,3), rws(0:3,nrws)
   !
-  nr1_=2*nr1
-  nr2_=2*nr2
-  nr3_=2*nr3
+  REAL(DP) :: arg, r(3), weight, r_ws(3), total_weight
+  REAL(DP), EXTERNAL :: wsweight
+  REAL(DP), SAVE, ALLOCATABLE :: wscache(:,:,:,:,:)
+  LOGICAL :: fd
+  LOGICAL, SAVE :: first=.true.
+  INTEGER :: n1, n2, n3, nr1_, nr2_, nr3_, &
+          ipol, jpol, na, nb, m1, m2, m3, i,j
+  INTEGER, SAVE :: fact=2
+  !
+10 CONTINUE
+  !
+  nr1_=fact*nr1
+  nr2_=fact*nr2
+  nr3_=fact*nr3
   FIRST_TIME : IF (first) THEN
     first=.false.
     ALLOCATE( wscache(-nr3_:nr3_, -nr2_:nr2_, -nr1_:nr1_, nat,nat) )
@@ -1177,9 +1183,16 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,bg,rws,nrws,f_of_q,fd)
                 ENDDO
              ENDDO
           ENDDO
-          IF (ABS(total_weight-nr1*nr2*nr3).GT.1.0d-8) THEN
-             WRITE(stdout,*) na,nb,total_weight
-             CALL errore ('frc_blk','wrong total_weight',1)
+          weight = DBLE(nr1*nr2*nr3)
+          IF (ABS(total_weight-weight) > 1.0d-8) THEN
+             WRITE(stdout,'("na,nb,weight, expected =",2i4,2f10.4)') na,nb,total_weight,weight
+             fact = fact + 1
+             IF ( fact <= 4 ) THEN
+                WRITE(stdout,'("frc_blk: wrong total_weight - increasing fact to ",i1)') fact
+                GO TO 10
+             ELSE
+                CALL errore ('frc_blk','wrong total_weight',1)
+             END IF
           END IF
       ENDDO
     ENDDO
