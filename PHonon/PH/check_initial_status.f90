@@ -62,6 +62,7 @@ SUBROUTINE check_initial_status(auxdyn)
   !! It also creates a directory for each q inside outdir/_ph# 
   !! if this directory does not exist and \(\text{lqdir}\)=TRUE.
   !
+  USE kinds,           ONLY : dp
   USE io_global,       ONLY : stdout
   USE control_flags,   ONLY : modenum
   USE ions_base,       ONLY : nat
@@ -129,19 +130,6 @@ SUBROUTINE check_initial_status(auxdyn)
         ELSE
            IF (.NOT. qplot) CALL q_points()
         END IF
-        !
-        ! YAMBO >
-     ELSE IF (.NOT.elph_yambo .AND. .NOT. dvscf_yambo) then
-        ! YAMBO <
-        !
-        nqs = 1
-        last_q = 1
-        IF (.NOT. ALLOCATED(x_q)) ALLOCATE(x_q(3,1))
-        IF (.NOT. ALLOCATED(wq) ) ALLOCATE(wq(1))
-        IF (.NOT. ALLOCATED(lgamma_iq) ) ALLOCATE(lgamma_iq(1))
-        x_q(:,1)=xq(:)
-        wq(1)=1.0d0
-        lgamma_iq(1)=lgamma
         !
      END IF
      !

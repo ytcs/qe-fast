@@ -63,7 +63,7 @@ SUBROUTINE phq_readin()
                             el_ph_sigma, el_ph_nsigma, el_ph_ngauss,auxdvscf
   USE dfile_star,    ONLY : drho_star, dvscf_star
 
-  USE qpoint,        ONLY : nksq, xq
+  USE qpoint,        ONLY : nksq
   USE control_lr,    ONLY : lgamma, lrpa, alpha_mix, lgamma_gamma, tr2_ph, niter_ph, &
                             nmix_ph, maxter, reduce_io, rec_code_read, lnolr, lnoloc
   ! YAMBO >
@@ -526,40 +526,40 @@ SUBROUTINE phq_readin()
   !
   IF (zeu) zeu = epsil
   !
-  !    reads the q point (just if ldisp = .false.)
+  !    read the q point(s) (except if ldisp and nq* are set)
+  !    FIXME: merge qplot, ldisp, nq*, etc. etc., into a "card"
+  !           like K_POINTS for scf
   !
-  IF (meta_ionode) THEN
-     ios = 0
-     IF (qplot) THEN
-        READ (qestdin, *, iostat = ios) nqaux
-     ELSE IF (.NOT. ldisp) THEN
-        nqaux = 1
-        READ (qestdin, *, iostat = ios) (xq (ipol), ipol=1,3)
-     ENDIF
-  END IF
-  CALL mp_bcast(nqaux, meta_ionode_id, world_comm )
-  CALL mp_bcast(ios, meta_ionode_id, world_comm )
-  CALL errore ('phq_readin', 'reading xq', ABS (ios) )
-  IF (qplot) THEN
+  ios = 0
+  nqaux = 1
+  IF (.NOT. ( ldisp .AND. nq1*nq2*nq3 > 0 ) ) THEN
+     IF (meta_ionode) THEN
+        IF (qplot) READ (qestdin, *, iostat = ios) nqaux
+     END IF
+     CALL mp_bcast(nqaux, meta_ionode_id, world_comm )
+     CALL mp_bcast(ios, meta_ionode_id, world_comm )
+     CALL errore ('phq_readin', 'reading nq', ABS (ios) )
      ALLOCATE(xqaux(3,nqaux))
      ALLOCATE(wqaux(nqaux))
      IF (meta_ionode) THEN
         DO iq=1, nqaux
-           READ (qestdin, *, iostat = ios) (xqaux (ipol,iq), ipol=1,3), wqaux(iq)
+           IF (qplot) THEN
+              READ (qestdin, *, iostat = ios) (xqaux (ipol,iq), ipol=1,3), wqaux(iq)
+           ELSE
+              wqaux(iq) = 0.0_dp
+              READ (qestdin, *, iostat = ios) (xqaux (ipol,iq), ipol=1,3)
+           ENDIF
         ENDDO
      ENDIF
      CALL mp_bcast(ios, meta_ionode_id, world_comm )
      CALL errore ('phq_readin', 'reading xq', ABS (ios) )
      CALL mp_bcast(xqaux, meta_ionode_id, world_comm )
      CALL mp_bcast(wqaux, meta_ionode_id, world_comm )
-  ELSE
-     CALL mp_bcast(xq, meta_ionode_id, world_comm  )
-  ENDIF
-
-  IF (.NOT.ldisp .AND. .NOT. qplot) THEN
-     lgamma = ( xq(1)==0.0_dp .AND. xq(2)==0.0_dp .AND. xq(3)==0.0_dp )
-     IF ( .NOT.lgamma .AND. (epsil.OR.zue.OR.lraman.OR.elop) ) &
-        CALL errore ('phq_readin', 'gamma is needed for elec.field', 1)
+     IF ( .NOT. qplot) THEN
+        lgamma = ( xqaux(1,1)==0.0_dp .AND. xqaux(2,1)==0.0_dp .AND. xqaux(3,1)==0.0_dp )
+        IF ( .NOT.lgamma .AND. (epsil.OR.zue.OR.lraman.OR.elop) ) &
+           CALL errore ('phq_readin', 'gamma is needed for elec.field', 1)
+     END IF
   ENDIF
 
   IF (magnetic_sym.AND.(epsil.OR.zue.or.lraman.or.elop)) &
@@ -711,7 +711,7 @@ SUBROUTINE phq_readin()
   ENDIF
 1001 CONTINUE
 
-  IF (qplot.AND..NOT.recover) THEN
+  IF (.NOT. ( ldisp .AND. nq1*nq2*nq3 > 0 ) .AND. .NOT.recover) THEN
      IF (q2d) THEN
         nqs=wqaux(2)*wqaux(3)
         ALLOCATE(x_q(3,nqs))
