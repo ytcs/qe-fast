@@ -6,7 +6,7 @@
 ! or http://www.gnu.org/copyleft/gpl.txt .
 !
 !----------------------------------------------------------------------------
-SUBROUTINE average_pp( ntyp ) 
+SUBROUTINE average_pp( ntyp )
   !----------------------------------------------------------------------------
   !! Spin-orbit pseudopotentials transformed into standard pseudopotentials.
   !
@@ -23,7 +23,7 @@ SUBROUTINE average_pp( ntyp )
   ! ... local variables
   !
   INTEGER :: nt, nb, nbe, ind, ind1, l
-  REAL(DP) :: vionl
+  REAL(DP) :: weight
   !
   !
   DO nt = 1, ntyp
@@ -33,64 +33,31 @@ SUBROUTINE average_pp( ntyp )
         IF ( upf(nt)%tvanp .or. lda_plus_u) &
                 CALL errore( 'average_pp', 'Fully relativistic PPs, need spin-orbit calc. (lspinorb=.true.)', 1 )
         !
-        nbe = 0
-        !
         DO nb = 1, upf(nt)%nbeta
            !
-           nbe = nbe + 1
+           l = upf(nt)%lll(nb)
            !
-           IF ( upf(nt)%lll(nb) /= 0 .AND. &
-                ABS( upf(nt)%jjj(nb) - upf(nt)%lll(nb) - 0.5D0 ) < 1.D-7 ) &
-              nbe = nbe - 1
-        ENDDO
-        !
-        upf(nt)%nbeta = nbe
-        !
-        nbe = 0
-        !
-        DO nb = 1, upf(nt)%nbeta
-           !
-           nbe = nbe + 1
-           !
-           l = upf(nt)%lll(nbe)
-           !
-           IF ( l /= 0 ) THEN
+           IF ( l == 0 ) THEN
               !
-              IF (ABS(upf(nt)%jjj(nbe)-upf(nt)%lll(nbe)+0.5d0) < 1.d-7) THEN
-                 IF ( ABS( upf(nt)%jjj(nbe+1)-upf(nt)%lll(nbe+1)-0.5d0 ) &
-                      > 1.d-7 ) CALL errore( 'average_pp', 'wrong beta functions', 1 )
-                 ind = nbe+1
-                 ind1 = nbe
-              ELSE
-                 IF (ABS(upf(nt)%jjj(nbe+1)-upf(nt)%lll(nbe+1)+0.5d0) > 1.d-7) &
-                      CALL errore( 'average_pp', 'wrong beta functions', 2 )
-                 ind = nbe
-                 ind1 = nbe+1
-              ENDIF
+              ! ... s channel: only j = 1/2 exists, weight = 1, nothing to do
               !
-              vionl = ( ( l + 1.D0 ) * upf(nt)%dion(ind,ind) + &
-                      l * upf(nt)%dion(ind1,ind1) ) / ( 2.D0 * l + 1.D0 )
+              weight = 1.0_DP
               !
-              upf(nt)%beta(1:rgrid(nt)%mesh,nb) = 1.D0 / ( 2.D0 * l + 1.D0 ) * &
-                   ( ( l + 1.D0 ) * SQRT( upf(nt)%dion(ind,ind) / vionl ) *    &
-                   upf(nt)%beta(1:rgrid(nt)%mesh,ind) +          &
-                   l * SQRT( upf(nt)%dion(ind1,ind1) / vionl ) * &
-                   upf(nt)%beta(1:rgrid(nt)%mesh,ind1) )
+           ELSE IF ( upf(nt)%jjj(nb) > REAL( l, DP ) ) THEN
               !
-              upf(nt)%dion(nb,nb) = vionl
+              ! ... j = l + 1/2  ->  (2j+1)/[2(2l+1)] = (l+1)/(2l+1)
               !
-              nbe = nbe + 1
+              weight = ( l + 1.0_DP ) / ( 2.0_DP * l + 1.0_DP )
               !
            ELSE
               !
-              upf(nt)%beta(1:rgrid(nt)%mesh,nb) = &
-                  upf(nt)%beta(1:rgrid(nt)%mesh,nbe)
+              ! ... j = l - 1/2  ->  (2j+1)/[2(2l+1)] = l/(2l+1)
               !
-              upf(nt)%dion(nb,nb) = upf(nt)%dion(nbe,nbe)
+              weight = l / ( 2.0_DP * l + 1.0_DP )
               !
            ENDIF
            !
-           upf(nt)%lll(nb) = upf(nt)%lll(nbe)
+           upf(nt)%dion(nb,nb) = weight * upf(nt)%dion(nb,nb)
            !
         ENDDO
         !
@@ -107,7 +74,7 @@ SUBROUTINE average_pp( ntyp )
         ENDDO
         !
         upf(nt)%nwfc = nbe
-        ! 
+        !
         nbe = 0
         !
         DO nb = 1, upf(nt)%nwfc
@@ -133,7 +100,7 @@ SUBROUTINE average_pp( ntyp )
               upf(nt)%chi(1:rgrid(nt)%mesh,nb) = &
                  ((l+1.D0) * upf(nt)%chi(1:rgrid(nt)%mesh,ind)+ &
                    l * upf(nt)%chi(1:rgrid(nt)%mesh,ind1)) / ( 2.D0 * l + 1.D0 )
-              !   
+              !
               nbe = nbe + 1
               !
            ELSE
