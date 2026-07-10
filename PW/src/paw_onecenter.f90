@@ -2412,6 +2412,10 @@ MODULE paw_onecenter
     !
     !$acc data present_or_copy(v_lm) present_or_copyin(vout_lm,rho_lm,segni_rad,g(i%t:i%t),g(i%t)%rm2)
     !$acc data create(rho_rad,vout_rad,v_rad,vs_rad,g_rad,g_lm,vsave_lm,gsave_lm)
+    !$acc kernels
+    v_rad = 0.0_dp
+    g_rad = 0.0_dp
+    !$acc end  kernels
     !
     CALL PAW_lm2rad( i, vout_lm, vout_rad, nspin_gga )
     CALL PAW_lm2rad( i, rho_lm,  rho_rad,  nspin_mag )

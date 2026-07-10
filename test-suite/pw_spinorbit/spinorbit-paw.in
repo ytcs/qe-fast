@@ -6,7 +6,7 @@
     ibrav=  2, celldm(1) =7.42, nat=  1, ntyp= 1,
     lspinorb=.true.,
     noncolin=.true.,
-    starting_magnetization=0.0,
+    starting_magnetization(1)=0.5,
     occupations='smearing',
     degauss=0.02,
     smearing='mp',
