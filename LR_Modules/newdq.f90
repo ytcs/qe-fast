@@ -89,11 +89,9 @@ subroutine newdq (dvscf, npe)
   !     integrate the change of the self consistent potential and
   !     the Q functions
   !
-  !$acc data create(qgm) copyin(ylmk0, qmod, eigqts) copyout(int3)
+  !$acc data create(qgm) copyin(ylmk0, qmod, eigqts)
   !
-  !$acc kernels
   int3 (:,:,:,:,:) = (0.d0, 0.0d0)
-  !$acc end kernels
   do ipert = 1, npe
 
      do is = 1, nspin_mag
@@ -150,24 +148,12 @@ subroutine newdq (dvscf, npe)
                           do ig = 1, ngm
                              tmp = tmp + conjg(qgm(ig) * sk(ig,nb)) * aux1(ig,is)
                           enddo
-                          !
-                          ! Compute and assign int3 on the device. The assignment is a single
-                          ! operation hence the serial region below (executed by 1 thread only).
-                          !
-                          ! The alternative is to keep int3 on the host, and send tmp (scalar)
-                          ! from device to host at every (ih,jh,na,is,ipert) iteration.
-                          !
-                          ! The choice is between many small (scalar) transfers vs a serial region
-                          ! and a single copyout of int3 at the end (this is what is done below).
-                          !
-                          !$acc serial present(int3)
                           int3(ih,jh,na,is,ipert) = omega * tmp
                           !
                           !    We use the symmetry properties of the ps factor:
                           !    int3(jh,ih,...) = int3(ih,jh,...)
                           !
                           int3(jh,ih,na,is,ipert) = omega * tmp
-                          !$acc end serial
                        enddo
                     endif
                  enddo
@@ -181,7 +167,7 @@ subroutine newdq (dvscf, npe)
      enddo
      !$acc end data ! aux1
   enddo
-  !$acc end data ! int3
+  !$acc end data ! qgm
 #if defined(__MPI)
   call mp_sum ( int3, intra_bgrp_comm )
 #endif
