@@ -98,15 +98,13 @@ SUBROUTINE prepare_q(auxdyn, do_band, do_iq, setup_pw, iq)
   !
   tmp_dir_phq=tmp_dir_ph
   !
-  ! YAMBO>
+  ! ... set the q point
+  !
+  xq(1:3)  = x_q(1:3,iq)
   !
   IF ( ldisp .OR. qplot .OR. dvscf_yambo .OR. elph_yambo ) THEN
      !
-     ! ... set the q point
-     !
-     xq(1:3)  = x_q(1:3,iq)
-     !
-     !  Check if it is lgamma
+     !  Check if it is lgamma - Maybe this should be moved before the IF
      !
      lgamma = lgamma_iq(iq)
      !
@@ -129,8 +127,6 @@ SUBROUTINE prepare_q(auxdyn, do_band, do_iq, setup_pw, iq)
                        & // TRIM(int_to_char(iq))//'/'
      !
   ENDIF
-  !
-  ! YAMBO<
   !
   IF ( ldisp ) THEN
      !
