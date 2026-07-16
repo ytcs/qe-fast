@@ -331,7 +331,7 @@ CONTAINS
     CHARACTER(LEN=*),  INTENT(IN) :: file_path
     INTEGER, OPTIONAL, INTENT(IN) :: process_id
     !
-    INTEGER :: ios
+    INTEGER :: ios, ios_close
     INTEGER :: iunit, id
     INTEGER(KIND=8) :: clock
     CHARACTER(LEN=LEN(file_path)+48) :: filename
@@ -346,7 +346,10 @@ CONTAINS
     OPEN( NEWUNIT = iunit, FILE = TRIM(filename), &
         & STATUS = 'UNKNOWN', FORM = 'UNFORMATTED', IOSTAT = ios )
     !
-    CLOSE( UNIT = iunit, STATUS = 'DELETE' )
+    ! ... ios (from OPEN) is the writability verdict. Delete the probe file
+    ! ... only if it was created, and tolerate a failed delete without
+    ! ... aborting: a failed delete does not mean the directory is unwritable.
+    IF ( ios == 0 ) CLOSE( UNIT = iunit, STATUS = 'DELETE', IOSTAT = ios_close )
     !
     !-----------------------------------------------------------------------
   END FUNCTION check_writable
