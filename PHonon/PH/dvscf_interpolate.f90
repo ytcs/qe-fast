@@ -790,7 +790,7 @@ MODULE dvscf_interpolate
     COMPLEX(DP), ALLOCATABLE :: aux(:)
     !! (dfftp%nnr) long-range part in G space
     !
-    alpha = 0.1  ! in bohr^-2 units (PRB 102, 094308 (2020), footnote 3)
+    alpha = 0.1_DP  ! in bohr^-2 units (PRB 102, 094308 (2020), footnote 3)
     !
     ALLOCATE(aux(dfftp%nnr))
     !

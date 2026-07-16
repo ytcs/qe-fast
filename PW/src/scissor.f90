@@ -65,7 +65,7 @@ MODULE sci_mod
      COMPLEX(DP), ALLOCATABLE   :: coeff(:,:)
      INTEGER                    :: ibnd, ik, ibnd_p, ibnd_1, ibnd_2
      REAL(DP)                   :: fac
-     REAL(DP), PARAMETER        :: ry2ev = 13.605698066
+     REAL(DP), PARAMETER        :: ry2ev = 13.605698066_DP
      !
      IF( sci_iter == 0 ) THEN
         CALL save_buffer ( evc, nwordwfc, iunwfc, current_k )
@@ -135,7 +135,7 @@ MODULE sci_mod
       INTEGER, INTENT(IN)  :: ik, band
       INTEGER, INTENT(OUT) :: ibnd_1, ibnd_2 
       INTEGER :: is
-      REAL(DP) :: ev2ry = 0.073498810939358
+      REAL(DP) :: ev2ry = 0.073498810939358_DP
       !
       is =  isk(ik)
       IF(pol_type == 'e') THEN

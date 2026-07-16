@@ -97,7 +97,7 @@ SUBROUTINE orbm_kubo()
   REAL(DP), PARAMETER :: hbar_si=1.054571628E-34                     ! hbar (SI)
   REAL(DP), PARAMETER :: bohr_si=5.2917720859E-11             ! Bohr radius in m
   REAL(DP), PARAMETER :: ry_si=2.179871993E-18           ! Rydberg in J (energy)
-  REAL(DP), PARAMETER :: ry_ev=13.6056923               ! Rydberg in eV (energy)
+  REAL(DP), PARAMETER :: ry_ev=13.6056923_DP               ! Rydberg in eV (energy)
   LOGICAL :: store_flag
   INTEGER :: nbr(6)                             ! map for 6 neighboring k-points
   !

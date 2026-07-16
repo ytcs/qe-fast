@@ -2169,7 +2169,7 @@ MODULE expolaron
     orig(1:3) = zero
     n_grid_super(1:3) = nqf_p(1:3) * n_grid(1:3)
     !
-    progress = (/0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0/)
+    progress = (/0.0_DP, 0.1_DP, 0.2_DP, 0.3_DP, 0.4_DP, 0.5_DP, 0.6_DP, 0.7_DP, 0.8_DP, 0.9_DP, 1.0_DP/)
     !
     b_vec(1:3) = twopi * ci / REAL(n_grid_super(1:3))
     !

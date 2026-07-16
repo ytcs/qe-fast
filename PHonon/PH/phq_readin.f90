@@ -272,7 +272,7 @@ SUBROUTINE phq_readin()
   electron_phonon=' '
   elph_nbnd_min = 1
   elph_nbnd_max = 0
-  el_ph_sigma  = 0.02
+  el_ph_sigma  = 0.02_DP
   el_ph_nsigma = 10
   el_ph_ngauss = 1
   lraman       = .FALSE.

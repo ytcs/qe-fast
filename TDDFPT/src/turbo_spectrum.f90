@@ -69,9 +69,9 @@ PROGRAM lr_calculate_spectrum
   !
   ! For perceived color analysis
   !
-  REAL(dp),PARAMETER :: vis_start    = 0.116829041, &
+  REAL(dp),PARAMETER :: vis_start    = 0.116829041_dp, &
                       & vis_start_wl = 780
-  REAL(dp),PARAMETER :: vis_end      = 0.239806979, &
+  REAL(dp),PARAMETER :: vis_end      = 0.239806979_dp, &
                       & vis_end_wl   = 380
   REAL(dp) :: perceived_red   = 0.0d0, &
             & perceived_green = 0.0d0, &
@@ -110,7 +110,7 @@ PROGRAM lr_calculate_spectrum
   end = 2.50d0
   increment = 0.001d0
   start = 0.0d0
-  epsil = 0.02
+  epsil = 0.02_dp
   ipol = 1
   sym_op = 0
   verbosity = 0

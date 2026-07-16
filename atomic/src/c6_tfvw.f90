@@ -164,7 +164,7 @@ subroutine c6_tfvw (mesh, zed, grid, rho_input)
             drho_old(i) = 0.d0
          end do 
       end if
-      beta = 0.05
+      beta = 0.05_DP
       dalpha = 1.0d+99
       alpha = 0.d0
       counter = 0

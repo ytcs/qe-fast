@@ -259,8 +259,8 @@ MODULE read_namelists_module
        zgate = 0.5
        relaxz = .false.
        block = .false.
-       block_1 = 0.45
-       block_2 = 0.55
+       block_1 = 0.45_DP
+       block_2 = 0.55_DP
        block_height = 0.0
        !
        !  ... postprocessing of DOS & phonons & el-ph

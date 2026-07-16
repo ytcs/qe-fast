@@ -92,7 +92,7 @@ MODULE sic_mod
       REAL(DP),       ALLOCATABLE   :: vxc_aux(:,:)          ! xc potential of rho_aux
       REAL(DP),       ALLOCATABLE   :: vh_aux(:,:)           ! hartree potential
       REAL(DP) :: vtxc_aux, etxc_aux, eh_aux, charge_aux, sgn
-      REAL(DP), PARAMETER :: ry2ev = 13.605698066
+      REAL(DP), PARAMETER :: ry2ev = 13.605698066_DP
       INTEGER :: is
       !
       IF(tot_magnetization /= 0) THEN

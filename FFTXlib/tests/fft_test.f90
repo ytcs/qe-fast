@@ -182,7 +182,7 @@ program test
   kmax    = HUGE(0.d0)   !not set
   ecutwfc = 80.0d0
   ecutrho = 0.d0
-  alat_in = 18.65
+  alat_in = 18.65_DP
   ntgs    = 1
   nbnd    = 1
   many_fft= 1

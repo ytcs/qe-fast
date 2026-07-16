@@ -42,7 +42,7 @@ MODULE rVV10
   real(dp) :: kernel( 0:Nr_points, Nqs, Nqs ), d2phi_dk2( 0:Nr_points, Nqs, Nqs )
 
   real(dp) :: b_value = 6.3_DP
-  real(dp) :: C_value = 0.0093 
+  real(dp) :: C_value = 0.0093_dp
 
   private  
   public :: xc_rVV10,  &

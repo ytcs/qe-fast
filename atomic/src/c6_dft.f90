@@ -153,7 +153,7 @@ subroutine c6_dft (mesh, zed, grid)
             drho_old(i) = 0.d0
          end do 
       end if
-      beta = 0.05
+      beta = 0.05_DP
       dalpha = 1.0d+99
       alpha = 0.d0
       counter = 0

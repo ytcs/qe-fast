@@ -265,7 +265,7 @@ PROGRAM epsilon
   shift        = 0.0d0
   CALL get_environment_variable( 'ESPRESSO_TMPDIR', outdir )
   IF ( trim( outdir ) == ' ' ) outdir = './'
-  intersmear   = 0.136
+  intersmear   = 0.136_DP
   wmin         = 0.0d0
   wmax         = 30.0d0
   nbndmin      = 1

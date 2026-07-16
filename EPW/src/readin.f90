@@ -798,9 +798,9 @@
   edos_max_plrn          = 0.0 ! eV
   pdos_max_plrn          = 0.0 ! meV
   edos_sigma_plrn        = 0.01d0 ! eV
-  pdos_sigma_plrn        = 0.1 ! meV
+  pdos_sigma_plrn        = 0.1_DP ! meV
   type_plrn              = -1
-  init_sigma_plrn        = 4.6
+  init_sigma_plrn        = 4.6_DP
   init_k0_plrn           = (/1000.d0, 1000.d0, 1000.d0/)
   ethrdg_plrn            = 1E-6
   time_rev_A_plrn        = .FALSE.
@@ -828,7 +828,7 @@
   DW                     = 0
   mode_res               = 0
   QD_bin                 = 0.0
-  QD_min                 = 0.005
+  QD_min                 = 0.005_DP
   lwfpt                  = .FALSE.
   ldfptu                 = .FALSE.
   compute_dmat           = .FALSE.
@@ -862,7 +862,7 @@
   twrite_tdbe            = 30
   temp_el_tdbe           = 1000.d0
   temp_ph_tdbe           = 100.d0
-  init_sigma_tdbe        = 0.1
+  init_sigma_tdbe        = 0.1_DP
   init_type_tdbe         = 'FD'
   solver_tdbe            = 'euler'
   ef_v_tdbe              = -9999.0

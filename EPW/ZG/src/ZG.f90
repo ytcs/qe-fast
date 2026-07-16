@@ -428,11 +428,11 @@ PROGRAM ZG
      poly            = .FALSE.
      poly_fd_forces  = .FALSE.
      mixing          = .FALSE.
-     fd_displ        = 0.01058353 ! 0.01058353 in Ang = 0.02 Bohr 
+     fd_displ        = 0.01058353_DP ! 0.01058353 in Ang = 0.02 Bohr
      incl_epsil       = .FALSE. ! for read_fd_forces
      iter_idx        = 1
      iter_idx0       = 0
-     qhat_in         = 0.1
+     qhat_in         = 0.1_DP
      !
      nrots           = 1
      kres1           = 250

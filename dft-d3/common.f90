@@ -50,7 +50,7 @@ module dftd3_common
 
   real(wp), parameter :: autoang = 0.52917720859_wp ! aligned to NIST data
   real(wp), parameter :: autokcal = 627.509541d0
-  real(wp), parameter :: autoev = 27.21138505
+  real(wp), parameter :: autoev = 27.21138505_wp
   ! J/mol nm^6 - > au
   real(wp), parameter :: c6conv = 1.d-3/2625.4999d0/((autoang / 10.0d0)**6)
 

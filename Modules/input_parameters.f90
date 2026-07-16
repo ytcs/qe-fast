@@ -521,9 +521,9 @@ MODULE input_parameters
         REAL(DP) :: zgate = 0.5
         LOGICAL  :: relaxz = .false.
         LOGICAL  :: block = .false.
-        REAL(DP) :: block_1 = 0.45
-        REAL(DP) :: block_2 = 0.55
-        REAL(DP) :: block_height = 0.1
+        REAL(DP) :: block_1 = 0.45_DP
+        REAL(DP) :: block_2 = 0.55_DP
+        REAL(DP) :: block_height = 0.1_DP
 
           ! Various parameters for noncollinear calculations
         LOGICAL  :: noncolin = .false.
