@@ -321,8 +321,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   FUNCTION check_writable ( file_path, process_id ) RESULT ( ios )
     !--------------------------------------------------------------------------
-    !! If run by multiple processes, specific "process_id" to avoid
-    !! opening, closing, deleting the same file from different processes.
+    !! Check whether directory "file_path" is writable by creating and
+    !! deleting a test file named test_<id>_<clock>. The clock suffix keeps
+    !! the name unique across runs sharing the directory, avoiding a race
+    !! where one run deletes another's test file ("File cannot be deleted").
     !
     IMPLICIT NONE
     !
@@ -330,25 +332,24 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(IN) :: process_id
     !
     INTEGER :: ios
+    INTEGER :: iunit, id
+    INTEGER(KIND=8) :: clock
+    CHARACTER(LEN=LEN(file_path)+48) :: filename
     !
-    CHARACTER(LEN=6), EXTERNAL :: int_to_char
+    ! ... file_path should end by a "/"
     !
-    ! ... check whether the scratch directory is writable
-    ! ... note that file_path should end by a "/"
+    id = 0
+    IF ( PRESENT( process_id ) ) id = process_id
+    CALL SYSTEM_CLOCK( COUNT = clock )
+    WRITE( filename, '(A,I0,A,I0)' ) TRIM(file_path) // 'test_', id, '_', clock
     !
-    IF ( PRESENT (process_id ) ) THEN
-       OPEN( UNIT = 4, FILE = TRIM(file_path) // 'test' // &
-           & TRIM( int_to_char ( process_id ) ), &
-           & STATUS = 'UNKNOWN', FORM = 'UNFORMATTED', IOSTAT = ios )
-    ELSE
-       OPEN( UNIT = 4, FILE = TRIM(file_path) // 'test', &
-             STATUS = 'UNKNOWN', FORM = 'UNFORMATTED', IOSTAT = ios )
-    END IF
+    OPEN( NEWUNIT = iunit, FILE = TRIM(filename), &
+        & STATUS = 'UNKNOWN', FORM = 'UNFORMATTED', IOSTAT = ios )
     !
-    CLOSE( UNIT = 4, STATUS = 'DELETE' )
+    CLOSE( UNIT = iunit, STATUS = 'DELETE' )
     !
     !-----------------------------------------------------------------------
-  END FUNCTION check_writable 
+  END FUNCTION check_writable
   !-----------------------------------------------------------------------
   !
   !------------------------------------------------------------------------
