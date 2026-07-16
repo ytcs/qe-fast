@@ -53,6 +53,9 @@ SUBROUTINE xc_lda( length, rho_in, ex_out, ec_out, vx_out, vc_out )
   !!               \text{rho}\epsilon_c(\text{rho})\ . $$
   !! Same for correlation.
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE dft_setting_params,   ONLY: iexch, icorr, rho_threshold_lda, exx_started, &
                                   exx_fraction, finite_size_cell_volume
   !
@@ -84,7 +87,6 @@ SUBROUTINE xc_lda( length, rho_in, ex_out, ec_out, vx_out, vc_out )
   !                      pi34 = (3/4pi)^(1/3)
 #if defined(_OPENMP)
   INTEGER :: ntids
-  INTEGER, EXTERNAL :: omp_get_num_threads
   !
   ntids = omp_get_num_threads()
 #endif
@@ -277,6 +279,9 @@ SUBROUTINE xc_lsda( length, rho_in, zeta_in, ex_out, ec_out, vx_out, vc_out )
   !!    * Ceperley & Alder (Perdew-Zunger parameters);
   !!    * Perdew & Wang.
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE dft_setting_params,   ONLY: iexch, icorr, rho_threshold_lda, exx_started, &
                                   exx_fraction
   !
@@ -311,7 +316,6 @@ SUBROUTINE xc_lsda( length, rho_in, zeta_in, ex_out, ec_out, vx_out, vc_out )
   !
 #if defined(_OPENMP)
   INTEGER :: ntids
-  INTEGER, EXTERNAL :: omp_get_num_threads
   !
   ntids = omp_get_num_threads()
 #endif

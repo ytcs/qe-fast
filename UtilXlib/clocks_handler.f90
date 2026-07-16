@@ -87,6 +87,9 @@ SUBROUTINE init_clocks( go )
   ! ... go = .TRUE.  : clocks will run
   ! ... go = .FALSE. : only clock #1 will run
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE util_param,  ONLY : DP, stdout
   USE mytime, ONLY : called, t0cpu, cputime, no, notrunning, maxclock, &
        clock_label, walltime, t0wall, nclock, mpi_per_thread
@@ -105,7 +108,6 @@ SUBROUTINE init_clocks( go )
   INTEGER :: n, ierr
   !
 #if defined(_OPENMP)
-  INTEGER, EXTERNAL :: omp_get_max_threads
   mpi_per_thread = 1.0_DP/omp_get_max_threads()
 #endif
   no = .not. go

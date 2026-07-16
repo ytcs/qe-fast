@@ -45,10 +45,12 @@
 
 
    SUBROUTINE initialize_threads()
+#if defined(_OPENMP)
+      USE omp_lib
+#endif
       implicit none
 #if defined(_OPENMP)
       integer :: fftw_return
-      integer, external :: omp_get_max_threads
       !
       if (.not. threads_initialized) then
          fftw_return = fftw_init_threads()

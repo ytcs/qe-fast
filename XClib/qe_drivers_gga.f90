@@ -34,6 +34,9 @@ SUBROUTINE gcxc( length, rho_in, grho_in, sx_out, sc_out, v1x_out, &
   !! Gradient corrections for exchange and correlation - Hartree a.u. 
   !! See comments at the beginning of module for implemented cases
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE dft_setting_params,   ONLY: igcx, igcc, rho_threshold_gga,     &
                                   grho_threshold_gga, exx_started,   &
                                   exx_fraction, screening_parameter, &
@@ -77,7 +80,6 @@ SUBROUTINE gcxc( length, rho_in, grho_in, sx_out, sc_out, v1x_out, &
   !
 #if defined(_OPENMP)
   INTEGER :: ntids
-  INTEGER, EXTERNAL :: omp_get_num_threads
   !
   ntids = omp_get_num_threads()
 #endif
@@ -473,6 +475,9 @@ SUBROUTINE gcx_spin( length, rho_in, grho2_in, sx_tot, v1x_out, v2x_out, err_out
   !-----------------------------------------------------------------------
   !! Gradient corrections for exchange - Hartree a.u.
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE dft_setting_params,   ONLY: igcx, igcc, exx_started,   &
                                   exx_fraction, screening_parameter, &
                                   gau_parameter
@@ -512,7 +517,6 @@ SUBROUTINE gcx_spin( length, rho_in, grho2_in, sx_tot, v1x_out, v2x_out, err_out
   !
 #if defined(_OPENMP)
   INTEGER :: ntids
-  INTEGER, EXTERNAL :: omp_get_num_threads
   !
   ntids = omp_get_num_threads()
 #endif
@@ -1045,6 +1049,9 @@ SUBROUTINE gcc_spin( length, rho_in, zeta_io, grho_in, sc_out, v1c_out, v2c_out 
   !! Gradient corrections for correlations - Hartree a.u.  
   !! Implemented: Perdew86, GGA (PW91), PBE
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE dft_setting_params,   ONLY: igcx, igcc, rho_threshold_gga
   USE corr_gga
   USE beef_interface, ONLY: beeflocalcorrspin
@@ -1075,7 +1082,6 @@ SUBROUTINE gcc_spin( length, rho_in, zeta_io, grho_in, sc_out, v1c_out, v2c_out 
   !
 #if defined(_OPENMP)
   INTEGER :: ntids
-  INTEGER, EXTERNAL :: omp_get_num_threads
   !
   ntids = omp_get_num_threads()
 #endif
@@ -1169,6 +1175,9 @@ SUBROUTINE gcc_spin_more( length, rho_in, grho_in, grho_ud_in, &
   !!    * Lee, Yang & Parr;
   !!    * GGAC.
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE dft_setting_params,   ONLY: igcx, igcc, rho_threshold_gga,     &
                                   exx_started
   USE corr_gga
@@ -1199,7 +1208,6 @@ SUBROUTINE gcc_spin_more( length, rho_in, grho_in, grho_ud_in, &
   REAL(DP) :: grho_ud
 #if defined(_OPENMP)
   INTEGER :: ntids
-  INTEGER, EXTERNAL :: omp_get_num_threads
   !
   ntids = omp_get_num_threads()
 #endif    

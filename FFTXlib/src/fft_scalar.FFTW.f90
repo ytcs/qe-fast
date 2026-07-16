@@ -198,6 +198,9 @@
 !     Up to "ndims" initializations (for different combinations of input
 !     parameters nx,ny,nzl,ldx) are stored and re-used if available
 
+#if defined(_OPENMP)
+     USE omp_lib
+#endif
      IMPLICIT NONE
 
      INTEGER, INTENT(IN) :: isign, ldx, ldy, nx, ny, nzl
@@ -213,8 +216,6 @@
      INTEGER :: offset
      INTEGER :: nx_t, ny_t, nzl_t, ldx_t, ldy_t
      INTEGER  :: itid, mytid, ntids
-     INTEGER  :: omp_get_thread_num, omp_get_num_threads
-     EXTERNAL :: omp_get_thread_num, omp_get_num_threads
 #endif
 
 #if defined(__FFTW_ALL_XY_PLANES)

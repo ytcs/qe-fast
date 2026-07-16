@@ -33,6 +33,9 @@ SUBROUTINE dmxc_lda( length, rho_in, dmuxc )
   !! Computes the derivative of the XC potential with respect to the 
   !! local density.
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE dft_setting_params, ONLY: iexch, icorr, is_libxc
   USE exch_lda,            ONLY: slater
   USE qe_drivers_lda_lsda, ONLY: xc_lda
@@ -64,7 +67,6 @@ SUBROUTINE dmxc_lda( length, rho_in, dmuxc )
   !
 #if defined(_OPENMP)
   INTEGER :: ntids
-  INTEGER, EXTERNAL :: omp_get_num_threads
   !
   ntids = omp_get_num_threads()
 #endif

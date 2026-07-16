@@ -1,4 +1,7 @@
  PROGRAM lax_test
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   use laxlib_descriptor
   USE laxlib_parallel_include
   use dspev_module
@@ -70,9 +73,6 @@
   CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME), allocatable :: proc_name(:)
   CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME), allocatable :: node_name(:)
   INTEGER, allocatable :: proc2node(:)
-#if defined(_OPENMP)
-  INTEGER, EXTERNAL :: omp_get_max_threads
-#endif
   !
 #if defined(_OPENMP)
   INTEGER :: PROVIDED

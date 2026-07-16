@@ -31,6 +31,9 @@ PROGRAM xclib_test
   !
   !! See README.TEST file for more details.
   !
+#if defined(_OPENMP)
+  USE omp_lib
+#endif
   USE kind_l,         ONLY: DP
   USE constants_l,    ONLY: pi
   USE beef_interface, ONLY: beefsetmode
@@ -192,9 +195,6 @@ PROGRAM xclib_test
   CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME), ALLOCATABLE :: proc_name(:)
   CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME), ALLOCATABLE :: node_name(:)
   INTEGER, ALLOCATABLE :: proc2node(:)
-#if defined(_OPENMP)
-  INTEGER, EXTERNAL :: omp_get_max_threads
-#endif
   !
 #if defined(_OPENMP)
   INTEGER :: PROVIDED

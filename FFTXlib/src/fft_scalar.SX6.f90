@@ -51,6 +51,9 @@
 !     Up to "ndims" initializations (for different combinations of input
 !     parameters nz, nsl, ldz) are stored and re-used if available
 
+#if defined(_OPENMP)
+     USE omp_lib
+#endif
      INTEGER, INTENT(IN) :: isign
      INTEGER, INTENT(IN) :: nsl, nz, ldz
 
@@ -71,8 +74,6 @@
 
 #if defined(_OPENMP)
      INTEGER :: offset, ldz_t
-     INTEGER :: omp_get_max_threads
-     EXTERNAL :: omp_get_max_threads
 #endif
 
      !   NEC MathKeisan
@@ -170,6 +171,9 @@
 !     Up to "ndims" initializations (for different combinations of input
 !     parameters nx,ny,nzl,ldx) are stored and re-used if available
 
+#if defined(_OPENMP)
+     USE omp_lib
+#endif
      IMPLICIT NONE
 
      INTEGER, INTENT(IN) :: isign, ldx, ldy, nx, ny, nzl
@@ -186,8 +190,6 @@
      INTEGER :: offset
      INTEGER :: nx_t, ny_t, nzl_t, ldx_t, ldy_t
      INTEGER  :: itid, mytid, ntids
-     INTEGER  :: omp_get_thread_num, omp_get_num_threads,omp_get_max_threads
-     EXTERNAL :: omp_get_thread_num, omp_get_num_threads, omp_get_max_threads
 #endif
 
 
