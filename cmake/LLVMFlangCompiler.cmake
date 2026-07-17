@@ -1,3 +1,7 @@
+if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0)
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wno-incompatible-implicit-interfaces")
+endif()
+
 if(QE_ENABLE_OFFLOAD)
     set(OPENMP_OFFLOAD_COMPILE_OPTIONS "-fopenmp-version=50")
 
