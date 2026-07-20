@@ -523,7 +523,7 @@ subroutine ld1_readin( )
            iswtsc(ns1,1)= isws(ns)
            jjtsc (ns1,1)= jjs (ns)
            rcuttsc(ns1,1)= rcut(ns)
-           rcuttscus(ns1,1)= rcutus(ns)
+           rcutustsc(ns1,1)= rcutus(ns)
         end if
      end do
      !
