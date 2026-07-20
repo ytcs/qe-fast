@@ -522,6 +522,8 @@ subroutine ld1_readin( )
            octsc (ns1,1)= ocs (ns)
            iswtsc(ns1,1)= isws(ns)
            jjtsc (ns1,1)= jjs (ns)
+           rcuttsc(ns1,1)= rcut(ns)
+           rcuttscus(ns1,1)= rcutus(ns)
         end if
      end do
      !
