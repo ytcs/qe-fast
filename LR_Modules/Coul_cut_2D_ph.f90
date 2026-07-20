@@ -179,7 +179,8 @@ subroutine cutoff_dv_of_drho (dvaux, is, dvscf)
   !
   tpnnr= dfftp%nnr
   !
-  !$acc data present_or_copy(dvaux( 1:tpnnr,1:nspin_mag)) present_or_copyin(dvscf( 1:tpnnr,1:nspin_mag))
+  !$acc data present(g,dfftp,dfftp%nl) present_or_copy(dvaux) &
+  !$acc      present_or_copyin(dvscf,cutoff_2D_qg,xq)
   !
   !$acc parallel loop
   do ig = 1, ngm
