@@ -45,8 +45,9 @@ SUBROUTINE stop_run_path( lflag )
   CALL mp_global_end()
   !
   IF ( .not. lflag ) THEN
-     !
-     STOP 1
+     !! Next line: reminder that convergence is not achieved
+     WRITE(stdout,'("STOP 1")') 
+     STOP
      !
   END IF
   !
