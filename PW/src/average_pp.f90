@@ -110,6 +110,7 @@ SUBROUTINE average_pp( ntyp )
            ENDIF
            !
            upf(nt)%lchi(nb) = upf(nt)%lchi(nbe)
+           upf(nt)%els(nb)  = upf(nt)%els(nbe)
            !
         ENDDO
         !
