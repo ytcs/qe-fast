@@ -90,7 +90,7 @@ SUBROUTINE invfft_y( fft_kind, f, dfft, howmany )
      ELSE IF( fft_kind == 'Wave' ) THEN
         CALL tg_cft3s_2d(f,dfft, 2 )
      ELSE IF( fft_kind == 'tgWave' ) THEN
-        CALL fftx_error__( ' fwfft ', ' tgWave not implemented  ', 1 )
+        CALL fftx_error__( ' invfft ', ' tgWave not implemented  ', 1 )
      END IF
 
   ELSE
