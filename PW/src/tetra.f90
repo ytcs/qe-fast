@@ -770,9 +770,17 @@ SUBROUTINE tetra_weights_only( nks, nspin, is, isk, nbnd, nelec, et, ef, wg )
   !
   ! Each process in a "image" communicator has contributions from only a part 
   ! of tetrahedra (s_tetra - l_tetra). 
-  ! Contribution from full BZ is computed by combining them.
+  ! Contribution from the full BZ is computed by combining them.
+  ! Only actually computed weights are summed: if this routine is called first
+  ! for spin-up, then for spin-down, the first set of results is not spoiled
   !
-  call mp_sum(wg, intra_image_comm)
+  IF (is == 1) THEN
+     call mp_sum(wg(:,1:nks/2), intra_image_comm)
+  ELSE IF (is == 2) THEN
+     call mp_sum(wg(:,nks/2+1:nks), intra_image_comm)
+  ELSE
+     call mp_sum(wg, intra_image_comm)
+  END IF
   ! add correct spin normalization (2 for LDA, 1 for all other cases)
   IF ( nspin == 1 ) wg(:,1:nks) = wg(:,1:nks) * 2.d0
   !
@@ -1014,9 +1022,17 @@ SUBROUTINE opt_tetra_weights_only( nks, nspin, nbnd, et, ef, &
   !
   ! Each process in a "image" communicator has contributions from only a part 
   ! of tetrahedra (s_tetra - l_tetra). 
-  ! Contribution from full BZ is computed by combining them.
+  ! Contribution from the full BZ is computed by combining them.
+  ! Only actually computed weights are summed: if this routine is called first
+  ! for spin-up, then for spin-down, the first set of results is not spoiled
   !
-  call mp_sum(wg, intra_image_comm)
+  IF (is == 1) THEN
+     call mp_sum(wg(:,1:nks/2), intra_image_comm)
+  ELSE IF (is == 2) THEN
+     call mp_sum(wg(:,nks/2+1:nks), intra_image_comm)
+  ELSE
+     call mp_sum(wg, intra_image_comm)
+  ENDIF
   !
   ! Average weights of degenerated states
   !
