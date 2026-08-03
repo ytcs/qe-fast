@@ -114,9 +114,6 @@ program test_diagh_2
                                            max_residual, max_ortho )
        CALL test%assert_close( max_residual, 0.d0 )
        CALL test%assert_close( max_ortho, 0.d0 )
-       ! assert_close alone would accept a NaN, since NaN > tolerance is false
-       CALL test%assert_equal( max_residual < test%tolerance64, .true. )
-       CALL test%assert_equal( max_ortho < test%tolerance64, .true. )
     END IF
     !
   END SUBROUTINE complex_1
@@ -196,9 +193,6 @@ program test_diagh_2
                                            max_residual, max_ortho )
        CALL test%assert_close( max_residual, 0.d0 )
        CALL test%assert_close( max_ortho, 0.d0 )
-       ! assert_close alone would accept a NaN, since NaN > tolerance is false
-       CALL test%assert_equal( max_residual < test%tolerance64, .true. )
-       CALL test%assert_equal( max_ortho < test%tolerance64, .true. )
     END IF
     !
   END SUBROUTINE real_1

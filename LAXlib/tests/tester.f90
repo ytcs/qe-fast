@@ -700,6 +700,12 @@ contains
 
   end subroutine assert_positive_r64_1
 
+  ! The assert_close routines that follow test .not. (difference <= tolerance)
+  ! rather than (difference > tolerance): every comparison against a NaN is
+  ! false, so the latter form would report a NaN difference as a pass. The array
+  ! versions use .not. all(...) rather than .not. (maxval(...) <= tolerance)
+  ! because maxval skips NaN entries instead of propagating them.
+  !
   !> Check if two reals (32 bits) are close with respect a tolerance.
   subroutine assert_close_r32(this, r1, r2, fail)
     class(tester_t), intent(inout)        :: this !< The tester.
@@ -709,7 +715,7 @@ contains
 
     this% n_tests = this% n_tests + 1
 
-    if ( abs(r1-r2) > this% tolerance32 ) then
+    if ( .not. (abs(r1-r2) <= this% tolerance32) ) then
        if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
           this% n_errors = this% n_errors + 1
        end if
@@ -725,7 +731,7 @@ contains
     logical,          intent(in), optional :: fail !< Fail flag.
 
     this% n_tests = this% n_tests + 1
-    if ( abs(r1-r2) > this% tolerance64 ) then
+    if ( .not. (abs(r1-r2) <= this% tolerance64) ) then
        if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
           this% n_errors = this% n_errors + 1
        end if
@@ -747,7 +753,7 @@ contains
           this% n_errors = this% n_errors + 1
        end if
     else
-       if ( maxval(abs(r1-r2)) > this% tolerance32 ) then
+       if ( .not. all(abs(r1-r2) <= this% tolerance32) ) then
           if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
              this% n_errors = this% n_errors + 1
           end if
@@ -770,7 +776,7 @@ contains
           this% n_errors = this% n_errors + 1
        end if
     else
-       if ( maxval(abs(r1-r2)) > this% tolerance64 ) then
+       if ( .not. all(abs(r1-r2) <= this% tolerance64) ) then
           if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
              this% n_errors = this% n_errors + 1
           end if
@@ -788,7 +794,7 @@ contains
 
     this% n_tests = this% n_tests + 1
 
-    if ( abs(c1-c2) > this% tolerance32 ) then
+    if ( .not. (abs(c1-c2) <= this% tolerance32) ) then
        if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
           this% n_errors = this% n_errors + 1
        end if
@@ -797,15 +803,15 @@ contains
   end subroutine assert_close_c32
 
   !> Check if two complex numbers (64 bits) are close with respect a tolerance.
-  subroutine assert_close_c64(this, r1, c2, fail)
+  subroutine assert_close_c64(this, c1, c2, fail)
     class(tester_t),  intent(inout)        :: this !< The tester.
-    complex(real64),  intent(in)           :: r1   !< Value to compare.
+    complex(real64),  intent(in)           :: c1   !< Value to compare.
     complex(real64),  intent(in)           :: c2   !< Value to compare.
     logical,          intent(in), optional :: fail !< Fail flag.
 
     this% n_tests = this% n_tests + 1
 
-    if ( abs(r1-c2) > this% tolerance64 ) then
+    if ( .not. (abs(c1-c2) <= this% tolerance64) ) then
        if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
           this% n_errors = this% n_errors + 1
        end if
@@ -827,7 +833,7 @@ contains
           this% n_errors = this% n_errors + 1
        end if
     else
-       if ( maxval(abs(c1-c2)) > this% tolerance32 ) then
+       if ( .not. all(abs(c1-c2) <= this% tolerance32) ) then
           if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
              this% n_errors = this% n_errors + 1
           end if
@@ -850,7 +856,7 @@ contains
           this% n_errors = this% n_errors + 1
        end if
     else
-       if ( maxval(abs(c1-c2)) > this% tolerance64 ) then
+       if ( .not. all(abs(c1-c2) <= this% tolerance64) ) then
           if (.not. present(fail) .or. (present(fail) .and. fail .eqv. .false.)) then
              this% n_errors = this% n_errors + 1
           end if
