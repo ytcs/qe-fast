@@ -6,7 +6,8 @@ program test_diagh_2
                               root, world_comm
     USE mp_bands_util, ONLY : me_bgrp, root_bgrp, intra_bgrp_comm
     USE tester
-    USE test_helpers,  ONLY : hermitian, symmetric
+    USE test_helpers,  ONLY : hermitian, symmetric, &
+                              verify_generalized_eigenpairs
     IMPLICIT NONE
     include 'laxlib_kinds.fh'
     !
@@ -40,38 +41,44 @@ program test_diagh_2
     !
     TYPE(tester_t) :: test
     !
-    integer, parameter :: m_size=1024
-    complex(DP) :: h(m_size,m_size)
-    complex(DP) :: h_save(m_size,m_size)
-    real(DP)    :: e(m_size)
-    complex(DP) :: v(m_size,m_size)
-    real(DP)    :: e_save(m_size)
-    complex(DP) :: v_save(m_size,m_size)
+    integer, parameter :: n = 256
+    !! size of the matrix. Must stay above the LAPACK tridiagonalization block
+    !! size, or the m < n path below never reaches the blocked
+    !! back-transformation of the eigenvectors. A few hundred is enough and
+    !! keeps the test a few seconds.
+    integer, parameter :: m = n/2
+    !! number of eigenvalues and eigenvectors to be computed, must be <= n
+    complex(DP) :: h(n,n)
+    complex(DP) :: h_save(n,n)
+    real(DP)    :: e(n)
+    complex(DP) :: v(n,n)
+    real(DP)    :: e_save(n)
+    complex(DP) :: s(n,n)
+    real(DP)    :: max_residual, max_ortho
     integer :: j
     !
-    CALL hermitian(m_size, h)
+    CALL hermitian(n, h)
     !
     h_save = h
     !
     v = (0.d0, 0.d0)
     e = 0.d0
     !
-    CALL diagh(  m_size, m_size, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
+    CALL diagh(  n, n, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
     !
-    DO j = 1, m_size
-       CALL test%assert_close( h(1:m_size, j), h_save(1:m_size, j))
+    DO j = 1, n
+       CALL test%assert_close( h(1:n, j), h_save(1:n, j))
     END DO
     !
     e_save = e
-    v_save = v
     !
     ! Test that calling again gives the same results
     v = (0.d0, 0.d0)
     e = 0.d0
-    CALL diagh(  m_size, m_size, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
+    CALL diagh(  n, n, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
     !
-    DO j = 1, m_size
-       CALL test%assert_close( h(1:m_size, j), h_save(1:m_size, j))
+    DO j = 1, n
+       CALL test%assert_close( h(1:n, j), h_save(1:n, j))
     END DO
     !
     test%tolerance32=1.e-5
@@ -81,13 +88,36 @@ program test_diagh_2
     ! Test subset of eigenvalues
     v = (0.d0, 0.d0)
     e = 0.d0
-    CALL diagh(  m_size, m_size/2, h, e, v(:,1:m_size/2), me_bgrp, root_bgrp, intra_bgrp_comm )
+    CALL diagh(  n, m, h, e, v(:,1:m), me_bgrp, root_bgrp, intra_bgrp_comm )
+    !
+    DO j = 1, n
+       CALL test%assert_close( h(1:n, j), h_save(1:n, j))
+    END DO
     !
     test%tolerance32=1.e-5
     ! Use a looser tolerance for subset eigenvalues since ZHEEVD and ZHEEVX
     ! use different algorithms and may produce slightly different results
     test%tolerance64=1.d-12
-    CALL test%assert_close( e(1:m_size/2), e_save(1:m_size/2))
+    CALL test%assert_close( e(1:m), e_save(1:m))
+    !
+    ! Check eigenvectors. s = identity reduces verify_generalized_eigenpairs
+    ! to the standard problem H v = e v.
+    !
+    s = (0.d0, 0.d0)
+    DO j = 1, n
+       s(j,j) = (1.d0, 0.d0)
+    END DO
+    !
+    test%tolerance64=1.d-10
+    IF (me_bgrp == root_bgrp) THEN
+       CALL verify_generalized_eigenpairs( n, m, h_save, s, n, e, v, &
+                                           max_residual, max_ortho )
+       CALL test%assert_close( max_residual, 0.d0 )
+       CALL test%assert_close( max_ortho, 0.d0 )
+       ! assert_close alone would accept a NaN, since NaN > tolerance is false
+       CALL test%assert_equal( max_residual < test%tolerance64, .true. )
+       CALL test%assert_equal( max_ortho < test%tolerance64, .true. )
+    END IF
     !
   END SUBROUTINE complex_1
   !
@@ -97,43 +127,79 @@ program test_diagh_2
     !
     TYPE(tester_t) :: test
     !
-    integer, parameter :: m_size=1024
-    real(DP) :: h(m_size,m_size)
-    real(DP) :: h_save(m_size,m_size)
-    real(DP) :: e(m_size)
-    real(DP) :: v(m_size,m_size)
-    real(DP) :: e_save(m_size)
-    real(DP) :: v_save(m_size,m_size)
+    integer, parameter :: n = 256
+    !! size of the matrix; see the note in complex_1
+    integer, parameter :: m = n/2
+    !! number of eigenvalues and eigenvectors to be computed, must be <= n
+    real(DP) :: h(n,n)
+    real(DP) :: h_save(n,n)
+    real(DP) :: e(n)
+    real(DP) :: v(n,n)
+    real(DP) :: e_save(n)
+    real(DP) :: s(n,n)
+    real(DP) :: max_residual, max_ortho
     integer :: j
     !
-    CALL symmetric(m_size, h)
+    CALL symmetric(n, h)
     !
     h_save = h
     !
     v = 0.d0
     e = 0.d0
     !
-    CALL diagh(  m_size, m_size, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
+    CALL diagh(  n, n, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
     !
-    DO j = 1, m_size
-       CALL test%assert_close( h(1:m_size, j), h_save(1:m_size, j))
+    DO j = 1, n
+       CALL test%assert_close( h(1:n, j), h_save(1:n, j))
     END DO
     !
     e_save = e
-    v_save = v
     !
     ! Test that calling again gives the same results
     v = 0.d0
     e = 0.d0
-    CALL diagh(  m_size, m_size, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
+    CALL diagh(  n, n, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
     !
-    DO j = 1, m_size
-       CALL test%assert_close( h(1:m_size, j), h_save(1:m_size, j))
+    DO j = 1, n
+       CALL test%assert_close( h(1:n, j), h_save(1:n, j))
     END DO
     !
     test%tolerance32=1.e-5
     test%tolerance64=1.d-14
     CALL test%assert_close( e, e_save)
+    !
+    ! Test subset of eigenvalues
+    v = 0.d0
+    e = 0.d0
+    CALL diagh(  n, m, h, e, v(:,1:m), me_bgrp, root_bgrp, intra_bgrp_comm )
+    !
+    DO j = 1, n
+       CALL test%assert_close( h(1:n, j), h_save(1:n, j))
+    END DO
+    !
+    test%tolerance32=1.e-5
+    ! Use a looser tolerance for subset eigenvalues since DSYEVD and DSYEVX
+    ! use different algorithms and may produce slightly different results
+    test%tolerance64=1.d-12
+    CALL test%assert_close( e(1:m), e_save(1:m))
+    !
+    ! Check eigenvectors; see complex_1
+    !
+    s = 0.d0
+    DO j = 1, n
+       s(j,j) = 1.d0
+    END DO
+    !
+    test%tolerance64=1.d-10
+    IF (me_bgrp == root_bgrp) THEN
+       CALL verify_generalized_eigenpairs( n, m, h_save, s, n, e, v, &
+                                           max_residual, max_ortho )
+       CALL test%assert_close( max_residual, 0.d0 )
+       CALL test%assert_close( max_ortho, 0.d0 )
+       ! assert_close alone would accept a NaN, since NaN > tolerance is false
+       CALL test%assert_equal( max_residual < test%tolerance64, .true. )
+       CALL test%assert_equal( max_ortho < test%tolerance64, .true. )
+    END IF
     !
   END SUBROUTINE real_1
   !

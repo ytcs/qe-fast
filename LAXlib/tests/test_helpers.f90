@@ -88,24 +88,30 @@ SUBROUTINE solve_with_dsygvd(n, v, s, ldh, e)
 END SUBROUTINE solve_with_dsygvd
 !
 !----------------------------------------------------------------------------
-SUBROUTINE verify_generalized_eigenpairs_real(n, m, h, s, ldh, e, v, max_residual)
+SUBROUTINE verify_generalized_eigenpairs_real(n, m, h, s, ldh, e, v, max_residual, &
+                                              max_ortho)
 !----------------------------------------------------------------------------
 ! Verify H*v = e*S*v for real symmetric generalized eigenvalue problem
 ! Returns maximum normalized residual: max_i ||H*v_i - e_i*S*v_i|| / (|e_i| * ||S*v_i||)
+! Also returns max_ij |<v_i|S|v_j> - delta_ij|, the deviation from the
+! S-orthonormality that DSYGVD imposes on the eigenvectors. A correct
+! eigenvalue never implies a correct eigenvector, so this is an independent
+! check; for the standard problem pass s = identity.
   IMPLICIT NONE
   include 'laxlib_kinds.fh'
 
   INTEGER, INTENT(IN) :: n, m, ldh
   REAL(DP), INTENT(IN) :: h(ldh,n), s(ldh,n), e(m), v(ldh,m)
-  REAL(DP), INTENT(OUT) :: max_residual
+  REAL(DP), INTENT(OUT) :: max_residual, max_ortho
 
-  REAL(DP), ALLOCATABLE :: hv(:), sv(:)
+  REAL(DP), ALLOCATABLE :: hv(:), sv(:), ovl(:)
   REAL(DP) :: svnorm, residual
   REAL(DP), EXTERNAL :: DNRM2
-  INTEGER :: i
+  INTEGER :: i, j
 
-  ALLOCATE(hv(n), sv(n))
+  ALLOCATE(hv(n), sv(n), ovl(m))
   max_residual = 0.0_DP
+  max_ortho = 0.0_DP
 
   DO i = 1, m
     ! Compute H*v_i using BLAS-2 symmetric matrix-vector product
@@ -122,32 +128,45 @@ SUBROUTINE verify_generalized_eigenpairs_real(n, m, h, s, ldh, e, v, max_residua
     residual = DNRM2(n, hv, 1) / (ABS(e(i)) * svnorm)
 
     max_residual = MAX(max_residual, residual)
+
+    ! Column i of the overlap matrix: ovl(j) = <v_j|S|v_i>
+    CALL DGEMV('T', n, m, 1.0_DP, v, ldh, sv, 1, 0.0_DP, ovl, 1)
+    ovl(i) = ovl(i) - 1.0_DP
+    DO j = 1, m
+      max_ortho = MAX(max_ortho, ABS(ovl(j)))
+    END DO
   END DO
 
-  DEALLOCATE(hv, sv)
+  DEALLOCATE(hv, sv, ovl)
 END SUBROUTINE verify_generalized_eigenpairs_real
 
 !----------------------------------------------------------------------------
-SUBROUTINE verify_generalized_eigenpairs_complex(n, m, h, s, ldh, e, v, max_residual)
+SUBROUTINE verify_generalized_eigenpairs_complex(n, m, h, s, ldh, e, v, max_residual, &
+                                                 max_ortho)
 !----------------------------------------------------------------------------
 ! Verify H*v = e*S*v for complex Hermitian generalized eigenvalue problem
 ! Returns maximum normalized residual: max_i ||H*v_i - e_i*S*v_i|| / (|e_i| * ||S*v_i||)
+! Also returns max_ij |<v_i|S|v_j> - delta_ij|, the deviation from the
+! S-orthonormality that ZHEGVD imposes on the eigenvectors. A correct
+! eigenvalue never implies a correct eigenvector, so this is an independent
+! check; for the standard problem pass s = identity.
   IMPLICIT NONE
   include 'laxlib_kinds.fh'
 
   INTEGER, INTENT(IN) :: n, m, ldh
   COMPLEX(DP), INTENT(IN) :: h(ldh,n), s(ldh,n), v(ldh,m)
   REAL(DP), INTENT(IN) :: e(m)
-  REAL(DP), INTENT(OUT) :: max_residual
+  REAL(DP), INTENT(OUT) :: max_residual, max_ortho
 
-  COMPLEX(DP), ALLOCATABLE :: hv(:), sv(:)
+  COMPLEX(DP), ALLOCATABLE :: hv(:), sv(:), ovl(:)
   COMPLEX(DP), PARAMETER :: one = (1.0_DP, 0.0_DP), zero = (0.0_DP, 0.0_DP)
   REAL(DP) :: svnorm, residual
   REAL(DP), EXTERNAL :: DZNRM2
-  INTEGER :: i
+  INTEGER :: i, j
 
-  ALLOCATE(hv(n), sv(n))
+  ALLOCATE(hv(n), sv(n), ovl(m))
   max_residual = 0.0_DP
+  max_ortho = 0.0_DP
 
   DO i = 1, m
     ! Compute H*v_i using BLAS-2 Hermitian matrix-vector product
@@ -164,9 +183,16 @@ SUBROUTINE verify_generalized_eigenpairs_complex(n, m, h, s, ldh, e, v, max_resi
     residual = DZNRM2(n, hv, 1) / (ABS(e(i)) * svnorm)
 
     max_residual = MAX(max_residual, residual)
+
+    ! Column i of the overlap matrix: ovl(j) = <v_j|S|v_i>
+    CALL ZGEMV('C', n, m, one, v, ldh, sv, 1, zero, ovl, 1)
+    ovl(i) = ovl(i) - one
+    DO j = 1, m
+      max_ortho = MAX(max_ortho, ABS(ovl(j)))
+    END DO
   END DO
 
-  DEALLOCATE(hv, sv)
+  DEALLOCATE(hv, sv, ovl)
 END SUBROUTINE verify_generalized_eigenpairs_complex
 
 !----------------------------------------------------------------------------

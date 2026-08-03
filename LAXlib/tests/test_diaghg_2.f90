@@ -47,7 +47,7 @@ program test_diaghg_2
     complex(DP) :: v(m_size,m_size)
     real(DP)    :: e_save(m_size)
     complex(DP) :: v_save(m_size,m_size)
-    real(DP)    :: max_residual
+    real(DP)    :: max_residual, max_ortho
     integer :: j
     !
     CALL hermitian(m_size, h)
@@ -82,11 +82,13 @@ program test_diaghg_2
     test%tolerance64=1.d-14
     CALL test%assert_close( e, e_save)
     !
-    ! Verify eigenvectors satisfy H*v = e*S*v
+    ! Verify eigenvectors satisfy H*v = e*S*v and <v_i|S|v_j> = delta_ij
+    test%tolerance64=1.d-13
     IF (me_bgrp == root_bgrp) THEN
       CALL verify_generalized_eigenpairs(m_size, m_size, h_save, s_save, &
-                                        m_size, e, v, max_residual)
+                                        m_size, e, v, max_residual, max_ortho)
       CALL test%assert_close( max_residual, 0.d0 )
+      CALL test%assert_close( max_ortho, 0.d0 )
     END IF
     !
   END SUBROUTINE complex_1
