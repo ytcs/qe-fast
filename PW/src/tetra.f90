@@ -774,9 +774,9 @@ SUBROUTINE tetra_weights_only( nks, nspin, is, isk, nbnd, nelec, et, ef, wg )
   ! Only actually computed weights are summed: if this routine is called first
   ! for spin-up, then for spin-down, the first set of results is not spoiled
   !
-  IF (is == 1) THEN
+  IF ( nspin == 2 .AND. is == 1) THEN
      call mp_sum(wg(:,1:nks/2), intra_image_comm)
-  ELSE IF (is == 2) THEN
+  ELSE IF ( nspin == 2 .AND. is == 2) THEN
      call mp_sum(wg(:,nks/2+1:nks), intra_image_comm)
   ELSE
      call mp_sum(wg, intra_image_comm)
@@ -1026,9 +1026,9 @@ SUBROUTINE opt_tetra_weights_only( nks, nspin, nbnd, et, ef, &
   ! Only actually computed weights are summed: if this routine is called first
   ! for spin-up, then for spin-down, the first set of results is not spoiled
   !
-  IF (is == 1) THEN
+  IF ( nspin == 2 .AND. is == 1) THEN
      call mp_sum(wg(:,1:nks/2), intra_image_comm)
-  ELSE IF (is == 2) THEN
+  ELSE IF (nspin == 2 .AND. is == 2) THEN
      call mp_sum(wg(:,nks/2+1:nks), intra_image_comm)
   ELSE
      call mp_sum(wg, intra_image_comm)
