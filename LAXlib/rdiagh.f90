@@ -44,7 +44,7 @@ SUBROUTINE laxlib_rdiagh( n, m, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
     ! mm = number of calculated eigenvectors
   REAL(DP)              :: abstol
   INTEGER,  ALLOCATABLE :: iwork(:), ifail(:)
-  REAL(DP), ALLOCATABLE :: work(:), v_temp(:,:)
+  REAL(DP), ALLOCATABLE :: work(:), h_copy(:,:)
   LOGICAL               :: all_eigenvalues
   INTEGER,  EXTERNAL    :: ILAENV
     ! ILAENV returns optimal block size "nb"
@@ -56,10 +56,6 @@ SUBROUTINE laxlib_rdiagh( n, m, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
   IF ( me_bgrp == root_bgrp ) THEN
      !
      all_eigenvalues = ( m == n )
-     !
-     ! ... allocate workspace for all eigenvectors
-     !
-     ALLOCATE( v_temp(n,n) )
      !
      IF ( all_eigenvalues ) THEN
         !
@@ -82,15 +78,16 @@ SUBROUTINE laxlib_rdiagh( n, m, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
         ALLOCATE( work( lwork ) )
         ALLOCATE( iwork( 3 + 5*n ) )
         !
-        ! ... copy H to v_temp (will be overwritten with eigenvectors)
+        ! ... DSYEVD returns the eigenvectors in place of its input matrix,
+        ! ... so it is handed a copy of H in the output array v (m = n here)
         !
         !$omp parallel do
         DO i = 1, n
-           v_temp(1:n,i) = h(1:n,i)
+           v(1:n,i) = h(1:n,i)
         END DO
         !$omp end parallel do
         !
-        CALL DSYEVD( 'V', 'U', n, v_temp, n, e, work, lwork, &
+        CALL DSYEVD( 'V', 'U', n, v, n, e, work, lwork, &
                      iwork, SIZE(iwork), info )
         !
         DEALLOCATE( iwork )
@@ -115,32 +112,31 @@ SUBROUTINE laxlib_rdiagh( n, m, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
         !
         abstol = 0.D0
         !
-        ! ... copy H to v_temp (will be overwritten)
+        ! ... DSYEVX destroys the matrix it is given, so it is handed a copy of
+        ! ... H. The eigenvector array v must stay distinct from that copy:
+        ! ... DSYEVX back-transforms the eigenvectors with the Householder
+        ! ... vectors DSYTRD leaves in its input, so letting the two overlap
+        ! ... silently corrupts the eigenvectors while info stays 0 and the
+        ! ... eigenvalues remain correct.
+        !
+        ALLOCATE( h_copy(n,n) )
         !
         !$omp parallel do
         DO i = 1, n
-           v_temp(1:n,i) = h(1:n,i)
+           h_copy(1:n,i) = h(1:n,i)
         END DO
         !$omp end parallel do
         !
-        CALL DSYEVX( 'V', 'I', 'U', n, v_temp, n, &
-                     0.D0, 0.D0, 1, m, abstol, mm, e, v_temp, n, &
+        CALL DSYEVX( 'V', 'I', 'U', n, h_copy, n, &
+                     0.D0, 0.D0, 1, m, abstol, mm, e, v, n, &
                      work, lwork, iwork, ifail, info )
         !
+        DEALLOCATE( h_copy )
         DEALLOCATE( ifail )
         DEALLOCATE( iwork )
         !
      END IF
      !
-     ! ... copy first m eigenvectors to output
-     !
-     !$omp parallel do
-     DO i = 1, m
-        v(1:n,i) = v_temp(1:n,i)
-     END DO
-     !$omp end parallel do
-     !
-     DEALLOCATE( v_temp )
      DEALLOCATE( work )
      !
      IF ( info > 0 ) THEN
@@ -149,7 +145,7 @@ SUBROUTINE laxlib_rdiagh( n, m, h, e, v, me_bgrp, root_bgrp, intra_bgrp_comm )
         CALL lax_error__( 'rdiagh', 'incorrect call to DSYEV*', ABS( info ) )
      END IF
      !
-     ! Note: H matrix is preserved (we diagonalized v_temp, not h)
+     ! Note: h is never passed to LAPACK, so the input matrix is preserved
      !
   END IF
   !
