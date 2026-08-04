@@ -36,7 +36,7 @@ Functions:
 
 #include <stdio.h>
 #include <stdlib.h>
-#if !defined(__WIN32)
+#if !defined(_WIN32)
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
