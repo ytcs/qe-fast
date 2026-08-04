@@ -46,9 +46,7 @@ SUBROUTINE d_matrix_nc (dy012, dy112, dy212, dy312)
   REAL(DP) :: yl1 (3, 3), yl2(5, 5), yl3(7,7), yl1_inv (3, 3), &
                    yl2_inv(5, 5),  yl3_inv(7, 7), &
                    dy1 (3, 3, 48), dy2 (5, 5, 48), dy3 (7, 7, 48)
-  COMPLEX(DP) :: dy012_con(2,2), dy112_con(6,6), dy212_con(10,10), &
-                      dy312_con(14,14), s_spin(2,2), delta(14,14)
-  COMPLEX(DP), EXTERNAL :: ZDOTU
+  COMPLEX(DP) :: s_spin(2,2), delta(14,14)
   !
   !  randomly distributed points on a sphere
   !
@@ -185,11 +183,10 @@ SUBROUTINE d_matrix_nc (dy012, dy112, dy212, dy312)
      !  l = 0 block
      !
      capel = 0.d0
-     dy012_con(:,:) = conjg( dy012(:,:,isym) )
      DO m = 1, 2
         DO n = 1, 2
            capel = capel +  &
-           abs(ZDOTU(2,dy012_con(1,m),1,dy012(1,n,isym),1)-delta(m,n))**2
+           abs(DOT_PRODUCT(dy012(:,m,isym),dy012(:,n,isym))-delta(m,n))**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_nc', &
@@ -198,11 +195,10 @@ SUBROUTINE d_matrix_nc (dy012, dy112, dy212, dy312)
      !  l = 1 block
      !
      capel = 0.d0
-     dy112_con(:,:) = conjg( dy112(:,:,isym) )
      DO m = 1, 6
         DO n = 1, 6
            capel = capel +  &
-           abs(ZDOTU(6, dy112_con(1,m), 1, dy112(1,n,isym), 1)-delta(m,n))**2
+           abs(DOT_PRODUCT(dy112(:,m,isym), dy112(:,n,isym))-delta(m,n))**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_nc', &
@@ -211,11 +207,10 @@ SUBROUTINE d_matrix_nc (dy012, dy112, dy212, dy312)
      !  l = 2 block
      !
      capel = 0.d0
-     dy212_con(:,:)=conjg(dy212(:,:,isym))
      DO m = 1, 10
         DO n = 1, 10
            capel = capel +  &
-           abs(ZDOTU(10, dy212_con(1,m), 1, dy212(1,n,isym), 1)-delta(m,n))**2
+           abs(DOT_PRODUCT(dy212(:,m,isym), dy212(:,n,isym))-delta(m,n))**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_nc', &
@@ -224,11 +219,10 @@ SUBROUTINE d_matrix_nc (dy012, dy112, dy212, dy312)
      !  l = 3 block
      !
      capel = 0.d0
-     dy312_con(:,:)=conjg(dy312(:,:,isym))
      DO m = 1, 14
         DO n = 1, 14
            capel = capel +  &
-           abs(ZDOTU(14, dy312_con(1,m), 1, dy312(1,n,isym), 1)-delta(m,n))**2
+           abs(DOT_PRODUCT(dy312(:,m,isym), dy312(:,n,isym))-delta(m,n))**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_nc', &

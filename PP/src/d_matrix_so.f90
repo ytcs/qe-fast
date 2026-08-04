@@ -53,14 +53,12 @@ SUBROUTINE d_matrix_so (dyj12, dyj32, dyj52, dyj72)
   COMPLEX(DP) :: dy1 (3, 3, 48), dy2 (5, 5, 48), &
                       dy3 (7, 7, 48), dy112 (6, 6, 48), &
                       dy212 (10, 10, 48), dy312 (14, 14, 48), &
-                      d12_con(2,2), d32_con(4,4), d52_con(6,6), d72_con(8,8), &
                       s_spin(2,2), delta(8,8)
   COMPLEX(DP) :: ylm_compl(maxm, maxlm), ylms_compl(maxm, maxlm), &
                       yl1 (3, 3), yl2(5, 5), yl3(7,7), &
                       yl1_inv (3, 3), yl2_inv(5, 5),  yl3_inv(7, 7),  &
                       Ul1C(6,6), Ul1C_inv(6,6), Ul3C(14,14), Ul3C_inv(14,14)
   REAL(DP), EXTERNAL :: spinor
-  COMPLEX(DP), EXTERNAL :: ZDOTU
   !
   ! Transformation matrices from the | l m s s_z > basis to the
   ! | j mj l s > basis in the l-subspace
@@ -274,11 +272,10 @@ SUBROUTINE d_matrix_so (dyj12, dyj32, dyj52, dyj72)
      !  j = 1/2 block
      !
      capel = 0.d0
-     d12_con(:,:) = conjg(dyj12 (:,:,isym))
      DO m = 1, 2
         DO n = 1, 2
            capel = capel +  &
-           abs( ZDOTU(2, d12_con(1,m), 1, dyj12(1,n,isym), 1) - delta(m,n) )**2
+           abs( DOT_PRODUCT(dyj12(:,m,isym), dyj12(:,n,isym)) - delta(m,n) )**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_so', &
@@ -287,11 +284,10 @@ SUBROUTINE d_matrix_so (dyj12, dyj32, dyj52, dyj72)
      !  j = 3/2 block
      !
      capel = 0.d0
-     d32_con(:,:) = conjg(dyj32 (:,:,isym))
      DO m = 1, 4
         DO n = 1, 4
            capel = capel +  &
-           abs( ZDOTU(4, d32_con(1,m), 1, dyj32(1,n,isym), 1) - delta(m,n) )**2
+           abs( DOT_PRODUCT(dyj32(:,m,isym), dyj32(:,n,isym)) - delta(m,n) )**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_so', &
@@ -300,11 +296,10 @@ SUBROUTINE d_matrix_so (dyj12, dyj32, dyj52, dyj72)
      !  j = 5/2 block
      !
      capel = 0.d0
-     d52_con(:,:) = conjg(dyj52 (:,:,isym))
      DO m = 1, 6
         DO n = 1, 6
            capel = capel +  &
-           abs( ZDOTU(6, d52_con(1,m), 1, dyj52(1,n,isym), 1) - delta(m,n) )**2
+           abs( DOT_PRODUCT(dyj52(:,m,isym), dyj52(:,n,isym)) - delta(m,n) )**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_so', &
@@ -313,11 +308,10 @@ SUBROUTINE d_matrix_so (dyj12, dyj32, dyj52, dyj72)
      !  j = 7/2 block
      !
      capel = 0.d0
-     d72_con(:,:) = conjg(dyj72 (:,:,isym))
      DO m = 1, 8
         DO n = 1, 8
            capel = capel +  &
-           abs( ZDOTU(8, d72_con(1,m), 1, dyj72(1,n,isym), 1) - delta(m,n) )**2
+           abs( DOT_PRODUCT(dyj72(:,m,isym), dyj72(:,n,isym)) - delta(m,n) )**2
         ENDDO
      ENDDO
      IF (capel>eps) CALL errore ('d_matrix_so', &
