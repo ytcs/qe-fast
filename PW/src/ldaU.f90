@@ -323,6 +323,8 @@ CONTAINS
        ENDDO !nt
        !
        IF (orbital_resolved) THEN
+          IF ( ALLOCATED(lambda_ns) ) DEALLOCATE(lambda_ns)
+          IF ( ALLOCATED(eigenvecs_ref) ) DEALLOCATE(eigenvecs_ref)
           IF (noncolin) THEN
              ! need to store eigenvectors and eigenvalues in a 2*ldim array
              ! retain extra-spin dimension for compatibility

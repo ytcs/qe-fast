@@ -910,7 +910,7 @@ SUBROUTINE setup_exx ( )
   IMPLICIT NONE
   !
   CALL mp_start_exx ( nband_, ntg_, intra_pool_comm )
-  CALL exx_grid_init()
+  CALL exx_grid_init( reinit=.true. )
   CALL exx_mp_init()
   CALL exx_div_check()
   !
