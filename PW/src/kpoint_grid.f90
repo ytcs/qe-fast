@@ -260,6 +260,7 @@ SUBROUTINE kpoint_grid_efield( at, bg, npk, k1,k2,k3, nk1,nk2,nk3, &
 !allocate and set up correspondence
   nppstr_max=nk1*nk2*nk3
 
+  IF (ALLOCATED(nx_el)) DEALLOCATE(nx_el)
   IF(noncolin) THEN
      ALLOCATE(nx_el(nppstr_max,3))
   ELSE
