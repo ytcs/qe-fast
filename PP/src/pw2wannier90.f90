@@ -4032,7 +4032,7 @@ SUBROUTINE compute_mmn_ibz
                        + D(l_i)%d(m_i,m_o, isym0) * tau_fact*becp1%k(ikb, :)
                   ELSE
                      becp2%k(okb, :) = becp2%k(okb, :) &
-                       + D(l_i)%d(m_i,m_o, isym0) * tau_fact*becp1%k(ikb, :)
+                       + D(l_i)%d(m_i,m_o, isym0) * tau_fact*CONJG(becp1%k(ikb, :))
                   ENDIF
                END IF
             ENDDO ! m_o
