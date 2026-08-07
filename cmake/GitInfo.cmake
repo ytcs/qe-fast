@@ -40,10 +40,16 @@ else(SED_ERROR MATCHES ".*invalid.*")
     message("   sed supports -E")
 endif(SED_ERROR MATCHES ".*invalid.*")
 
+find_program(SH_EXECUTABLE sh)
+if(NOT SH_EXECUTABLE)
+    message(FATAL_ERROR "A POSIX shell (sh) is needed to extract the git revision information "
+                        "but was not found. On Windows it is provided by MSYS2.")
+endif()
+
 configure_file(${CMAKE_CURRENT_LIST_DIR}/GitInfo.sh.in ${qe_BINARY_DIR}/GitInfo.sh)
 
 add_custom_target(gitrev
-  COMMAND sh ${qe_BINARY_DIR}/GitInfo.sh
+  COMMAND ${SH_EXECUTABLE} ${qe_BINARY_DIR}/GitInfo.sh
   WORKING_DIRECTORY ${qe_SOURCE_DIR}
   VERBATIM)
 
