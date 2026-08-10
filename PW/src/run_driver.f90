@@ -477,6 +477,12 @@ CONTAINS
     USE fft_base,   ONLY : dfftp
     USE fft_base,   ONLY : dffts
     USE xc_lib,     ONLY : xclib_dft_is
+    USE atwfc_mod,  ONLY : scale_tab_atwfc
+    USE beta_mod,   ONLY : scale_tab_beta
+    USE qrad_mod,   ONLY : scale_tab_qrad
+    USE rhoat_mod,  ONLY : scale_tab_rhoat
+    USE rhoc_mod,   ONLY : scale_tab_rhc
+    USE vloc_mod,   ONLY : scale_tab_vloc
     !
     ! ... get magnetic moments from previous run before charge is deleted
     !
@@ -492,6 +498,32 @@ CONTAINS
     !
     dfftp%nr1=0; dfftp%nr2=0; dfftp%nr3=0
     dffts%nr1=0; dffts%nr2=0; dffts%nr3=0
+    !
+    ! ... rescale the radial interpolation tables for the new cell volume.
+    ! ... The tables in upflib/{atwfc,beta,qrad,rhoat,rhoc,vloc}_mod.f90 all carry
+    ! ... a 1/omega factor, but init_tab_*() does not recompute a table that is
+    ! ... already allocated with a sufficient q range (it returns ierr=-2), and
+    ! ... clean_pw() above frees only the atwfc one. Without the rescaling below
+    ! ... the tables therefore survive a cell change still carrying the scaling of
+    ! ... the previous cell, giving a wrong local potential, wrong beta functions
+    ! ... and a wrong core charge: a wrong energy and an inconsistent Hamiltonian,
+    ! ... which can also make cdiaghg() fail. Only the 1/omega prefactor depends
+    ! ... on the cell, so rescaling is exact.
+    ! ... This has to happen before init_run(): if init_tab_*() does decide to
+    ! ... re-allocate a table, it recomputes it at the current omega and overwrites
+    ! ... what we do here, which is equally correct. Note that not every
+    ! ... scale_tab_* checks ALLOCATED, so the tables must already exist here;
+    ! ... they do, because the driver protocol sends INIT before POSDATA and
+    ! ... driver_init() has therefore already run init_run().
+    !
+    IF ( omega_old > 0.0d0 .AND. omega > 0.0d0 ) THEN
+       CALL scale_tab_atwfc( omega_old / omega )
+       CALL scale_tab_beta ( omega_old / omega )
+       CALL scale_tab_qrad ( omega_old / omega )
+       CALL scale_tab_rhoat( omega_old / omega )
+       CALL scale_tab_rhc  ( omega_old / omega )
+       CALL scale_tab_vloc ( omega_old / omega )
+    END IF
     !
     CALL init_run()
     !
