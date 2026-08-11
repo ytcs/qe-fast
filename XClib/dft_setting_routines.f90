@@ -968,7 +968,7 @@ CONTAINS
     finite_size_cell_volume = -1._DP
     rho_threshold_lda = 1.E-10_DP
     rho_threshold_gga = 1.E-6_DP   ; grho_threshold_gga = 1.E-10_DP
-    rho_threshold_mgga = 1.E-12_DP ; grho2_threshold_mgga = 1.E-24_DP
+    rho_threshold_mgga = 1.E-10_DP ; grho2_threshold_mgga = 1.E-10_DP
     tau_threshold_mgga = 1.0E-12_DP
     islda = .FALSE. ; isgradient  = .FALSE.
     has_finite_size_correction = .FALSE.

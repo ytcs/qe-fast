@@ -95,9 +95,9 @@ MODULE dft_setting_params
     !! MGGA exchange index
     INTEGER  :: imetac = notset
     !! MGGA correlation index
-    REAL(DP) :: rho_threshold_mgga = 1.E-12_DP
+    REAL(DP) :: rho_threshold_mgga = 1.E-10_DP
     !! Threshold value for the density in MGGA
-    REAL(DP) :: grho2_threshold_mgga = 1.E-24_DP
+    REAL(DP) :: grho2_threshold_mgga = 1.E-10_DP
     !! Threshold value for the density gradient (square modulus) in MGGA
     REAL(DP) :: tau_threshold_mgga = 1.0E-12_DP
     !! Threshold value for the density laplacian in MGGA
