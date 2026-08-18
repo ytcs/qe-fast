@@ -164,7 +164,7 @@ subroutine dynmatrix_new(iq_)
   !
   !   Rotates and writes on iudyn the dynamical matrices of the star of q
   !
-  call q2qstar_ph (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
+  call q2qstar_ph (dyn, at, bg, nat, nsym, s, invs, t_rev, irt, rtau, &
        nq, sxq, isq, imq, iudyn)
 
   !

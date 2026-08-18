@@ -6,7 +6,7 @@
 ! or http://www.gnu.org/copyleft/gpl.txt .
 !
 !-----------------------------------------------------------------------
-subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, irt, &
+subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, t_rev, irt, &
      rtau, sxq)
   !-----------------------------------------------------------------------
   !! Rotates a dynamical matrix (\(\text{phi}\)) in crystal coordinates
@@ -25,6 +25,8 @@ subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, irt, &
   !! the symmetry operations
   integer :: invs(48)
   !! index of the inverse operations
+  integer :: t_rev(48)
+  !! 1 for operations with time-reversal, 0 otherwise
   integer :: irt(48,nat)
   !! index of the rotated atom
 
@@ -64,8 +66,13 @@ subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, irt, &
               work = CMPLX(0.d0, 0.d0,kind=DP)
               do k = 1, 3
                  do l = 1, 3
-                    work = work + s (i, k, ism1) * s (j, l, ism1) * phi (k, l, na, nb) &
-                         * phase
+                    if (t_rev(isym) == 1) then
+                       work = work + s (i, k, ism1) * s (j, l, ism1) * conjg(phi (k, l, na, nb)) &
+                            * phase
+                    else
+                       work = work + s (i, k, ism1) * s (j, l, ism1) * phi (k, l, na, nb) &
+                            * phase
+                    endif
                  enddo
               enddo
               phi2 (i, j, sna, snb) = phi2 (i, j, sna, snb) + work

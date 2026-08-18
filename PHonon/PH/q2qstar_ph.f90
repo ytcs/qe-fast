@@ -6,7 +6,7 @@
 ! or http://www.gnu.org/copyleft/gpl.txt .
 !
 !-----------------------------------------------------------------------
-subroutine q2qstar_ph (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
+subroutine q2qstar_ph (dyn, at, bg, nat, nsym, s, invs, t_rev, irt, rtau, &
      nq, sxq, isq, imq, iudyn)
   !-----------------------------------------------------------------------
   !! Generates the dynamical matrices for the star of q and writes them on
@@ -28,6 +28,8 @@ subroutine q2qstar_ph (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
   !! the symmetry operations
   integer :: invs(48)
   !! index of the inverse operations
+  integer :: t_rev(48)
+  !! 1 for operations with time-reversal, 0 otherwise
   integer :: irt(48,nat)
   !! index of the rotated atom
   integer :: nq
@@ -86,7 +88,7 @@ subroutine q2qstar_ph (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
      do while (isq (isym) /= imq)
         isym = isym + 1
      enddo
-     call rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, irt, &
+     call rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, t_rev, irt, &
           rtau, sxq (1, imq) )
      do na = 1, nat
         do nb = 1, nat
@@ -119,7 +121,7 @@ subroutine q2qstar_ph (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
      phi2 (:,:,:,:) = (0.d0, 0.d0)
      do isym = 1, nsym
         if (isq (isym) == iq) then
-           call rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, irt, &
+           call rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, t_rev, irt, &
                 rtau, sxq (1, iq) )
         endif
      enddo
