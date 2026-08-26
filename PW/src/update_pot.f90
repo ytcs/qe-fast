@@ -456,13 +456,25 @@ SUBROUTINE extrapolate_charge( dirname, rho_extr )
      !
      IF ( lsda .or. noncolin ) CALL rho2zeta( rho%of_r, rho_core, dfftp%nnr, nspin, 1 )
      !
-     ! ... subtract the old atomic charge density
+     ! ... recompute the old atomic charge density
      !
      CALL atomic_rho_g( work, 1 )
      !
-     rho%of_g(:,1) = rho%of_g(:,1) - work(:,1)
-     !
-     IF ( lmovecell ) rho%of_g(:,1) = rho%of_g(:,1) * omega_old
+     IF ( lmovecell ) THEN
+        !
+        ! ... variable-cell case:
+        ! ... atomic rho (work) is computed with new volume (omega)
+        ! ... so it must be renormalized to previous volume (omega_old);
+        ! ... subtract atomic rho out from charge density (rho%of_g);
+        ! ... multiply the result by the old volume before extrapolation
+        !
+        rho%of_g(:,1) = (rho%of_g(:,1) - work(:,1)*(omega/omega_old) ) * omega_old
+     ELSE
+        !
+        ! ... subtract the old atomic charge density
+        !
+        rho%of_g(:,1) = rho%of_g(:,1) - work(:,1)
+     END IF
      !
      ! ... extrapolate the difference between the atomic charge and
      ! ... the self-consistent one
@@ -556,6 +568,8 @@ SUBROUTINE extrapolate_charge( dirname, rho_extr )
         DEALLOCATE( work1 )
         !
      END IF
+     !
+     ! ... Variable cell: divide extrapolated omega*rho%of_g by the new volume
      !
      IF ( lmovecell ) rho%of_g(:,1) = rho%of_g(:,1) / omega
      !
