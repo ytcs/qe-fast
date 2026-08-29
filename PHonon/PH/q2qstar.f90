@@ -29,7 +29,7 @@ PROGRAM Q2QSTAR
   USE io_global,          ONLY : ionode_id, ionode, stdout
   USE environment,        ONLY : environment_start, environment_end
   ! symmetry
-  USE symm_base,          ONLY : s, invs, nsym, find_sym, set_sym_bl, irt, copy_sym, nrot, inverse_s
+  USE symm_base,          ONLY : s, invs, nsym, find_sym, set_sym_bl, irt, copy_sym, nrot, inverse_s, t_rev
   ! for reading the dyn.mat.
   USE cell_base,          ONLY : at, bg, celldm, ibrav, omega
   USE ions_base,          ONLY : nat, ityp, ntyp => nsp, atm, tau, amass
@@ -216,7 +216,7 @@ PROGRAM Q2QSTAR
     ENDDO
   ENDDO
   !
-  CALL q2qstar_ph (d2, at, bg, nat, nsym, s, invs, irt, rtau, &
+  CALL q2qstar_ph (d2, at, bg, nat, nsym, s, invs, irt, rtau, t_rev, &
                    nqs, sxq, isq, imq, 1)
 
   IF (lrigid .and. .not. xmldyn ) call write_epsilon_and_zeu (zeu, epsilon, nat, 1)

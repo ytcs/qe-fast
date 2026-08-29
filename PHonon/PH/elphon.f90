@@ -740,7 +740,7 @@ SUBROUTINE elphsum()
   USE lsda_mod,    ONLY: isk, nspin
   USE klist,       ONLY: nks, nkstot, xk, wk, nelec
   USE start_k,     ONLY: nk1, nk2, nk3
-  USE symm_base,   ONLY: s, irt, nsym, invs
+  USE symm_base,   ONLY: s, irt, nsym, invs, t_rev
   USE noncollin_module, ONLY: nspin_lsda, nspin_mag
   USE wvfct,       ONLY: nbnd, et
   USE parameters,  ONLY : npk
@@ -1178,7 +1178,7 @@ SUBROUTINE elphsum()
      ENDIF
      xmldyn_save=xmldyn
      xmldyn=.FALSE.
-     call q2qstar_ph (dyn22, at, bg, nat, nsym, s, invs, &
+     call q2qstar_ph (dyn22, at, bg, nat, nsym, s, invs, t_rev, &
           irt, rtau, nq, sxq, isq, imq, iuelph)
      xmldyn=xmldyn_save
      if (ionode) CLOSE( UNIT = iuelph, STATUS = 'KEEP' )

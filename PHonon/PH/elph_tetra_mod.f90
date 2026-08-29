@@ -43,7 +43,7 @@ SUBROUTINE elph_tetra_lambda()
   USE io_global, ONLY : stdout, ionode, ionode_id
   USE cell_base, ONLY : at, bg
   USE ions_base, ONLY : nat
-  USE symm_base, ONLY : s, irt, nsym, invs
+  USE symm_base, ONLY : s, irt, nsym, invs, t_rev
   USE klist,  ONLY: nks, nkstot
   USE wvfct, ONLY: et, nbnd
   USE qpoint, ONLY : xq, nksq, ikks
@@ -256,7 +256,7 @@ SUBROUTINE elph_tetra_lambda()
      ENDIF
      xmldyn_save=xmldyn
      xmldyn=.FALSE.
-     CALL q2qstar_ph (dyn22, at, bg, nat, nsym, s, invs, &
+     CALL q2qstar_ph (dyn22, at, bg, nat, nsym, s, invs, t_rev, &
           irt, rtau, nq, sxq, isq, imq, iuelph)
      xmldyn=xmldyn_save
      IF (ionode) CLOSE( UNIT = iuelph, STATUS = 'KEEP' )
@@ -500,7 +500,7 @@ SUBROUTINE elph_tetra_gamma()
   USE io_global, ONLY : stdout, ionode, ionode_id
   USE cell_base, ONLY : at, bg
   USE ions_base, ONLY : nat
-  USE symm_base, ONLY : s, irt, nsym, invs
+  USE symm_base, ONLY : s, irt, nsym, invs, t_rev
   USE klist,  ONLY: nks, nkstot
   USE wvfct, ONLY: et, nbnd
   USE qpoint, ONLY : xq, nksq, ikks
@@ -719,7 +719,7 @@ SUBROUTINE elph_tetra_gamma()
      ENDIF
      xmldyn_save=xmldyn
      xmldyn=.FALSE.
-     CALL q2qstar_ph (dyn22, at, bg, nat, nsym, s, invs, &
+     CALL q2qstar_ph (dyn22, at, bg, nat, nsym, s, invs, t_rev, &
           irt, rtau, nq, sxq, isq, imq, iuelph)
      xmldyn=xmldyn_save
      IF (ionode) CLOSE( UNIT = iuelph, STATUS = 'KEEP' )
