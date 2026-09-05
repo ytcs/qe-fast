@@ -2305,23 +2305,6 @@ subroutine cumul1(a,b,c,n)
 
 end subroutine cumul1
 
-subroutine scnd(t)
-
-  implicit none
-  real(8) :: t
-  real(4) :: etime
-  real(4), dimension (:), allocatable :: tarray
-
-  allocate(tarray(2))
-
-  t = etime(tarray)
-  t = tarray(1)
-   
-  deallocate(tarray)
-
-  return
-end subroutine scnd
-
 subroutine sprint(unit,jndex,dim,string)
       
   use pimd_variables, only : av,avp,anorm
