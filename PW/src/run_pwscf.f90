@@ -45,7 +45,8 @@ SUBROUTINE run_pwscf( exit_status )
   USE cell_base,            ONLY : fix_volume, fix_area
   USE control_flags,        ONLY : conv_elec, gamma_only, ethr, lscf, treinit_gvecs
   USE control_flags,        ONLY : conv_ions, istep, nstep, restart, lmd, lbfgs,&
-                                   lensemb, lforce, tstress
+                                   lensemb, lforce, tstress, tr2
+  USE relax,                ONLY : starting_scf_threshold
   USE cellmd,               ONLY : lmovecell
   USE command_line_options, ONLY : command_line
   USE force_mod,            ONLY : sigma, force
@@ -289,8 +290,15 @@ SUBROUTINE run_pwscf( exit_status )
            ! ... final scf calculation with G-vectors for final cell
            !
            lbfgs=.FALSE.; lmd=.FALSE.
-           WRITE( UNIT = stdout, FMT=9020 ) 
+           WRITE( UNIT = stdout, FMT=9020 )
            !
+           ! ... scf restarts from scratch (no electronic history):
+           ! ... do not force it to the tight thresholds reached at
+           ! ... the end of the relaxation; ethr=0 lets setup() pick
+           ! ... the adaptive value for a fresh atomic starting potential
+           !
+           tr2  = starting_scf_threshold
+           ethr = 0.D0
            CALL reset_gvectors( )
            !
            ! ... read atomic occupations for DFT+U(+V)
@@ -301,6 +309,13 @@ SUBROUTINE run_pwscf( exit_status )
            !
            ! ... check whether nonzero magnetization is real
            !
+           ! ... scf restarts from scratch (no electronic history):
+           ! ... do not force it to the tight thresholds reached at
+           ! ... the end of the relaxation; reset_magn() does not call
+           ! ... setup(), so the adaptive atomic-start ethr is set here
+           !
+           tr2  = starting_scf_threshold
+           ethr = 1.0D-2
            CALL reset_magn()
            !
         ELSE
@@ -325,13 +340,15 @@ SUBROUTINE run_pwscf( exit_status )
               !
            END IF
            !
+           ! ... Reset convergence threshold of iterative diagonalization
+           ! ... for the first scf iteration of this ionic step: wavefunctions
+           ! ... are extrapolated from the previous step, so a tight value is fine
+           !
+           ethr = 1.0D-6
+           !
         END IF
         !
      ENDIF
-     ! ... Reset convergence threshold of iterative diagonalization for
-     ! ... the first scf iteration of each ionic step (after the first)
-     !
-     ethr = 1.0D-6
      !
      CALL dev_buf%reinit( ierr )
      IF ( ierr .ne. 0 ) CALL infomsg( 'run_pwscf', 'Cannot reset GPU buffers! Some buffers still locked.' )
