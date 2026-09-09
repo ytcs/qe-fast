@@ -15,7 +15,7 @@ SUBROUTINE write_p_avg(filp, spin_component, firstk, lastk)
   USE cell_base,            ONLY : at, bg, ibrav
   USE constants,            ONLY : rytoev
   USE gvect,                ONLY : ngm, g
-  USE lsda_mod,             ONLY : nspin
+  USE lsda_mod,             ONLY : nspin, lsda, isk, current_spin
   USE ener,                 ONLY : ef
   USE wvfct,                ONLY : et, nbnd, npwx
   USE klist,                ONLY : xk, nks, nkstot, ngk, igk_k
@@ -79,6 +79,11 @@ SUBROUTINE write_p_avg(filp, spin_component, firstk, lastk)
   IF ( ios/=0 ) CALL errore ('write_p_avg', 'Opening filband file', abs (ios) )
 
   DO ik = nks1, nks2
+     !
+     !   compute_deff, called by compute_ppsi, takes the spin channel from
+     !   the module variable current_spin
+     !
+     IF (lsda) current_spin = isk(ik)
      !
      !   Compute the number of occupated bands at this k point
      !
