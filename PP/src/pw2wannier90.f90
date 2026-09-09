@@ -5191,14 +5191,18 @@ SUBROUTINE compute_amn
             ELSE ! .NOT. (spin_z_pos .OR. spin_z_neg)
                ! general routine
                ! for quantisation axis (a,b,c)
-               ! 'up'    eigenvector is 1/sqrt(1+c) [c+1,a+ib]
-               ! 'down'  eigenvector is 1/sqrt(1-c) [c-1,a+ib]
+               ! normalised eigenvectors of n.sigma for the axis (a,b,c):
+               !   'up'    1/sqrt(2*(1+c)) [c+1,a+ib]
+               !   'down'  1/sqrt(2*(1-c)) [c-1,a+ib]
+               ! the 2 matters: without it these have norm sqrt(2), while the
+               ! +z/-z branch above uses amplitude 1, so a run mixing on-axis
+               ! and off-axis projections would weight them differently
                IF (spin_eig(iw)==1) THEN
-                  fac(1)=(1.0_dp/sqrt(1+spin_qaxis(3,iw)))*(spin_qaxis(3,iw)+1)*cmplx(1.0d0,0.0d0,dp)
-                  fac(2)=(1.0_dp/sqrt(1+spin_qaxis(3,iw)))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
+                  fac(1)=(1.0_dp/sqrt(2*(1+spin_qaxis(3,iw))))*(spin_qaxis(3,iw)+1)*cmplx(1.0d0,0.0d0,dp)
+                  fac(2)=(1.0_dp/sqrt(2*(1+spin_qaxis(3,iw))))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
                ELSE
-                  fac(1)=(1.0_dp/sqrt(1-spin_qaxis(3,iw)))*(spin_qaxis(3,iw)-1)*cmplx(1.0d0,0.0d0,dp)
-                  fac(2)=(1.0_dp/sqrt(1-spin_qaxis(3,iw)))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
+                  fac(1)=(1.0_dp/sqrt(2*(1-spin_qaxis(3,iw))))*(spin_qaxis(3,iw)-1)*cmplx(1.0d0,0.0d0,dp)
+                  fac(2)=(1.0_dp/sqrt(2*(1-spin_qaxis(3,iw))))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
                ENDIF
                !
                DO ipol = 1, npol
@@ -6610,11 +6614,11 @@ subroutine orient_gf_spinor(npw)
         gf_spinor(istart:istart+npw-1, iw) = gf(1:npw, iw)
      else
        if(spin_eig(iw)==1) then
-          fac(1)=(1.0_dp/sqrt(1+spin_qaxis(3,iw)))*(spin_qaxis(3,iw)+1)*cmplx(1.0d0,0.0d0,dp)
-          fac(2)=(1.0_dp/sqrt(1+spin_qaxis(3,iw)))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
+          fac(1)=(1.0_dp/sqrt(2*(1+spin_qaxis(3,iw))))*(spin_qaxis(3,iw)+1)*cmplx(1.0d0,0.0d0,dp)
+          fac(2)=(1.0_dp/sqrt(2*(1+spin_qaxis(3,iw))))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
        else
-          fac(1)=(1.0_dp/sqrt(1+spin_qaxis(3,iw)))*(spin_qaxis(3,iw))*cmplx(1.0d0,0.0d0,dp)
-          fac(2)=(1.0_dp/sqrt(1-spin_qaxis(3,iw)))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
+          fac(1)=(1.0_dp/sqrt(2*(1-spin_qaxis(3,iw))))*(spin_qaxis(3,iw)-1)*cmplx(1.0d0,0.0d0,dp)
+          fac(2)=(1.0_dp/sqrt(2*(1-spin_qaxis(3,iw))))*cmplx(spin_qaxis(1,iw),spin_qaxis(2,iw),dp)
        endif
        gf_spinor(1:npw, iw) = gf(1:npw, iw) * fac(1)
        gf_spinor(npwx + 1:npwx + npw, iw) = gf(1:npw, iw) * fac(2)

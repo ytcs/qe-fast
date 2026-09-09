@@ -1189,17 +1189,21 @@
             ENDDO ! ibnd
           ELSE
             ! general routine for quantisation axis (a,b,c)
-            ! 'up'    eigenvector is 1/DSQRT(1+c) [c+1,a+ib]
-            ! 'down'  eigenvector is 1/DSQRT(1-c) [c-1,a+ib]
+            ! normalised eigenvectors of n.sigma for the axis (a,b,c):
+            !   'up'    1/DSQRT(2*(1+c)) [c+1,a+ib]
+            !   'down'  1/DSQRT(2*(1-c)) [c-1,a+ib]
+            ! the 2 matters: without it these have norm DSQRT(2), while the
+            ! +z/-z branch above uses amplitude 1, so a run mixing on-axis and
+            ! off-axis projections would weight them differently
             IF (spin_eig(iw) == 1) THEN
-              fac(1) = (1.0d0 / DSQRT(1 + spin_qaxis(3, iw))) &
+              fac(1) = (1.0d0 / DSQRT(2 * (1 + spin_qaxis(3, iw)))) &
                      * (spin_qaxis(3, iw) + 1) * cone
-              fac(2) = (1.0d0 / DSQRT(1 + spin_qaxis(3, iw))) &
+              fac(2) = (1.0d0 / DSQRT(2 * (1 + spin_qaxis(3, iw)))) &
                      * CMPLX(spin_qaxis(1, iw), spin_qaxis(2, iw), KIND = DP)
             ELSE
-              fac(1) = (1.0d0 / DSQRT(1 + spin_qaxis(3, iw))) &
-                     * (spin_qaxis(3, iw)) * cone
-              fac(2) = (1.0d0 / DSQRT(1 - spin_qaxis(3, iw))) &
+              fac(1) = (1.0d0 / DSQRT(2 * (1 - spin_qaxis(3, iw)))) &
+                     * (spin_qaxis(3, iw) - 1) * cone
+              fac(2) = (1.0d0 / DSQRT(2 * (1 - spin_qaxis(3, iw)))) &
                      * CMPLX(spin_qaxis(1, iw), spin_qaxis(2, iw), KIND = DP)
             ENDIF
             !
@@ -1978,14 +1982,14 @@
         gf_spinor(istart:iend, iw) = gf(1:npw, iw)
       ELSE
         IF (spin_eig(iw) == 1) THEN
-          fac(1) = (1.0d0 / DSQRT(1 + spin_qaxis(3, iw))) &
+          fac(1) = (1.0d0 / DSQRT(2 * (1 + spin_qaxis(3, iw)))) &
                  * (spin_qaxis(3, iw) + 1 ) * cone
-          fac(2) = (1.0d0 / DSQRT(1 + spin_qaxis(3, iw))) &
+          fac(2) = (1.0d0 / DSQRT(2 * (1 + spin_qaxis(3, iw)))) &
                  * CMPLX(spin_qaxis(1, iw), spin_qaxis(2, iw), KIND = DP)
         ELSE
-          fac(1) = (1.0d0 / DSQRT(1 + spin_qaxis(3, iw))) &
-                 * ( spin_qaxis(3, iw) ) * cone
-          fac(2) = (1.0d0 / DSQRT(1 - spin_qaxis(3, iw))) &
+          fac(1) = (1.0d0 / DSQRT(2 * (1 - spin_qaxis(3, iw)))) &
+                 * ( spin_qaxis(3, iw) - 1 ) * cone
+          fac(2) = (1.0d0 / DSQRT(2 * (1 - spin_qaxis(3, iw)))) &
                  * CMPLX(spin_qaxis(1, iw), spin_qaxis(2,iw), KIND = DP)
         ENDIF
         gf_spinor(1:npw, iw) = gf(1:npw, iw) * fac(1)
