@@ -298,7 +298,7 @@ SUBROUTINE run_pwscf( exit_status )
            ! ... the adaptive value for a fresh atomic starting potential
            !
            tr2  = starting_scf_threshold
-           ethr = 0.D0
+           ethr = 1.0D-2
            CALL reset_gvectors( )
            !
            ! ... read atomic occupations for DFT+U(+V)
