@@ -2411,7 +2411,7 @@ MODULE paw_onecenter
     ALLOCATE( v_rad(i%m,nx_loc,nspin), g_rad(i%m,nx_loc,nspin) )
     !
     !$acc data present_or_copy(v_lm) present_or_copyin(vout_lm,rho_lm,segni_rad,g(i%t:i%t),g(i%t)%rm2)
-    !$acc data create(rho_rad,vout_rad,v_rad,vs_rad,g_rad,g_lm,vsave_lm,gsave_lm)
+    !$acc data present_or_copyin(vs_rad,g_lm) create(rho_rad,vout_rad,v_rad,g_rad,vsave_lm,gsave_lm)
     !$acc kernels
     v_rad = 0.0_dp
     g_rad = 0.0_dp
@@ -2443,7 +2443,7 @@ MODULE paw_onecenter
        ENDDO
     ENDDO
     !
-    !$acc update self(vs_rad)
+    !$acc update self(vs_rad(:,ix_s:ix_e,i%a))
     !
     IF (with_small_so) CALL compute_g( i, v_rad, g_rad )
     !
@@ -2631,7 +2631,7 @@ MODULE paw_onecenter
     ALLOCATE( vsave_lm(i%m,i%l**2,nspin), v_rad(i%m,nx_loc,nspin) )
     !
     !$acc data present_or_copy(v_lm) present_or_copyin(vout_lm,rho_lm,segni_rad,g(i%t:i%t),g(i%t)%rm2)
-    !$acc data create(rho_rad,vout_rad,v_rad,vs_rad,vsave_lm)
+    !$acc data present_or_copyin(vs_rad) create(rho_rad,vout_rad,v_rad,vsave_lm)
     !
     !$acc kernels
     v_rad = 0.0_DP
@@ -2675,9 +2675,7 @@ MODULE paw_onecenter
          ENDIF
          !
        ENDDO
-    ENDDO   
-    !
-    !$acc update self(vs_rad)
+    ENDDO
     !
     CALL PAW_rad2lm( i, v_rad, vsave_lm, i%l, nspin )
     !
