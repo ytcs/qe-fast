@@ -59,10 +59,9 @@ SUBROUTINE xsf_fast_datagrid_3d &
   USE constants, ONLY : BOHR_RADIUS_ANGS
   IMPLICIT NONE
   INTEGER       :: nr1x, nr2x, nr3x, nr1, nr2, nr3, ounit
-  real(DP) :: alat, at (3, 3), rho(nr1x,nr2x,nr3x)
+  real(DP) :: alat, at(3, 3), rho(nr1x,nr2x,nr3x)
   ! --
-  INTEGER       :: i1, i2, i3, ix, iy, iz, count, i, &
-       ind_x(10), ind_y(10),ind_z(10)
+  INTEGER  :: i1, i2, i3, ix, iy, iz, count, i
 
   ! XSF scalar-field header
   WRITE(ounit,'(a)') 'BEGIN_BLOCK_DATAGRID_3D'
@@ -80,36 +79,26 @@ SUBROUTINE xsf_fast_datagrid_3d &
   ! 3rd spanning (=lattice) vector
   WRITE(ounit,'(3f12.6)') (BOHR_RADIUS_ANGS*alat*at(i,3),i=1,3)
 
-  count=0
-  DO i3=0,nr3
-     !iz = mod(i3,nr3)
-     iz = mod(i3,nr3) + 1
+  count = 0
+  DO i3 = 0,nr3
+    iz = mod(i3,nr3) + 1
 
-     DO i2=0,nr2
-        !iy = mod(i2,nr2)
-        iy = mod(i2,nr2) + 1
+    DO i2 = 0,nr2
+      iy = mod(i2,nr2) + 1
 
-        DO i1=0,nr1
-           !ix = mod(i1,nr1)
-           ix = mod(i1,nr1) + 1
+      DO i1 = 0,nr1
+        ix = mod(i1,nr1) + 1
+        WRITE(ounit, '(1e14.6)', advance="no"), rho(ix,iy,iz)
 
-           !ii = (1+ix) + iy*nr1x + iz*nr1x*nr2x
-           IF (count<6) THEN
-              count = count + 1
-              !ind(count) = ii
-           ELSE
-              WRITE(ounit,'(6e14.6)') &
-                   (rho(ind_x(i),ind_y(i),ind_z(i)),i=1,6)
-              count=1
-              !ind(count) = ii
-           ENDIF
-           ind_x(count) = ix
-           ind_y(count) = iy
-           ind_z(count) = iz
-        ENDDO
-     ENDDO
+      ENDDO
+      WRITE(ounit,*)
+
+    ENDDO
+    IF (i3<nr3) THEN
+      WRITE(ounit,*)
+    ENDIF
+
   ENDDO
-  WRITE(ounit,'(6e14.6:)') (rho(ind_x(i),ind_y(i),ind_z(i)),i=1,count)
   WRITE(ounit,'(a)') 'END_DATAGRID_3D'
   WRITE(ounit,'(a)') 'END_BLOCK_DATAGRID_3D'
   RETURN

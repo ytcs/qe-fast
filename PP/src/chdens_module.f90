@@ -411,7 +411,7 @@ SUBROUTINE chdens (plot_files,plot_num,nc)
     IF (ionode) THEN
        IF (fileout /= ' ') THEN
           ounit = 1
-          OPEN (unit=ounit, file=fileout, form='formatted', status='unknown')
+          OPEN (unit=ounit, file=fileout, form='formatted', status='unknown', access='stream')
           WRITE( stdout, '(/5x,"Writing data to be plotted to file ",a)') &
                trim(fileout)
        ELSE

@@ -149,7 +149,7 @@ SUBROUTINE projwave_boxes( filpdos, filproj, n_proj_boxes, irmin, irmax, plotbox
         ENDIF
         !
         fileout = trim(filpdos)//trim(filextension)//'.xsf'
-        OPEN (4,file=fileout,form='formatted', status='unknown')
+        OPEN (4,file=fileout,form='formatted', status='unknown',access='stream')
         CALL xsf_struct (alat, at, nat, tau, atm, ityp, 4)
         CALL xsf_fast_datagrid_3d(thetabox(1:dfftp%nr1x*dfftp%nr2x*dfftp%nr3x),&
                  dfftp%nr1, dfftp%nr2, dfftp%nr3, &

@@ -480,7 +480,7 @@ SUBROUTINE solvdens(filplot, lpunch)
     ! ... open output file
     IF (ionode) THEN
       ounit = find_free_unit()
-      OPEN(unit=ounit, file=TRIM(ADJUSTL(fileout0)), status='unknown', form='formatted', iostat=ios)
+      OPEN(unit=ounit, file=TRIM(ADJUSTL(fileout0)), status='unknown', form='formatted', iostat=ios, access='stream')
       WRITE(stdout, '(/5X,"Writing data to be plotted to file ",A)') TRIM(ADJUSTL(fileout0))
     END IF
     !
