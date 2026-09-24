@@ -236,6 +236,9 @@ CONTAINS
       !
       INTEGER  :: n, i, j, k, nat
       LOGICAL  :: lwolfe
+      LOGICAL  :: line_search
+      !! .TRUE. if the previous step was rejected and the line search goes on
+      !! along the same direction with a reduced trust radius
       REAL(DP) :: dE0s, den
       REAL(DP), ALLOCATABLE :: step_tmp(:)
       ! ... for scaled coordinates
@@ -251,6 +254,7 @@ CONTAINS
       !
       IF ( bfgs_file == " ") bfgs_file = TRIM(filebfgs)
       lwolfe=.false.
+      line_search = .FALSE.
       n = SIZE( pos_in ) + NADD
       nat = size (pos_in) / 3
       if (nat*3 /= size (pos_in)) call errore('bfgs',' strange dimension',1)
@@ -423,6 +427,7 @@ CONTAINS
          ! ... Note that for the FCP case, the Wolfe condition is ignored
          !
          step_accepted = .FALSE.
+         line_search   = .TRUE.
          !
          WRITE( UNIT = stdout, &
               & FMT = '(5X,"CASE: ",A,"_new > ",A,"_old",/)' ) fname,fname
@@ -477,6 +482,9 @@ CONTAINS
             END IF
             !
             CALL reset_bfgs( n, lfcp, fcp_hess )
+            !
+            ! ... a new search direction: not a line search anymore
+            line_search = .FALSE.
             !
             step(:) = - ( inv_hess(:,:) .times. grad(:) )
             if (lmovecell) FORALL( i=1:3, j=1:3) step( n-NADD+j+3*(i-1) ) = step( n-NADD+j+3*(i-1) )*iforceh(i,j)
@@ -583,7 +591,12 @@ CONTAINS
       !
       ! ... positions and cell are updated
       !
-      IF (use_gdiis_step .and. bfgs_ndim .gt. 1 ) THEN 
+      ! ... the full G-DIIS step is used only for a new step: during the
+      ! ... line search that follows a rejected step the trust radius
+      ! ... obtained by interpolation must be used, otherwise the rejected
+      ! ... position (pos_p + nr_step_length*step_old) is proposed again
+      !
+      IF (use_gdiis_step .and. bfgs_ndim .gt. 1 .and. .NOT. line_search ) THEN 
          pos(:) = pos + nr_step_length * step(:)
       ELSE 
          pos(:) = pos(:) + trust_radius * step(:)
