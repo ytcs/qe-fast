@@ -932,6 +932,10 @@ CONTAINS
                 WRITE( stdout, '(/,5X,"WARNING: bfgs curvature condition ", &
                 &     "failed, Theta=",F6.3)' ) theta
                 y = Theta*y + (1.D0 - Theta)*yH
+!               s.y must be recomputed with the damped y (it is now
+!               0.2*sBs > 0): using the undamped, possibly negative, value
+!               in the update below destroys the positive definiteness
+                sdoty = ( s(:) .dot. y(:) )
         endif
       END IF
       !
