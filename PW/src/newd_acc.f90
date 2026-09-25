@@ -150,19 +150,23 @@ SUBROUTINE newq_acc(vr,deeq,skip_vltot)
   REAL(kind=dp), intent(out) :: deeq( nhm, nhm, nat, nspin )
   LOGICAL, intent(in) :: skip_vltot !If .false. vltot is added to vr when necessary
   ! INTERNAL
+  INTEGER, PARAMETER :: nab_batch_max = 128
   INTEGER :: ngm_s, ngm_e, ngm_l
   ! starting/ending indices, local number of G-vectors
   INTEGER :: ig, nt, ih, jh, na, is, ijh, nij, nb, nab, nhnt
   ! counters on g vectors, atom type, beta functions x 2,
   !   atoms, spin, aux, aux, beta func x2 (again)
+  INTEGER :: nab_block, nb_start, nb_end, nb_count
   COMPLEX(DP), ALLOCATABLE :: vaux(:,:), aux(:,:), qgm(:,:)
     ! work space
   REAL(DP), ALLOCATABLE :: ylmk0(:,:), qmod(:), deeaux(:,:)
     ! spherical harmonics, modulus of G
   REAL(DP) :: fact
   !
-  ! variable to map index of atoms of the same type
-  INTEGER, ALLOCATABLE :: na_to_nab(:)
+  ! ... na_of_nt(n) = atom index of the n-th atom of type nt
+  ! ... nab_block   = size of the chunk of the nab atoms to be processed in this cycle
+  !
+  INTEGER, ALLOCATABLE :: na_of_nt(:)
   !
   IF ( gamma_only ) THEN
      fact = 2.0_dp
@@ -183,9 +187,8 @@ SUBROUTINE newq_acc(vr,deeq,skip_vltot)
   ngm_l = ngm_e-ngm_s+1
   IF ( ngm_l < 1 ) CALL errore('newq_acc','no G-vectors?!?',1)
   !
-  ALLOCATE(na_to_nab(nat))
   ALLOCATE( vaux(ngm_l,nspin_mag), qmod(ngm_l), ylmk0( ngm_l, lmaxq*lmaxq ) )
-  !$acc data create( na_to_nab, vaux, qmod, ylmk0 )
+  !$acc data create( vaux, qmod, ylmk0 )
   !
   CALL ylmr2( lmaxq*lmaxq, ngm_l, g(1,ngm_s), gg(ngm_s), ylmk0 )
   !
@@ -207,30 +210,36 @@ SUBROUTINE newq_acc(vr,deeq,skip_vltot)
      !
      IF ( upf(nt)%tvanp ) THEN
         !
-        ! count max number of atoms of type nt, create mapping table
+        ! count atoms of type nt, build the list of their indices
         !
         nab = 0
         DO na = 1, nat
            IF ( ityp(na) == nt ) nab = nab + 1
-           IF ( ityp(na) == nt ) THEN
-              na_to_nab(na) = nab
-           ELSE
-              na_to_nab(na) = -1
-           END IF
         END DO
         IF ( nab == 0 ) CYCLE ! No atoms for this type (?!?)
-        !$acc update device(na_to_nab)
+        !
+        ALLOCATE( na_of_nt(nab) )
+        nb = 0
+        DO na = 1, nat
+           IF ( ityp(na) == nt ) THEN
+              nb = nb + 1
+              na_of_nt(nb) = na
+           END IF
+        END DO
+        !$acc data copyin(na_of_nt)
+        !
+        nab_block = MIN( nab, nab_batch_max )
         !
         ! nij = max number of (ih,jh) pairs per atom type nt
         !
         nhnt = nh(nt)
         nij = nh(nt)*(nh(nt)+1)/2
         ALLOCATE ( qgm(ngm_l,nij) )
-        ALLOCATE ( aux (ngm_l, nab ), deeaux(nij, nab) )
+        ALLOCATE ( aux (ngm_l, nab_block ), deeaux(nij, nab_block) )
         !
         !$acc data create( qgm, aux, deeaux ) present(eigts1, eigts2, eigts3, mill)
         !
-        ! ... Compute and store Q(G) for this atomic species 
+        ! ... Compute and store Q(G) for this atomic species
         ! ... (without structure factor)
         !
         ijh = 0
@@ -241,50 +250,52 @@ SUBROUTINE newq_acc(vr,deeq,skip_vltot)
            END DO
         END DO
         !
-        ! ... Compute and store V(G) times the structure factor e^(-iG*tau)
-        !
-        DO is = 1, nspin_mag
-           !$acc parallel loop collapse(2)
-           DO na = 1, nat
-              DO ig = 1, ngm_l
-                 nb = na_to_nab(na)
-                 IF (nb > 0) &
+        DO nb_start = 1, nab, nab_batch_max
+           nb_end   = MIN( nb_start+nab_batch_max-1, nab )
+           nb_count = nb_end - nb_start + 1
+           !
+           ! ... Compute and store V(G) times the structure factor e^(-iG*tau)
+           !
+           DO is = 1, nspin_mag
+              !$acc parallel loop collapse(2) present(na_of_nt)
+              DO nb = 1, nb_count
+                 DO ig = 1, ngm_l
                     aux(ig,nb) = vaux(ig,is) * CONJG ( &
-                      eigts1(mill(1,ngm_s+ig-1),na) * &
-                      eigts2(mill(2,ngm_s+ig-1),na) * &
-                      eigts3(mill(3,ngm_s+ig-1),na) )
-              END DO
-           END DO
-           !
-           ! ... here we compute the integral Q*V for all atoms of this kind
-           !
-           !$acc host_data use_device(qgm,aux,deeaux)
-           CALL MYDGEMM( 'C', 'N', nij, nab, 2*ngm_l, fact, qgm, 2*ngm_l, aux, &
-                    2*ngm_l, 0.0_dp, deeaux, nij )
-           IF ( gamma_only .AND. gstart == 2 ) &
-                CALL MYDGER(nij, nab,-1.0_dp, qgm, 2*ngm_l,aux,2*ngm_l,deeaux,nij)
-           !$acc end host_data
-           !
-           nhnt = nh(nt)
-           !$acc parallel loop collapse(3)
-           DO na = 1, nat
-              DO ih = 1, nhnt
-                 DO jh = 1, nhnt
-                    nb = na_to_nab(na)
-                    IF (nb > 0) THEN
-                       ijh = jh + ((ih-1)*(2*nhnt-ih))/2
-                       IF (jh >= ih) deeq(ih,jh,na,is) = omega * deeaux(ijh,nb)
-                       IF (jh > ih) deeq(jh,ih,na,is) = deeq(ih,jh,na,is)
-                    END IF
+                      eigts1(mill(1,ngm_s+ig-1),na_of_nt(nb_start+nb-1)) * &
+                      eigts2(mill(2,ngm_s+ig-1),na_of_nt(nb_start+nb-1)) * &
+                      eigts3(mill(3,ngm_s+ig-1),na_of_nt(nb_start+nb-1)) )
                  END DO
               END DO
+              !
+              ! ... here we compute the integral Q*V for all atoms of this kind
+              !
+              !$acc host_data use_device(qgm,aux,deeaux)
+              CALL MYDGEMM( 'C', 'N', nij, nb_count, 2*ngm_l, fact, qgm, 2*ngm_l, aux, &
+                       2*ngm_l, 0.0_dp, deeaux, nij )
+              IF ( gamma_only .AND. gstart == 2 ) &
+                   CALL MYDGER(nij, nb_count,-1.0_dp, qgm, 2*ngm_l,aux,2*ngm_l,deeaux,nij)
+              !$acc end host_data
+              !
+              nhnt = nh(nt)
+              !$acc parallel loop collapse(3) present(na_of_nt)
+              DO nb = 1, nb_count
+                 DO ih = 1, nhnt
+                    DO jh = 1, nhnt
+                       ijh = jh + ((ih-1)*(2*nhnt-ih))/2
+                       IF (jh >= ih) deeq(ih,jh,na_of_nt(nb_start+nb-1),is) = omega * deeaux(ijh,nb)
+                       IF (jh > ih) deeq(jh,ih,na_of_nt(nb_start+nb-1),is) = deeq(ih,jh,na_of_nt(nb_start+nb-1),is)
+                    END DO
+                 END DO
+              END DO
+              !
            END DO
-           !
         END DO
         !$acc end data
         !
         DEALLOCATE ( deeaux, aux )
         DEALLOCATE ( qgm )
+        !$acc end data
+        DEALLOCATE( na_of_nt )
         !
      END IF
      !
@@ -296,7 +307,6 @@ SUBROUTINE newq_acc(vr,deeq,skip_vltot)
   !$acc end host_data
   !$acc end data
   DEALLOCATE( qmod, ylmk0, vaux )
-  DEALLOCATE(na_to_nab)
   !
 END SUBROUTINE newq_acc
   !

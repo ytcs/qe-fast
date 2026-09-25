@@ -63,8 +63,11 @@ SUBROUTINE addusforce_g( forcenl )
   !
   ! ... local variables
   !
+  INTEGER, PARAMETER :: nab_batch_max = 128
   INTEGER :: ngm_s, ngm_e, ngm_l
   INTEGER :: ig, nt, ih, jh, ijh, nij, ipol, is, na, nb, nab, ir
+  INTEGER :: nab_block, nb_start, nb_end, nb_count
+  INTEGER, ALLOCATABLE :: na_of_nt(:)
   REAL(DP), ALLOCATABLE :: forceq(:,:)
   REAL(DP), ALLOCATABLE :: ddeeq(:,:,:,:), qmod(:), ylmk0(:,:)
   REAL(DP) :: fact, forceqx, forceqy, forceqz
@@ -146,15 +149,31 @@ SUBROUTINE addusforce_g( forcenl )
            IF ( ityp(na)==nt ) nab = nab + 1
         ENDDO
         !
-        ALLOCATE( aux1(ngm_l,nab,3), ddeeq(nij,nab,3,nspin_mag) )
+        ! ... na_of_nt(n) = atom index of the n-th atom of type nt
+        ! ... nab_block   = size of the chunk of the nab atoms to be processed in this cycle
+        !
+        ALLOCATE( na_of_nt(nab) )
+        nb = 0
+        DO na = 1, nat
+           IF ( ityp(na)==nt ) THEN
+              nb = nb + 1
+              na_of_nt(nb) = na
+           ENDIF
+        ENDDO
+        !
+        nab_block = MIN( nab, nab_batch_max )
+        !
+        ALLOCATE( aux1(ngm_l,nab_block,3), ddeeq(nij,nab_block,3,nspin_mag) )
         !$acc data create(ddeeq)
         !$acc data create(aux1)
         !
-        DO is = 1, nspin_mag
-           nb = 0
-           DO na = 1, nat
-              IF (ityp(na) == nt) THEN
-                 nb = nb + 1
+        DO nb_start = 1, nab, nab_batch_max
+           nb_end   = MIN( nb_start+nab_batch_max-1, nab )
+           nb_count = nb_end - nb_start + 1
+           !
+           DO is = 1, nspin_mag
+              DO nb = 1, nb_count
+                 na = na_of_nt(nb_start+nb-1)
                  !
                  ! ... aux1 = product of potential, structure factor and iG
                  !
@@ -176,29 +195,23 @@ SUBROUTINE addusforce_g( forcenl )
 !$omp end parallel do
 #endif
                  !
-              ENDIF
+              ENDDO
+              !
+              ! ... ddeeq = dot product of aux1 with the Q functions
+              ! ... No need for special treatment of the G=0 term (is zero)
+              !
+              !$acc host_data use_device(qgm,aux1,ddeeq)
+              DO ipol = 1, 3
+                 CALL MYDGEMM( 'C', 'N', nij, nb_count, 2*ngm_l, fact, qgm, 2*ngm_l, &
+                               aux1(1,1,ipol), 2*ngm_l, 0.0_DP, ddeeq(1,1,ipol,is), nij )
+              ENDDO
+              !$acc end host_data
+              !
            ENDDO
            !
-           ! ... ddeeq = dot product of aux1 with the Q functions
-           ! ... No need for special treatment of the G=0 term (is zero)
-           !
-           !$acc host_data use_device(qgm,aux1,ddeeq)
-           DO ipol = 1, 3
-              CALL MYDGEMM( 'C', 'N', nij, nab, 2*ngm_l, fact, qgm, 2*ngm_l, &
-                            aux1(1,1,ipol), 2*ngm_l, 0.0_DP, ddeeq(1,1,ipol,is), nij )
-           ENDDO
-           !$acc end host_data
-           !
-        ENDDO
-        !
-        !$acc end data
-        DEALLOCATE( aux1 )
-        !
-        DO is = 1, nspin_mag
-           nb = 0
-           DO na = 1, nat
-              IF (ityp(na) == nt) THEN
-                 nb = nb + 1
+           DO is = 1, nspin_mag
+              DO nb = 1, nb_count
+                 na = na_of_nt(nb_start+nb-1)
                  forceqx = 0
                  forceqy = 0
                  forceqz = 0
@@ -211,11 +224,15 @@ SUBROUTINE addusforce_g( forcenl )
                  forceq(1,na) = forceq(1,na) + forceqx
                  forceq(2,na) = forceq(2,na) + forceqy
                  forceq(3,na) = forceq(3,na) + forceqz
-              ENDIF
+              ENDDO
            ENDDO
         ENDDO
+        !
+        !$acc end data
+        DEALLOCATE( aux1 )
         !$acc end data
         DEALLOCATE( ddeeq )
+        DEALLOCATE( na_of_nt )
         !$acc end data
         DEALLOCATE( qgm )
      ENDIF
