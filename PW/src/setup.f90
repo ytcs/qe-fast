@@ -67,7 +67,7 @@ SUBROUTINE setup()
                                  isolve, niter, noinv, ts_vdw, tstress, &
                                  lbands, gamma_only, restart, use_spinflip, symm_by_label
   USE diag_direct,        ONLY : diag_direct_check_compat
-  USE cellmd,             ONLY : calc
+  USE cellmd,             ONLY : calc, lmovecell
   USE upf_ions,           ONLY : n_atom_wfc
   USE uspp_param,         ONLY : upf
   USE uspp,               ONLY : okvan
@@ -148,6 +148,14 @@ SUBROUTINE setup()
            ecutfock = MIN(4.0_dp*ecutwfc,ecutrho)
            CALL infomsg ('setup', &
                     'Warning: ecutfock not valid for US/PAW, ignored')
+        END IF
+        ! ... the EXX stress has no augmentation terms yet
+        IF ( lmovecell ) CALL errore &
+           ('setup','stress for hybrid functionals + US/PAW not implemented',1)
+        IF ( tstress ) THEN
+           CALL infomsg ('setup', &
+                'stress for hybrid functionals + US/PAW not implemented, not computed')
+           tstress = .FALSE.
         END IF
         IF ( lmd .OR. lbfgs ) CALL errore &
            ('setup','forces for hybrid functionals + US/PAW not implemented',1)
