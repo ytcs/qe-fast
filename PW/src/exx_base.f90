@@ -888,8 +888,6 @@ MODULE exx_base
      INTEGER :: nqq, iq
      REAL(DP) :: aa, dq
      !
-     CALL start_clock( 'exx_div' )
-     !
      tpiba2 = (fpi / 2.d0 / alat)**2
      !
      alpha  = 10._dp / gcutw
@@ -898,6 +896,7 @@ MODULE exx_base
         exx_divergence = 0._dp
         RETURN
      ENDIF
+     CALL start_clock( 'exx_div' )
      !
      dq1 = 1._dp / DBLE(nq1)
      dq2 = 1._dp / DBLE(nq2) 
@@ -1000,5 +999,148 @@ MODULE exx_base
      !
   END FUNCTION exx_divergence
   !
+  !-----------------------------------------------------------------------
+  FUNCTION exx_divergence_stress() result(stress)
+     !-----------------------------------------------------------------------
+     !
+     USE constants,      ONLY : fpi, e2, pi, tpi
+     USE cell_base,      ONLY : bg, at, alat, omega
+     USE gvect,          ONLY : ngm, g
+     USE gvecw,          ONLY : gcutw
+     USE mp_exx,         ONLY : intra_egrp_comm
+     USE mp,             ONLY : mp_sum
+     !
+     IMPLICIT NONE
+     !
+     REAL(DP)   :: stress(3,3)
+     !
+     INTEGER :: iq1,iq2,iq3, ig, i
+     REAL(DP) :: div, dq1, dq2, dq3, xq(3), q_, qq, tpiba, lambda2, &
+                 tpiba2, alpha, x, q(3), qab(3,3), q_track(3), qq_track, alpha_track
+     INTEGER :: nqq, iq
+     REAL(DP) :: aa, dq
+     !
+     tpiba  = tpi / alat
+     tpiba2 = (tpi / alat)**2
+     alpha  = 10._dp / gcutw
+     !
+     stress = 0._dp
+     IF ( .NOT. use_regularization ) RETURN
+     CALL start_clock( 'exx_div_stress' )
+     !
+     dq1 = 1._dp / DBLE(nq1)
+     dq2 = 1._dp / DBLE(nq2)
+     dq3 = 1._dp / DBLE(nq3)
+     !
+     DO iq1 = 1, nq1
+        DO iq2 = 1, nq2
+           DO iq3 = 1, nq3
+              xq(:) = bg(:,1) * (iq1-1) * dq1 + &
+                      bg(:,2) * (iq2-1) * dq2 + &
+                      bg(:,3) * (iq3-1) * dq3
+              !
+              DO ig = 1, ngm
+                 q(1) = xq(1) + g(1,ig)
+                 q(2) = xq(2) + g(2,ig)
+                 q(3) = xq(3) + g(3,ig)
+                 qq = ( q(1)**2 + q(2)**2 + q(3)**2 )
+                 !
+                 IF (x_gamma_extrapolation) THEN
+                    on_double_grid = .TRUE.
+                    x = 0.5d0*(q(1)*at(1,1)+q(2)*at(2,1)+q(3)*at(3,1))*nq1
+                    on_double_grid = on_double_grid .AND. (ABS(x-NINT(x))<eps)
+                    x = 0.5d0*(q(1)*at(1,2)+q(2)*at(2,2)+q(3)*at(3,2))*nq2
+                    on_double_grid = on_double_grid .AND. (ABS(x-NINT(x))<eps)
+                    x = 0.5d0*(q(1)*at(1,3)+q(2)*at(2,3)+q(3)*at(3,3))*nq3
+                    on_double_grid = on_double_grid .AND. (ABS(x-NINT(x))<eps)
+                 ENDIF
+                 !
+                 IF (.NOT.on_double_grid) THEN
+                    q_track    = q * tpiba
+                    qq_track   = qq * tpiba2
+                    alpha_track = alpha / tpiba2
+                    DO i = 1, 3
+                       qab(:,i) = q_track(1:3) * q_track(i)
+                    ENDDO
+                    IF ( qq > 1.d-8 ) THEN
+                       IF ( erfc_scrlen > 0 ) THEN
+                          qab = qab * EXP(-alpha_track * qq_track) / qq_track
+                          lambda2 = erfc_scrlen**2 * 4._dp
+                          stress = stress - 2._dp * qab * ( alpha_track + 1._dp/qq_track - &
+                                   (alpha_track + 1._dp/qq_track + 1._dp/lambda2) * EXP(-qq_track/lambda2) )
+                       ELSEIF ( erf_scrlen > 0 ) THEN
+                          qab = qab * EXP(-alpha_track * qq_track) / qq_track
+                          lambda2 = 4._dp * erf_scrlen**2
+                          stress = stress - 2._dp * qab * EXP(-qq_track/lambda2) * &
+                                   (alpha_track + 1._dp/lambda2 + 1._dp/qq_track)
+                       ELSE
+                          qab = qab * EXP(-alpha_track * qq_track) / (qq_track + yukawa)
+                          stress = stress - 2._dp * qab * (alpha_track + 1._dp/(qq_track + yukawa))
+                       ENDIF
+                    ENDIF
+                 ENDIF
+              ENDDO
+           ENDDO
+        ENDDO
+     ENDDO
+     !
+     CALL mp_sum( stress, intra_egrp_comm )
+     !
+     IF (gamma_only) stress = 2._dp * stress
+     stress = stress * e2 * fpi * grid_factor
+     !
+     CALL stop_clock( 'exx_div_stress' )
+     !
+  END FUNCTION exx_divergence_stress
   !
+  !-----------------------------------------------------------------------
+  FUNCTION exx_divergence_ew() result(div_ew)
+     !-----------------------------------------------------------------------
+     !
+     USE constants,      ONLY : fpi, tpi, e2, pi
+     USE cell_base,      ONLY : bg, at, alat, omega
+     USE gvect,          ONLY : ngm, g
+     USE gvecw,          ONLY : gcutw
+     USE mp_exx,         ONLY : intra_egrp_comm
+     USE mp,             ONLY : mp_sum
+     !
+     IMPLICIT NONE
+     !
+     REAL(DP) :: div_ew
+     !
+     INTEGER :: iq1,iq2,iq3, ig, iq
+     REAL(DP) :: dq1, dq2, dq3, xq(3), q_, qq, tpiba2, alpha
+     INTEGER :: nqq
+     REAL(DP) :: aa, dq
+     !
+     div_ew = 0._dp
+     IF ( .NOT. use_regularization ) RETURN
+     !
+     tpiba2 = (tpi / alat)**2
+     alpha  = 10._dp / gcutw / tpiba2
+     nqq = 100000
+     dq  = 5.0d0 / SQRT(alpha) / nqq
+     aa  = 0._dp
+     !
+     DO iq = 0, nqq
+        q_ = dq * (iq + 0.5d0)
+        qq = q_ * q_
+        IF ( erfc_scrlen > 0 ) THEN
+           aa = aa - EXP(-alpha * qq) * EXP(-qq/4.d0/erfc_scrlen**2) * dq
+        ELSEIF ( erf_scrlen > 0 ) THEN
+           aa = 0._dp
+        ELSE
+           aa = aa - EXP(-alpha * qq) * yukawa / (qq + yukawa) * dq
+        ENDIF
+     ENDDO
+     !
+     aa = aa * 8.d0 / fpi
+     aa = aa + 1._dp / SQRT(alpha * 0.25d0 * fpi)
+     IF ( erf_scrlen > 0 ) aa = 1._dp / SQRT((alpha + 1._dp/4.d0/erf_scrlen**2) * 0.25d0 * fpi)
+     !
+     div_ew = -e2 * omega * aa * nqs
+     !
+  END FUNCTION exx_divergence_ew
+  !
+!
 END MODULE exx_base
