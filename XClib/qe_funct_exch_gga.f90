@@ -1280,7 +1280,9 @@ SUBROUTINE pbe_gauscheme( rho, s, alpha_gau, Fx, dFxdr, dFxds )
        d1Nxdr = d1Nxdbx * d1bxdr
        d1Nxds = d1Nxdbx * d1bxds
        !
-       dFxdr = d1Kxdr * Nx + Kx * d1Nxdr
+       ! dFxdr is the derivative at fixed s (pbexgau adds the s-dependence
+       ! through dsdn*dFxds): at fixed s, Kx is constant and bx ~ 1/KsF
+       dFxdr = Kx * d1Nxdbx * ( - bx / (Three*rho) )
        dFxds = d1Kxds * Nx + Kx * d1Nxds
        !
        RETURN
