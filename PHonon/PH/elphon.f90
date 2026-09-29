@@ -547,7 +547,7 @@ SUBROUTINE elphel (irr, npe, imode0, dvscfins)
            !  V_{eff} on the bare change of the potential
            !
            IF (isolv==1) THEN
-              call adddvscf (ipert, ik)
+              call adddvscf (ipert, ik, isolv==2)
               !
               ! DFPT+U: add to dvpsi the scf part of the response
               ! Hubbard potential dV_hub

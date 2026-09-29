@@ -175,7 +175,7 @@ SUBROUTINE lr_apply_liouvillian_eels ( evc1, evc1_new, interaction )
         ! In the case of US pseudopotentials there is an additional term.
         ! See the second term in Eq.(11) in J. Chem. Phys. 127, 164106 (2007).
         !
-        IF (okvan) CALL adddvscf(1, ik) 
+        IF (okvan) CALL adddvscf(1, ik, .FALSE.)
         !
         ! Ortogonalize dvpsi to valence states.
         ! Apply -P_c^+, and then change the sign, because we need P_c^+.
