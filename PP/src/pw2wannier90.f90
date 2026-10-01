@@ -7524,13 +7524,17 @@ SUBROUTINE radialpart(ng, q, alfa, rvalue, lmax, radial)
   INTEGER :: ng, rvalue, lmax
   real(DP) :: q(ng), alfa, radial(ng,0:lmax)
   ! local variables
-  real(DP), PARAMETER :: xmin=-6.d0, dx=0.025d0, rmax=10.d0
+  ! Uniform mesh, in units of 1/alfa. The integrand decays as exp(-alfa*r/rvalue)
+  ! times a polynomial of degree rvalue+1, so rmax scales with rvalue; rmax_n=30
+  ! keeps the truncated tail below 1e-8 relative to the integral. A logarithmic
+  ! mesh is too coarse at large r to resolve the oscillations of j_l(q*r).
+  real(DP), PARAMETER :: rmax_n=30.d0, dr=0.025d0
 
-  real(DP) :: rad_int, pref, x
+  real(DP) :: rad_int, pref
   INTEGER :: l, lp1, ir, ig, mesh_r, ierr
   real(DP), ALLOCATABLE :: bes(:), func_r(:), r(:), rij(:), aux(:)
 
-  mesh_r = nint ( ( log ( rmax ) - xmin ) / dx + 1 )
+  mesh_r = nint ( rmax_n * rvalue / dr ) + 1
   ALLOCATE ( bes(mesh_r), func_r(mesh_r), r(mesh_r), rij(mesh_r), stat=ierr)
   IF (ierr /= 0) CALL errore('pw2wannier90', 'Error allocating bes/func_r/r/rij', 1)
   ALLOCATE ( aux(mesh_r), stat=ierr)
@@ -7539,9 +7543,8 @@ SUBROUTINE radialpart(ng, q, alfa, rvalue, lmax, radial)
   !    compute the radial mesh
   !
   DO ir = 1, mesh_r
-     x = xmin  + dble (ir - 1) * dx
-     r (ir) = exp (x) / alfa
-     rij (ir) = dx  * r (ir)
+     r (ir) = dble (ir - 1) * dr / alfa
+     rij (ir) = dr / alfa
   ENDDO
   !
   IF (rvalue==1) func_r(:) = 2.d0 * alfa**(3.d0/2.d0) * exp(-alfa*r(:))
