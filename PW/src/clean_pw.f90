@@ -150,8 +150,10 @@ SUBROUTINE clean_pw( lflag )
   !
   IF ( ALLOCATED( psic    ) )    DEALLOCATE( psic    )
   IF ( ALLOCATED( psic_nc ) )    DEALLOCATE( psic_nc )
-  !$acc exit data delete(vrs)
-  IF ( ALLOCATED( vrs     ) )    DEALLOCATE( vrs     )
+  IF ( ALLOCATED( vrs     ) ) THEN
+     !$acc exit data delete(vrs)
+     DEALLOCATE( vrs     )
+  END IF
   !
   ! ... arrays allocated in allocate_locpot.f90 ( and never deallocated )
   !
@@ -168,10 +170,14 @@ SUBROUTINE clean_pw( lflag )
   !
   ! ... arrays allocated in init_run.f90 ( and never deallocated )
   !
-  !$acc exit data delete(g2kin)
-  IF ( ALLOCATED( g2kin ) )      DEALLOCATE( g2kin )
-  !$acc exit data delete(et)
-  IF ( ALLOCATED( et ) )         DEALLOCATE( et )
+  IF ( ALLOCATED( g2kin ) ) THEN
+     !$acc exit data delete(g2kin)
+     DEALLOCATE( g2kin )
+  END IF
+  IF ( ALLOCATED( et ) ) THEN
+     !$acc exit data delete(et)
+     DEALLOCATE( et )
+  END IF
   IF ( ALLOCATED( wg ) )         DEALLOCATE( wg )
   IF ( ALLOCATED( btype ) )      DEALLOCATE( btype )
   !

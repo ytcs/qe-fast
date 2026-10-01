@@ -51,7 +51,7 @@ SUBROUTINE vloc_psi_gamma_acc( lda, n, m, psi, v, hpsi )
   !
   ALLOCATE( psi1(n,incr) )
   ALLOCATE( psic(dffts_nnr*incr) )
-  !$acc data present_or_copyout(hpsi) present_or_copyin(psi,v) create(psi1,psic)
+  !$acc data present_or_copy(hpsi) present_or_copyin(psi,v) create(psi1,psic)
   !
   IF (many_fft > 1) THEN
      !
@@ -190,7 +190,7 @@ SUBROUTINE vloc_psi_k_acc( lda, n, m, psi, v, hpsi )
   !
   ALLOCATE( psi1(n,incr) )
   ALLOCATE( psic(dffts_nnr*incr) )
-  !$acc data present_or_copyout(hpsi) present_or_copyin(psi,v) create(psi1,psic)
+  !$acc data present_or_copy(hpsi) present_or_copyin(psi,v) create(psi1,psic)
   !
   IF (many_fft > 1) THEN
      !
@@ -311,7 +311,7 @@ SUBROUTINE vloc_psi_nc_acc( lda, n, m, psi, v, hpsi )
   ALLOCATE( psi1(n,npol) )
   ALLOCATE( psic(dffts_nnr,npol) )
   !
-  !$acc data present_or_copyout(hpsi) present_or_copyin(psi,v) create(psi1,psic)
+  !$acc data present_or_copy(hpsi) present_or_copyin(psi,v) create(psi1,psic)
   !
   ! ... the local potential V_Loc psi. First the psi in real space
   !
