@@ -205,7 +205,7 @@ subroutine solve_e_fpol( iw )
                  enddo
               enddo
               !
-              call adddvscf(ipol,ik)
+              call adddvscf(ipol,ik,.FALSE.)
               !
            endif
            !

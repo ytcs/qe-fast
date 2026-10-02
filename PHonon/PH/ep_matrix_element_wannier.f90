@@ -257,7 +257,7 @@ SUBROUTINE ep_matrix_element_wannier()
         IF((iudrho .ne. 0)) then
           CALL apply_dpot_bands(ik, nbnd, dvscfins(:, :, ipol), evc, dvpsi)
 
-          call adddvscf (ipol, ik)
+          call adddvscf (ipol, ik, .FALSE.)
           call oper2epiq("dvhxc_e",ik,ipol, dvpsi,cmplx(1,0,DP),evc) ! dvhxc_e
         end if
 
@@ -667,7 +667,7 @@ SUBROUTINE elphel_refolded (npe, imode0, dvscfins)
       CALL apply_dpot_bands(ik, nbnd, dvscfins(:, :, ipert), evc, aux_psi)
       dvpsi(:,:)=dvpsi(:,:)+aux_psi(:,:)
       !
-      CALL adddvscf (ipert, ik)
+      CALL adddvscf (ipert, ik, .FALSE.)
       !
       ! calculate elphmat(j,i)=<psi_{k+q,j}|dvscf_q*psi_{k,i}> for this pertur
       !
