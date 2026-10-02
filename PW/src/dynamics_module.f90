@@ -625,7 +625,7 @@ CONTAINS
       !
       ! then we compute tau(t+dt)
       !
-      tau_new(:,:) = tau(:,:) + vel(:,:) * 0.5 * dt + acc(:,:) * dt**2
+      tau_new(:,:) = tau(:,:) + vel(:,:) * dt + 0.5_DP * acc(:,:) * dt**2
       !   
 
       !
