@@ -881,6 +881,7 @@ PROGRAM pw2wannier90
     call errore('pw2wannier90','Sigma in the SCDM method must be positive.', 1)
   IF (irr_bz) THEN
      IF (gamma_only) CALL errore('pw2wannier90', "irr_bz and gamma_only are not compatible", 1)
+     IF (npool > 1) CALL errore('pw2wannier90', "irr_bz and pools (-nk > 1) not implemented", 1)
      IF (write_spn) CALL errore('pw2wannier90', "irr_bz and write_spn not implemented", 1)
      IF (write_unk) CALL errore('pw2wannier90', "irr_bz and write_unk not implemented", 1)
      IF (write_uHu) CALL errore('pw2wannier90', "irr_bz and write_uHu not implemented", 1)
