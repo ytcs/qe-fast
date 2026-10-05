@@ -2032,11 +2032,13 @@ SUBROUTINE matrix_element_of_dSdtau( alpha, ipol, ik, ijkb0, lA, A, &
                                betaB(:,:), aux(:,:), qq(:,:)
    !
    CALL start_clock( 'matel_dSdtau' )
-   A_dS_B(:,:) = (0.0d0, 0.0d0)
    !
    IF (.NOT.okvan) RETURN
    !
    !$acc data present_or_copyin(A,B) present_or_copyout(A_dS_B)
+   !$acc kernels
+   A_dS_B(:,:) = (0.0d0, 0.0d0)
+   !$acc end kernels
    !
    nt = ityp(alpha)
    npw = ngk(ik)

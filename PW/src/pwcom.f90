@@ -84,8 +84,10 @@ CONTAINS
     REAL(DP), ALLOCATABLE :: gk(:)
     INTEGER :: ik
     !
-    IF (.NOT.ALLOCATED(igk_k)) ALLOCATE( igk_k(npwx,nks) )
-    !$acc enter data create(igk_k(1:npwx,1:nks))
+    IF (.NOT.ALLOCATED(igk_k)) THEN
+       ALLOCATE( igk_k(npwx,nks) )
+       !$acc enter data create(igk_k(1:npwx,1:nks))
+    ENDIF
     !
     IF (.NOT.ALLOCATED(ngk))   ALLOCATE( ngk(nks) )
     !
@@ -108,8 +110,10 @@ CONTAINS
     !
     IF (ALLOCATED(ngk))     DEALLOCATE( ngk )
     !
-    !$acc exit data delete(igk_k)
-    IF (ALLOCATED(igk_k))   DEALLOCATE( igk_k )
+    IF (ALLOCATED(igk_k)) THEN
+       !$acc exit data delete(igk_k)
+       DEALLOCATE( igk_k )
+    ENDIF
     !
   END SUBROUTINE deallocate_igk
   !
