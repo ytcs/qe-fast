@@ -1686,6 +1686,7 @@ subroutine pimd_allocation
    allocate(vcm(ndimMD,nbeadMD))
    allocate(rcm(ndimMD,nbeadMD))
    ALLOCATE( pes(nbeadMD) )
+   pes = 0.0_DP
    ALLOCATE( stress_pes_md( 6, nbeadMD ) )
    
    rpos=0.0

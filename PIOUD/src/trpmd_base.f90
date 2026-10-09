@@ -144,7 +144,6 @@ MODULE trpmd_base
       !pos(:,1:input_images) = pos_(1:dim1,1:input_images)
       pos(:,1) = pos_(:,1)
       !
-      pes          = 0.0_DP
       ! grad_pes     = 0.0_DP
       ! grad         = 0.0_DP
       ! error        = 0.0_DP

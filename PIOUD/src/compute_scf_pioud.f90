@@ -77,7 +77,7 @@ SUBROUTINE compute_scf_pioud( fii, lii, stat  )
   forceMD = 0.D0
 !   stress_pes = 0.D0  ! --> allocated/deallocated in path_variable (path_allocation, path_deallocation) and declared...
   stress_pes_md = 0.D0
-  fcp_neb_ef  = 0.d0 ! needed ?
+  IF ( lfcpopt ) fcp_neb_ef = 0.d0
 
 
 

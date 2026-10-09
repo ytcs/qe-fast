@@ -250,7 +250,6 @@ SUBROUTINE pimd_mp_bcast
   CALL mp_bcast( num_of_images,  meta_ionode_id, world_comm )
   ! CALL mp_bcast( first_last_opt,  meta_ionode_id, world_comm )
   CALL mp_bcast( nbeadMD,  meta_ionode_id, world_comm ) !Added Aadhityan #Do we need?
-  CALL mp_bcast( forceMD, meta_ionode_id, world_comm ) 
   CALL mp_bcast( ndimMD, meta_ionode_id, world_comm ) 
   CALL mp_bcast( natMD, meta_ionode_id, world_comm ) 
   ! CALL mp_bcast( forceMD, meta_ionode_id, world_comm ) 
