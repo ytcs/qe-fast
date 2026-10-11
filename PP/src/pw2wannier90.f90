@@ -882,6 +882,8 @@ PROGRAM pw2wannier90
   IF (irr_bz) THEN
      IF (gamma_only) CALL errore('pw2wannier90', "irr_bz and gamma_only are not compatible", 1)
      IF (npool > 1) CALL errore('pw2wannier90', "irr_bz and pools (-nk > 1) not implemented", 1)
+     IF (nspin == 2) CALL errore('pw2wannier90', "irr_bz and spin-polarized (nspin=2) not implemented", 1)
+     IF (atom_proj) CALL errore('pw2wannier90', "irr_bz and atom_proj not implemented", 1)
      IF (write_spn) CALL errore('pw2wannier90', "irr_bz and write_spn not implemented", 1)
      IF (write_unk) CALL errore('pw2wannier90', "irr_bz and write_unk not implemented", 1)
      IF (write_uHu) CALL errore('pw2wannier90', "irr_bz and write_uHu not implemented", 1)
@@ -5343,7 +5345,7 @@ SUBROUTINE compute_amn_with_scdm
 #if defined(__SCALAPACK_QRCP)
    REAL(DP) :: tmp_rwork(2)
    INTEGER :: lrwork, context, nprow, npcol, myrow, mycol, descG(9)
-   INTEGER :: nblocks, rem, nblocks_loc, rem_loc=0, ibl
+   INTEGER :: nblocks, rem, nblocks_loc, rem_loc=0, ibl, ioff, nelem
    INTEGER, ALLOCATABLE :: piv_p(:)
 #endif
    !
@@ -5381,8 +5383,9 @@ SUBROUTINE compute_amn_with_scdm
    ! Dimensions of the process grid
    nprow = 1
    npcol = nproc_pool
-   ! Initialization of a default BLACS context and the processes grid
-   call blacs_get( -1, 0, context )
+   ! BLACS grid over the pool: the system context is the pool communicator, so
+   ! the grid column index is me_pool in whichever pool holds Gamma.
+   context = intra_pool_comm
    call blacs_gridinit( context, 'Row-major', nprow, npcol )
    call blacs_gridinfo( context, nprow, npcol, myrow, mycol )
    call descinit(descG, num_bands, npol*nrtot, minmn, minmn, 0, 0, context, max(1,minmn), info)
@@ -5450,9 +5453,9 @@ SUBROUTINE compute_amn_with_scdm
       ENDIF
    ENDIF
    !
-   !vv: Find Gamma-point index in the list of k-vectors
+   !vv: Find Gamma-point index in the list of k-vectors of spin channel ispinw
    gamma_idx = -1
-   DO ik = 1, nkstot
+   DO ik = ikstart, ikstop
       IF (ALL(ABS(xk_all(:, ik)) < 1.D-8)) THEN
          gamma_idx = ik
          EXIT
@@ -5494,6 +5497,7 @@ SUBROUTINE compute_amn_with_scdm
             CALL invfft('Wave', psic_nc(:,1), dffts)
             CALL invfft('Wave', psic_nc(:,2), dffts)
             !
+            psic_all(:, :) = (0.0_DP, 0.0_DP)
 #if defined(__MPI)
             CALL gather_grid(dffts, psic_nc(:, 1), psic_all(:, 1))
             CALL gather_grid(dffts, psic_nc(:, 2), psic_all(:, 2))
@@ -5523,16 +5527,21 @@ SUBROUTINE compute_amn_with_scdm
          !
          ! vv: Gamma only
          ! vv: Build Psi_k = Unk * focc
+         ! gather_grid fills psic_1d only on root_pool; bcast norm_psi to avoid 0/0
          norm_psi = SQRT(SUM( ABS(psic_1d)**2 ))
-#if defined(__SCALAPACK_QRCP)
          CALL mp_bcast(norm_psi, root_pool, intra_pool_comm)
+#if defined(__SCALAPACK_QRCP)
          CALL mp_bcast(psic_1d, root_pool, intra_pool_comm)
+         ! The last global block may be shorter than minmn; zero-pad it.
          DO ibl = 0, nblocks_loc-1
-            psi_gamma(minmn*ibl+1:minmn*(ibl+1), ibnd) = &
-               psic_1d(minmn*(ibl*nproc_pool+me_pool)+1:minmn*(ibl*nproc_pool+me_pool+1)) * (focc / norm_psi)
+            ioff = minmn * (ibl*nproc_pool + me_pool)
+            nelem = MIN(minmn, npol*nrtot - ioff)
+            psi_gamma(minmn*ibl+1:minmn*ibl+nelem, ibnd) = &
+               psic_1d(ioff+1:ioff+nelem) * (focc / norm_psi)
+            psi_gamma(minmn*ibl+nelem+1:minmn*(ibl+1), ibnd) = (0.0_DP, 0.0_DP)
          ENDDO
 #else
-         psi_gamma(1:nrtot, ibnd) = psic_1d(1:nrtot) * (focc / norm_psi)
+         psi_gamma(1:npol*nrtot, ibnd) = psic_1d(1:npol*nrtot) * (focc / norm_psi)
 #endif
          !
       ENDDO
@@ -5603,6 +5612,10 @@ SUBROUTINE compute_amn_with_scdm
    CALL mp_bcast(info, ipool_gamma, inter_pool_comm)
    CALL mp_bcast(piv, ipool_gamma, inter_pool_comm)
    IF (info /= 0) CALL errore('compute_amn', 'Error in computing the QR factorization', 1)
+   !
+#if defined(__SCALAPACK_QRCP)
+   call blacs_gridexit( context )
+#endif
    !
    CALL stop_clock('scdm_QRCP')
    !
@@ -6931,8 +6944,8 @@ SUBROUTINE write_plot
 END SUBROUTINE write_plot
 
 SUBROUTINE write_parity
-   USE mp_pools,             ONLY : intra_pool_comm, me_pool, root_pool, nproc_pool
-   USE mp,                   ONLY : mp_sum
+   USE mp_pools,             ONLY : intra_pool_comm, inter_pool_comm, me_pool, root_pool, nproc_pool
+   USE mp,                   ONLY : mp_sum, mp_max
    USE io_global,            ONLY : stdout, ionode
    USE wvfct,                ONLY : nbnd
    USE control_flags,        ONLY : gamma_only
@@ -6947,7 +6960,7 @@ SUBROUTINE write_parity
    !
    IMPLICIT NONE
    !
-   INTEGER :: npw, ibnd, ig, kgamma, ik, i, ig_target, num_G, ierr
+   INTEGER :: npw, ibnd, ig, kgamma, kgamma_any, ik, i, ig_target, num_G, ierr
    !!
    INTEGER :: g_target(3, 32)
    !! List of G vectors to find
@@ -7003,9 +7016,12 @@ SUBROUTINE write_parity
             kgamma = ik
             EXIT
          ENDIF
-         IF (ik == ikstop) CALL errore('write_parity',&
-              ' parity calculation may only be performed at the gamma point',1)
       ENDDO
+      ! kgamma is pool-local: -1 on pools without Gamma
+      kgamma_any = kgamma
+      CALL mp_max(kgamma_any, inter_pool_comm)
+      IF (kgamma_any == -1) CALL errore('write_parity',&
+           ' parity calculation may only be performed at the gamma point',1)
    ELSE
       ! NP: spin unpolarized or "up" component of spin
       IF (ispinw == 0 .OR. ispinw == 1) THEN
