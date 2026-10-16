@@ -382,6 +382,7 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
              CALL rcgdiagg( hs_1psi, s_1psi, h_diag, &
                       npwx, npw, nbnd, evc, et(1,ik), btype(1,ik), &
                       ethr, max_cg_iter, .NOT. lscf, notconv, cg_iter )
+             !$acc update device(et)
              !
              avg_iter = avg_iter + cg_iter
              !
@@ -619,6 +620,7 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
              CALL ccgdiagg( hs_1psi, s_1psi, h_diag, &
                       npwx, npw, nbnd, npol, evc, et(1,ik), btype(1,ik), &
                       ethr, max_cg_iter, .NOT. lscf, notconv, cg_iter )
+             !$acc update device(et)
              !
              avg_iter = avg_iter + cg_iter
              !
