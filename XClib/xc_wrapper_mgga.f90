@@ -266,8 +266,9 @@ SUBROUTINE xc_metagcx_( length, ns, np, rho, grho, tau, ex, ec, v1x, v2x, v3x, v
     IF ( ns==1 ) THEN
       !$acc parallel loop
       DO k = 1, length
+        ! sigma is floored at grho2_threshold_mgga above: testing it here zeroed the whole energy density at
+        ! points where grad rho vanishes (e.g. atoms on FFT grid points), so only rho and tau are tested
         IF ( ABS(rho_lxc(k))<=rho_threshold_mgga .OR. &
-             sigma(k)<=grho2_threshold_mgga      .OR. &
              ABS(tau_lxc(k))<=rho_threshold_mgga ) THEN
           ex(k) = 0.d0    ; v1x(k,1) = 0.d0
           v2x(k,1) = 0.d0 ; v3x(k,1) = 0.d0
@@ -333,7 +334,6 @@ SUBROUTINE xc_metagcx_( length, ns, np, rho, grho, tau, ex, ec, v1x, v2x, v3x, v
        !$acc parallel loop
        DO k = 1, length
          IF ( ABS(rho_lxc(k))<=rho_threshold_mgga    .OR. &
-                     sigma(k)<=grho2_threshold_mgga  .OR. &
               ABS(tau_lxc(k))<=rho_threshold_mgga  ) THEN
            ec(k) = 0.d0      ; v1c(k,1) = 0.d0
            v2c(1,k,1) = 0.d0 ; v3c(k,1) = 0.d0
