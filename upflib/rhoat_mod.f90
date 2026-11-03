@@ -22,6 +22,7 @@ MODULE rhoat_mod
   PUBLIC :: init_tab_rhoat
   PUBLIC :: interp_rhoat
   PUBLIC :: scale_tab_rhoat
+  PUBLIC :: deallocate_tab_rhoat
   !
   SAVE
   !
