@@ -241,7 +241,7 @@ end subroutine dgradcorr
 subroutine dgradcorr_acc (dfft, nl, rho, grho, dvxc_rr, dvxc_sr, dvxc_ss, &
      dvxc_s, xq, drho, g, dvxc)
   !--------------------------------------------------------------------
-  !! rtsc (RTSC_DVXC_GPU=1; groups/compute/SOLVE-LOG.md, wave 3B): dgradcorr on the device (OpenACC) for
+  !! qe-fast (QEF_DVXC_GPU=1; groups/compute/SOLVE-LOG.md, wave 3B): dgradcorr on the device (OpenACC) for
   !! nspin = 1, collinear, not gamma-tricks. Same arithmetic as dgradcorr's nspin = 1 branch with
   !! fft_qgradient / fft_qgraddot inlined: drho and dvxc must be present on the device; the per-q GGA
   !! arrays are copied in. FFTs through fwfft/invfft on device data (cuFFT).

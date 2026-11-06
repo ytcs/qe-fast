@@ -20,23 +20,23 @@
   CONTAINS
     !
     !-----------------------------------------------------------------------
-    LOGICAL FUNCTION rtsc_idlewait()
+    LOGICAL FUNCTION qef_idlewait()
     !-----------------------------------------------------------------------
-    !! rtsc epw3: RTSC_EPW_IDLEWAIT=1
+    !! qe-fast: QEF_EPW_IDLEWAIT=1
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_IDLEWAIT', ev)
+      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_IDLEWAIT', ev)
       on = TRIM(ev) == '1'
       rd = .TRUE.
     ENDIF
-    rtsc_idlewait = on
-    END FUNCTION rtsc_idlewait
+    qef_idlewait = on
+    END FUNCTION qef_idlewait
     !
     !-----------------------------------------------------------------------
-    SUBROUTINE rtsc_sleepy_barrier(comm)
+    SUBROUTINE qef_sleepy_barrier(comm)
     !-----------------------------------------------------------------------
-    !! rtsc epw3: a barrier whose waiting ranks sleep 0.5 ms between tests (no arithmetic, no data)
+    !! qe-fast: a barrier whose waiting ranks sleep 0.5 ms between tests (no arithmetic, no data)
     USE iso_c_binding, ONLY : c_int
 #if defined(__MPI)
     USE parallel_include
@@ -58,12 +58,12 @@
       rc = usleep(500_c_int)
     ENDDO
 #endif
-    END SUBROUTINE rtsc_sleepy_barrier
+    END SUBROUTINE qef_sleepy_barrier
     !
     !-----------------------------------------------------------------------
-    SUBROUTINE rtsc_gowait()
+    SUBROUTINE qef_gowait()
     !-----------------------------------------------------------------------
-    !! rtsc epw4 (groups/compute/EPW4-LOG.md): RTSC_EPW_GOFILE=<path>. A run script may start epw.x while the
+    !! qe-fast (groups/compute/EPW4-LOG.md): QEF_EPW_GOFILE=<path>. A run script may start epw.x while the
     !! previous stage still runs: every rank has done MPI_Init and created its CUDA context (mp_startup); here
     !! the ranks wait (5 ms sleeps) until <path> exists, then meet at a barrier and EPW proceeds as usual.
     !! No arithmetic changes. Unset (default): returns at once.
@@ -79,7 +79,7 @@
     CHARACTER(LEN = 512) :: gf
     LOGICAL :: ex
     INTEGER :: rc
-    CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_GOFILE', gf)
+    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_GOFILE', gf)
     IF (LEN_TRIM(gf) == 0) RETURN
     !$acc init
     DO
@@ -88,7 +88,7 @@
       rc = usleep(5000_c_int)
     ENDDO
     CALL mp_barrier(world_comm)
-    END SUBROUTINE rtsc_gowait
+    END SUBROUTINE qef_gowait
     !
     !------------------------------------------------------------------------
     SUBROUTINE pw2wan90epw
@@ -185,7 +185,7 @@
       CALL check_ahc_bands(excluded_band)
     ENDIF
     !
-    CALL SYSTEM_CLOCK(rc0, rcr)   ! rtsc amdahl: stage walls (groups/compute/AMDAHL-LOG.md)
+    CALL SYSTEM_CLOCK(rc0, rcr)   ! qe-fast: stage walls (groups/compute/AMDAHL-LOG.md)
     CALL ylm_expansion()
     IF (scdm_proj) THEN
       CALL compute_amn_with_scdm()
@@ -205,7 +205,7 @@
     CALL SYSTEM_CLOCK(rc3)
     CALL run_wannier()
     CALL SYSTEM_CLOCK(rc4)
-    WRITE(stdout, '(5x,a,4f10.3)') 'rtsc wannier walls (s): amn mmn write_band run_wannier ', &
+    WRITE(stdout, '(5x,a,4f10.3)') 'qef wannier walls (s): amn mmn write_band run_wannier ', &
       REAL(rc1 - rc0, KIND = 8) / rcr, REAL(rc2 - rc1, KIND = 8) / rcr, REAL(rc3 - rc2, KIND = 8) / rcr, &
       REAL(rc4 - rc3, KIND = 8) / rcr
     !
@@ -962,9 +962,9 @@
                        wann_spreads, spreads)                      ! output
     ENDIF
     !
-    ! rtsc epw3 (RTSC_EPW_IDLEWAIT=1; groups/compute/EPW3-LOG.md): the ranks that wait for wannier90 sleep
+    ! qe-fast (QEF_EPW_IDLEWAIT=1; groups/compute/EPW3-LOG.md): the ranks that wait for wannier90 sleep
     ! instead of busy-polling in mp_bcast, so the wannier90 threads on the ionode get the cores
-    IF (rtsc_idlewait()) CALL rtsc_sleepy_barrier(world_comm)
+    IF (qef_idlewait()) CALL qef_sleepy_barrier(world_comm)
     CALL mp_bcast(u_mat,        meta_ionode_id, world_comm)
     CALL mp_bcast(u_mat_opt,    meta_ionode_id, world_comm)
     CALL mp_bcast(lwindow,      meta_ionode_id, world_comm)
@@ -2028,7 +2028,7 @@
                                 excluded_band, write_mmn, zerophase, ispinw
     USE ep_constants,    ONLY : czero, cone, twopi, zero
     USE io_var,          ONLY : iummn
-    USE io,              ONLY : rtsc_novme
+    USE io,              ONLY : qef_novme
 #if defined(__NAG)
     USE f90_unix_io,     ONLY : flush
 #endif
@@ -2130,10 +2130,10 @@
     COMPLEX(KIND = DP), ALLOCATABLE :: qgm(:)
     !! Local variables for uspp
     COMPLEX(KIND = DP), ALLOCATABLE :: qq_so(:, :, :, :)
-    ! rtsc amdahl (RTSC_W90_MMN=1; groups/compute/AMDAHL-LOG.md): the phase product e^{i G0 r} of vanilla
+    ! qe-fast (QEF_W90_MMN=1; groups/compute/AMDAHL-LOG.md): the phase product e^{i G0 r} of vanilla
     ! (invfft, multiply, fwfft per band) is an exact cyclic shift of the FFT grid, so <u_mk|u_nk+b> is formed by
     ! an index map (k sphere -> k+q sphere shifted by G0) and one ZGEMM per (k, b). NC, collinear, serial FFT only.
-    ! RTSC_W90_MMN_CHECK=1 also runs the vanilla band loop and prints the largest difference.
+    ! QEF_W90_MMN_CHECK=1 also runs the vanilla band loop and prints the largest difference.
     LOGICAL :: fmmn, fmmn_chk
     CHARACTER(LEN = 16) :: fev
     INTEGER :: n1x, n2x, s1, s2, s3, l0, i1, i2, i3, ig
@@ -2239,16 +2239,16 @@
       !
     ENDIF
     !
-    CALL GET_ENVIRONMENT_VARIABLE('RTSC_W90_MMN', fev)
+    CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_MMN', fev)
     fmmn = TRIM(fev) == '1' .AND. .NOT. noncolin .AND. .NOT. any_uspp .AND. &
            dffts%nnr == dffts%nr1x * dffts%nr2x * dffts%nr3x
-    CALL GET_ENVIRONMENT_VARIABLE('RTSC_W90_MMN_CHECK', fev)
+    CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_MMN_CHECK', fev)
     fmmn_chk = fmmn .AND. TRIM(fev) == '1'
     dfm = 0.d0; mfm = 0.d0
     IF (fmmn) THEN
       n1x = dffts%nr1x; n2x = dffts%nr2x
       ALLOCATE(kinv(dffts%nnr), smap(npwx), amat(npwx, nbnd), mfast(nbnd, nbnd))
-      WRITE(stdout, '(5x,a)') 'rtsc: MMN by G-shift index map + ZGEMM (RTSC_W90_MMN)'
+      WRITE(stdout, '(5x,a)') 'qef: MMN by G-shift index map + ZGEMM (QEF_W90_MMN)'
     ENDIF
     ALLOCATE(Mkb(nbnd, nbnd), STAT = ierr)
     IF (ierr /= 0) CALL errore('compute_mmn_para', 'Error allocating Mkb', 1)
@@ -2487,7 +2487,7 @@
             ENDDO
           ENDDO
         ENDIF
-        ENDIF   ! rtsc: vanilla band loop
+        ENDIF   ! qe-fast: vanilla band loop
         !
         ibnd_n = 0
         DO n = 1, nbnd
@@ -2506,7 +2506,7 @@
       ENDDO ! ib
     ENDDO ! ik
     !
-    IF (fmmn_chk) WRITE(stdout, '(5x,a,es10.3,a,es10.3)') 'rtsc MMN check (this pool): max|fast - vanilla| ', dfm, &
+    IF (fmmn_chk) WRITE(stdout, '(5x,a,es10.3,a,es10.3)') 'qef MMN check (this pool): max|fast - vanilla| ', dfm, &
                          ', max|M| ', mfm
     IF (fmmn) DEALLOCATE(kinv, smap, amat, mfast)
     CALL mp_sum(m_mat, inter_pool_comm)
@@ -2514,8 +2514,8 @@
     ! RM - write mmn to file (file needed with vme = true)
     IF (meta_ionode) THEN
       write_mmn = .TRUE.
-      ! rtsc epw4 (RTSC_EPW_NOVME=1): the .mmn file is read only by vmebloch2wan, which that switch skips
-      IF (rtsc_novme()) write_mmn = .FALSE.
+      ! qe-fast (QEF_EPW_NOVME=1): the .mmn file is read only by vmebloch2wan, which that switch skips
+      IF (qef_novme()) write_mmn = .FALSE.
       IF (write_mmn) THEN
         !
         filmmn = TRIM(prefix)//'.mmn'
@@ -3233,7 +3233,7 @@
     COMPLEX(KIND = DP) :: lphase
     !! (-i)^l
     COMPLEX(KIND = DP), ALLOCATABLE :: sk(:)
-    ! rtsc amdahl (RTSC_W90_AMN=1; groups/compute/AMDAHL-LOG.md): the radial integrals depend only on
+    ! qe-fast (QEF_W90_AMN=1; groups/compute/AMDAHL-LOG.md): the radial integrals depend only on
     ! (alpha_w, r_w, l, |k+G|); compute them once per run of projectors with the same (alpha_w, r_w), and only
     ! for the l that one of them uses (csph /= 0). Same calls with the same inputs: bitwise identical.
     LOGICAL :: famn, lneed(0:3)
@@ -3270,7 +3270,7 @@
     qg(:) = DSQRT(qg(:)) * tpiba
     !
     ! RM changed according to QE4.0.3/PP/pw2wannier90
-    CALL GET_ENVIRONMENT_VARIABLE('RTSC_W90_AMN', fev)
+    CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_AMN', fev)
     famn = TRIM(fev) == '1'
     alpha_c = -1.d0; rw_c = -1
     DO iw = 1, n_proj
@@ -3286,7 +3286,7 @@
               IF (ABS(csph(lm, jw)) >= eps8) lneed(INT(DSQRT(lm - 1.d0))) = .TRUE.
             ENDDO
           ENDDO
-          CALL rtsc_radialpart(npw, qg, alpha_w(iw), r_w(iw), lmax, lneed, radial)
+          CALL qef_radialpart(npw, qg, alpha_w(iw), r_w(iw), lmax, lneed, radial)
           alpha_c = alpha_w(iw); rw_c = r_w(iw)
         ENDIF
       ELSE
@@ -4701,7 +4701,7 @@
     END SUBROUTINE radialpart
     !
     !-----------------------------------------------------------------------
-    SUBROUTINE rtsc_radialpart(ng, q, alfa, rvalue, lmax, lneed, radial)
+    SUBROUTINE qef_radialpart(ng, q, alfa, rvalue, lmax, lneed, radial)
     !-----------------------------------------------------------------------
     !!
     !! This routine computes a table with the radial Fourier transform
@@ -4726,7 +4726,7 @@
     REAL(KIND = DP), INTENT(in) :: q(ng)
     !!
     REAL(KIND = DP), INTENT(inout) :: radial(ng, 0:lmax)
-    !! rtsc: as radialpart, for the l with lneed(l) only (the others are left as they are)
+    !! qe-fast: as radialpart, for the l with lneed(l) only (the others are left as they are)
     LOGICAL, INTENT(in) :: lneed(0:lmax)
     !!
     !
@@ -4768,15 +4768,15 @@
     mesh_r = NINT((log(rmax) - xmin) / dx + 1)
     !
     ALLOCATE(bes(mesh_r), STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error allocating bes', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error allocating bes', 1)
     ALLOCATE(func_r(mesh_r), STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error allocating func_r', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error allocating func_r', 1)
     ALLOCATE(r(mesh_r), STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error allocating r', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error allocating r', 1)
     ALLOCATE(rij(mesh_r), STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error allocating rij', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error allocating rij', 1)
     ALLOCATE(aux(mesh_r), STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error allocating aux', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error allocating aux', 1)
     bes(:) = zero
     func_r(:) = zero
     r(:) = zero
@@ -4811,20 +4811,20 @@
     ENDDO
     !
     DEALLOCATE(bes, STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error deallocating bes', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error deallocating bes', 1)
     DEALLOCATE(func_r, STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error deallocating func_r', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error deallocating func_r', 1)
     DEALLOCATE(r, STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error deallocating r', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error deallocating r', 1)
     DEALLOCATE(rij, STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error deallocating rij', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error deallocating rij', 1)
     DEALLOCATE(aux, STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_radialpart', 'Error deallocating aux', 1)
+    IF (ierr /= 0) CALL errore('qef_radialpart', 'Error deallocating aux', 1)
     !
     RETURN
     !
     !-----------------------------------------------------------------------
-    END SUBROUTINE rtsc_radialpart
+    END SUBROUTINE qef_radialpart
     !-----------------------------------------------------------------------
     !
     !-----------------------------------------------------------------------

@@ -40,7 +40,7 @@ SUBROUTINE phqscf
   USE control_flags,    ONLY : iverbosity
   USE control_lr,       ONLY : convt, rec_code
   USE dfpt_type,        ONLY : dfpt_data_type, allocate_dfpt_data, deallocate_dfpt_data
-  USE sth_engine,       ONLY : sth_engine_set_npmax   ! rtsc b2r: the q's largest irrep (partial psi(r) cache reserve)
+  USE sth_engine,       ONLY : sth_engine_set_npmax   ! qe-fast: the q's largest irrep (partial psi(r) cache reserve)
   USE write_hub
 
   IMPLICIT NONE

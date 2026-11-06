@@ -53,7 +53,7 @@ set(sources
     qdipol_cryst.f90
     mode_group.f90
     mix_pot.f90
-    rtsc_mix.f90
+    qef_mix.f90
     lrcom.f90
     qpoint.f90
     lr_dot.f90
@@ -77,7 +77,7 @@ set(sources
     ch_psi_all_complex.f90
     sth_dump.f90
     sth_tail.f90
-    rtsc_vkb_batch.f90
+    qef_vkb_batch.f90
     sth_batched.f90
     sth_nscf_start.f90
     sth_nscf_batched.f90
@@ -85,34 +85,34 @@ set(sources
     efermi_shift.f90
     dfpt_kernels.f90)
 if(QE_ENABLE_CUDA)
-    # rtsc: batched Sternheimer engine (CUDA Fortran, cuFFT, cuBLAS); used by sth_batched.f90
-    list(PREPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/sth/sth_pfft.f90
-                         ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/sth/sth_pfft_s.f90
-                         ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/sth/sth_engine.f90
-                         ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/sth/nscf_engine.f90)
+    # qe-fast: batched Sternheimer engine (CUDA Fortran, cuFFT, cuBLAS); used by sth_batched.f90
+    list(PREPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/sth_pfft.f90
+                         ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/sth_pfft_s.f90
+                         ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/sth_engine.f90
+                         ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/nscf_engine.f90)
 endif()
 qe_enable_cuda_fortran("${sources}")
 if(QE_ENABLE_CUDA)
-    # rtsc: cuFFTDx local operator (rtsc/sth/fdx/sth_fftdx.cu; groups/compute/FFT-LOG.md). The real kernels need the
-    # MathDx and CUTLASS headers (rtsc/sth/fdx/deps.sh); without them a stub whose fdx_setup reports "unsupported".
-    set(RTSC_MATHDX_INC "" CACHE PATH "MathDx include dir (cufftdx.hpp) for the fftdx engine path")
-    set(RTSC_CUTLASS_INC "" CACHE PATH "CUTLASS include dir for the fftdx engine path")
-    if(RTSC_MATHDX_INC AND RTSC_CUTLASS_INC)
-        find_program(RTSC_NVCC nvcc HINTS ${CUDAToolkit_BIN_DIR} REQUIRED)
+    # qe-fast: cuFFTDx local operator (qefast/sth/fdx/sth_fftdx.cu; groups/compute/FFT-LOG.md). The real kernels need the
+    # MathDx and CUTLASS headers (qefast/sth/fdx/deps.sh); without them a stub whose fdx_setup reports "unsupported".
+    set(QEF_MATHDX_INC "" CACHE PATH "MathDx include dir (cufftdx.hpp) for the fftdx engine path")
+    set(QEF_CUTLASS_INC "" CACHE PATH "CUTLASS include dir for the fftdx engine path")
+    if(QEF_MATHDX_INC AND QEF_CUTLASS_INC)
+        find_program(QEF_NVCC nvcc HINTS ${CUDAToolkit_BIN_DIR} REQUIRED)
         list(GET QE_GPU_ARCHS 0 _fdx_arch)
         string(REGEX REPLACE "[^0-9]" "" _fdx_sm "${_fdx_arch}")
-        set(_fdx_src ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/sth/fdx/sth_fftdx.cu)
+        set(_fdx_src ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/fdx/sth_fftdx.cu)
         set(_fdx_obj ${CMAKE_CURRENT_BINARY_DIR}/sth_fftdx.o)
         add_custom_command(OUTPUT ${_fdx_obj}
-            COMMAND ${RTSC_NVCC} -std=c++17 -O3 -arch=sm_${_fdx_sm} -DFDX_SM=${_fdx_sm}0 -Xcompiler -fPIC
-                    -I${RTSC_MATHDX_INC} -I${RTSC_CUTLASS_INC} -c ${_fdx_src} -o ${_fdx_obj}
+            COMMAND ${QEF_NVCC} -std=c++17 -O3 -arch=sm_${_fdx_sm} -DFDX_SM=${_fdx_sm}0 -Xcompiler -fPIC
+                    -I${QEF_MATHDX_INC} -I${QEF_CUTLASS_INC} -c ${_fdx_src} -o ${_fdx_obj}
             DEPENDS ${_fdx_src} VERBATIM)
         set_source_files_properties(${_fdx_obj} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
         list(APPEND sources ${_fdx_obj})
-        message(STATUS "rtsc fftdx: cuFFTDx kernels for sm_${_fdx_sm}")
+        message(STATUS "qef fftdx: cuFFTDx kernels for sm_${_fdx_sm}")
     else()
-        list(APPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/sth/fdx/sth_fftdx_stub.c)
-        message(STATUS "rtsc fftdx: stub (set RTSC_MATHDX_INC and RTSC_CUTLASS_INC for the cuFFTDx kernels)")
+        list(APPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/fdx/sth_fftdx_stub.c)
+        message(STATUS "qef fftdx: stub (set QEF_MATHDX_INC and QEF_CUTLASS_INC for the cuFFTDx kernels)")
     endif()
 endif()
 qe_add_library(qe_lr_modules ${sources})

@@ -131,8 +131,8 @@
   !
   IMPLICIT NONE
   !
-  CHARACTER(LEN = 16) :: rtsc_env
-  !! rtsc: environment switch
+  CHARACTER(LEN = 16) :: qef_env
+  !! qe-fast: environment switch
   !
   LOGICAL :: exst
   !! Find if a file exists.
@@ -1063,14 +1063,14 @@
   !
   IF (etf_mem > 1 .OR. etf_mem < 0) CALL errore('readin', 'etf_mem can only be 0 or 1.', 1)
 #if defined (__CUDA)
-  ! rtsc: in the GPU build keep each pool's slice of epmatwp in (device) memory instead of
+  ! qe-fast: in the GPU build keep each pool's slice of epmatwp in (device) memory instead of
   ! re-reading it from disk for every fine q (etf_mem = 1). Same interpolation, cuBLAS instead
-  ! of per-record ZAXPY. RTSC_EPW_ETFMEM=keep restores the input value.
+  ! of per-record ZAXPY. QEF_EPW_ETFMEM=keep restores the input value.
   IF (etf_mem == 1 .AND. (.NOT. lfast_kmesh)) THEN
-    CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_ETFMEM', rtsc_env)
-    IF (TRIM(rtsc_env) /= 'keep') THEN
+    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_ETFMEM', qef_env)
+    IF (TRIM(qef_env) /= 'keep') THEN
       etf_mem = 0
-      WRITE(stdout, '(/5x, a)') 'rtsc: etf_mem = 1 -> 0 (GPU build: epmatwp kept in memory)'
+      WRITE(stdout, '(/5x, a)') 'qef: etf_mem = 1 -> 0 (GPU build: epmatwp kept in memory)'
     ENDIF
   ENDIF
 #endif

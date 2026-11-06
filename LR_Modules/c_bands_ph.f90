@@ -50,11 +50,11 @@ SUBROUTINE c_bands_nscf_ph( )
   ! ik : counter on k points
   LOGICAL :: exst, exst_mem
   LOGICAL, ALLOCATABLE :: kdone(:), kskip(:)
-  ! rtsc: RTSC_NSCF_SYMROT (k-points rotated from a symmetry image instead of diagonalized)
+  ! qe-fast: QEF_NSCF_SYMROT (k-points rotated from a symmetry image instead of diagonalized)
   LOGICAL :: symrot
   INTEGER :: ipass
   REAL(DP) :: ethr_save
-  ! rtsc: k-points already diagonalized by the batched Davidson
+  ! qe-fast: k-points already diagonalized by the batched Davidson
   !
   REAL(DP), EXTERNAL :: get_clock
   !
@@ -84,7 +84,7 @@ SUBROUTINE c_bands_nscf_ph( )
   ! ... For each k point (except those already calculated if restarting)
   ! ... diagonalizes the hamiltonian
   !
-  ! rtsc: batched Davidson over all k on the GPU (RTSC_STH=1); the loop below handles the rest
+  ! qe-fast: batched Davidson over all k on the GPU (QEF_STH=1); the loop below handles the rest
   ALLOCATE(kdone(nks), kskip(nks))
   kdone(:) = .FALSE.
   kskip(:) = .FALSE.
@@ -95,13 +95,13 @@ SUBROUTINE c_bands_nscf_ph( )
      ethr = ethr * symrot_tight()
      CALL symrot_plan(kdone, kskip)
   ENDIF
-  ! rtsc: rotated scf wavefunctions as Davidson starting vectors (RTSC_NSCF_ROT=1); with RTSC_NSCF_SYMROT, only
+  ! qe-fast: rotated scf wavefunctions as Davidson starting vectors (QEF_NSCF_ROT=1); with QEF_NSCF_SYMROT, only
   ! when some k-point is left to diagonalize (the start vectors are read from the scf restart files)
   IF (.NOT. symrot .OR. ANY(.NOT. kdone .AND. .NOT. kskip)) CALL nscf_start_prepare()
   CALL nscf_batched_run(ik_, kdone, avg_iter, kskip)
   !
-  ! rtsc: pass 1 diagonalizes what the batched run left (except the k-points waiting for a rotation);
-  ! with RTSC_NSCF_SYMROT, pass 2 handles any k-point whose rotation could not be done
+  ! qe-fast: pass 1 diagonalizes what the batched run left (except the k-points waiting for a rotation);
+  ! with QEF_NSCF_SYMROT, pass 2 handles any k-point whose rotation could not be done
   pass_loop: DO ipass = 1, 2
   IF (ipass == 2) THEN
      IF (.NOT. symrot) EXIT pass_loop

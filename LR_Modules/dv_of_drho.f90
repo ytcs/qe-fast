@@ -10,8 +10,8 @@ MODULE dv_of_drho_lr
 PUBLIC :: dv_of_drho
 PUBLIC :: dv_of_drho_xc
 !
-! rtsc RTSC_DVXC_GPU=1 (groups/compute/SOLVE-LOG.md, wave 3B): the GGA part of dv_of_drho_xc on the device
-LOGICAL, SAVE :: rtsc_dvxc_init = .FALSE., rtsc_dvxc_gpu = .FALSE.
+! qe-fast QEF_DVXC_GPU=1 (groups/compute/SOLVE-LOG.md, wave 3B): the GGA part of dv_of_drho_xc on the device
+LOGICAL, SAVE :: qef_dvxc_init = .FALSE., qef_dvxc_gpu = .FALSE.
 
 CONTAINS
 
@@ -316,17 +316,17 @@ subroutine dv_of_drho_xc (dv, drho, drhoc)
   LOGICAL :: gpu_gc
   REAL(DP), ALLOCATABLE :: rhoc(:)
   !
-  IF (.NOT. rtsc_dvxc_init) THEN
+  IF (.NOT. qef_dvxc_init) THEN
      BLOCK
        CHARACTER(LEN=16) :: sv
        INTEGER :: ios
-       CALL get_environment_variable('RTSC_DVXC_GPU', sv, STATUS=ios)
-       rtsc_dvxc_gpu = (ios == 0 .AND. TRIM(sv) == '1')
-       IF (rtsc_dvxc_gpu) WRITE(*, '(A)') '     rtsc dvxc_gpu: GGA response kernel (dgradcorr) on the device'
+       CALL get_environment_variable('QEF_DVXC_GPU', sv, STATUS=ios)
+       qef_dvxc_gpu = (ios == 0 .AND. TRIM(sv) == '1')
+       IF (qef_dvxc_gpu) WRITE(*, '(A)') '     qef dvxc_gpu: GGA response kernel (dgradcorr) on the device'
      END BLOCK
-     rtsc_dvxc_init = .TRUE.
+     qef_dvxc_init = .TRUE.
   ENDIF
-  gpu_gc = rtsc_dvxc_gpu .AND. xclib_dft_is('gradient') .AND. .NOT. dft_is_nonlocc() .AND. &
+  gpu_gc = qef_dvxc_gpu .AND. xclib_dft_is('gradient') .AND. .NOT. dft_is_nonlocc() .AND. &
            nspin_mag == 1 .AND. nspin_gga == 1 .AND. .NOT. dfftp%lgamma
   !
   tpnnr = dfftp%nnr
@@ -380,7 +380,7 @@ subroutine dv_of_drho_xc (dv, drho, drhoc)
   !
 
   if ( gpu_gc ) THEN
-     ! rtsc RTSC_DVXC_GPU: same arithmetic on the device; drhotot and dv stay there
+     ! qe-fast QEF_DVXC_GPU: same arithmetic on the device; drhotot and dv stay there
      ALLOCATE(rhoc(dfftp%nnr))
      rhoc(:) = rho%of_r(:, 1)
      if (nlcc_any) rhoc(:) = rhoc(:) + rho_core(:)

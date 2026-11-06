@@ -103,7 +103,7 @@ SUBROUTINE run_nscf(do_band, iq)
   restart        = ext_restart
   conv_ions      = .true.
   ethr_nscf      = 1.0D-9 / nelec 
-  ! rtsc (diagnostic, default 1): RTSC_NSCF_ETHR_SCALE multiplies the nscf threshold
+  ! qe-fast (diagnostic, default 1): QEF_NSCF_ETHR_SCALE multiplies the nscf threshold
   ethr_nscf      = ethr_nscf * nscf_ethr_scale()
   ! threshold for diagonalization ethr_nscf - should be good for all cases
   !
@@ -113,7 +113,7 @@ SUBROUTINE run_nscf(do_band, iq)
   CALL fft_type_allocate ( dffts, at, bg, gcutms, intra_bgrp_comm, nyfft=nyfft)
   !
   CALL setup_nscf ( newgrid, xq, elph_mat .OR. elph_ahc )
-  ! rtsc: the scf wavefunctions (RTSC_NSCF_ROT starting vectors) are in the original outdir
+  ! qe-fast: the scf wavefunctions (QEF_NSCF_ROT starting vectors) are in the original outdir
   nscf_start_dir = TRIM(tmp_dir_save) // TRIM(prefix) // postfix
   !
   !

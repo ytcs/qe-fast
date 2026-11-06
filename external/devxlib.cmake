@@ -2,7 +2,7 @@
 # DeviceXlib
 ###########################################################
 if(QE_DEVICEXLIB_INTERNAL)
-    # rtsc: devxlib is vendored at a6b89ef (gitlab.com is unreachable from our build pods).
+    # qe-fast: devxlib is vendored at a6b89ef (gitlab.com is unreachable from our build pods).
     message(STATUS "Installing DeviceXlib from vendored source")
 
     set(src_devxlib

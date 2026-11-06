@@ -22,11 +22,11 @@
     !--------------------------------------------------------------------------
     LOGICAL FUNCTION b2w_gemm()
     !--------------------------------------------------------------------------
-    !! rtsc epw3: RTSC_EPW_B2W=1 (ephbloch2wane step 2 by ZGEMM; groups/compute/EPW3-LOG.md)
+    !! qe-fast: QEF_EPW_B2W=1 (ephbloch2wane step 2 by ZGEMM; groups/compute/EPW3-LOG.md)
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_B2W', ev)
+      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_B2W', ev)
       on = TRIM(ev) == '1'
       rd = .TRUE.
     ENDIF
@@ -36,12 +36,12 @@
     !--------------------------------------------------------------------------
     LOGICAL FUNCTION b2w_gpu()
     !--------------------------------------------------------------------------
-    !! rtsc epw4: RTSC_EPW_B2WG=1 (with RTSC_EPW_B2W=1): ephbloch2wane step 2's ZGEMMs on the device
+    !! qe-fast: QEF_EPW_B2WG=1 (with QEF_EPW_B2W=1): ephbloch2wane step 2's ZGEMMs on the device
     !! (groups/compute/EPW4-LOG.md). Default off.
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_B2WG', ev)
+      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_B2WG', ev)
       on = TRIM(ev) == '1'
 #if !defined (__CUDA)
       on = .FALSE.
@@ -1442,7 +1442,7 @@
     COMPLEX(KIND = DP), ALLOCATABLE :: epmats(:, :, :, :)
     !!  e-p matrix  in smooth Bloch basis, coarse mesh
     COMPLEX(KIND = DP), ALLOCATABLE :: cf(:, :)
-    !! rtsc epw3: e^{-i k R} / nkstot (RTSC_EPW_B2W)
+    !! qe-fast: e^{-i k R} / nkstot (QEF_EPW_B2W)
     CHARACTER(LEN = 256) :: fnm
     !! Buffer file name
     !
@@ -1508,7 +1508,7 @@
     !
     CALL cryst_to_cart(nks, xk, at, -1)
     !
-    ! rtsc epw3 (RTSC_EPW_B2W=1; groups/compute/EPW3-LOG.md): the same sum as one ZGEMM per mode,
+    ! qe-fast (QEF_EPW_B2W=1; groups/compute/EPW3-LOG.md): the same sum as one ZGEMM per mode,
     ! epmatw(:, :, :, imode) = epmats(:, :, :, imode) x cf(nks, nrr), and one reduction for all modes. Default off.
     IF (b2w_gemm()) THEN
       ALLOCATE(cf(nks, nrr), STAT = ierr)
@@ -1521,7 +1521,7 @@
       ENDDO
       IF (b2w_gpu()) THEN
 #if defined (__CUDA)
-        ! rtsc epw4 (RTSC_EPW_B2WG=1): the same ZGEMMs with cuBLAS on the device
+        ! qe-fast (QEF_EPW_B2WG=1): the same ZGEMMs with cuBLAS on the device
         !$acc data copyin(epmats, cf) copyout(epmatw)
         !$acc host_data use_device(epmats, cf, epmatw)
         DO imode = 1, nmodes
@@ -1539,7 +1539,7 @@
       ENDDO
       ENDIF
       DEALLOCATE(cf)
-      CALL start_clock('ep: step 2r') ! rtsc epw4 profiling clock (the inter-pool reduction)
+      CALL start_clock('ep: step 2r') ! qe-fast profiling clock (the inter-pool reduction)
       CALL mp_sum(epmatw, inter_pool_comm)
       CALL stop_clock('ep: step 2r')
     ELSE
@@ -1558,7 +1558,7 @@
     DO imode = 1, nmodes
       CALL mp_sum(epmatw(:, :, :, imode), inter_pool_comm)
     ENDDO
-    ENDIF ! rtsc epw3
+    ENDIF ! qe-fast
     !
     ! bring xk back into cart coord
     !
@@ -1667,11 +1667,11 @@
     !! Global counter on the combined WS*mode index
 
     INTEGER :: irg_lo, irg_hi
-    !! rtsc epw3: R_p range of one mode in this pool (RTSC_EPW_B2W)
+    !! qe-fast: R_p range of one mode in this pool (QEF_EPW_B2W)
     INTEGER :: ld
-    !! rtsc epw3: leading dimension of epmatwe / epmatwp per mode slab
+    !! qe-fast: leading dimension of epmatwe / epmatwp per mode slab
     COMPLEX(KIND = DP), ALLOCATABLE :: cf(:, :)
-    !! rtsc epw3: e^{-i q R_p} / nq
+    !! qe-fast: e^{-i q R_p} / nq
     INTEGER :: imode
     !! Phonon mode index
     CHARACTER(LEN = 256) :: fnm
@@ -1690,7 +1690,7 @@
     !
     epmatwp = czero
     !
-    ! rtsc epw3 (RTSC_EPW_B2W=1): for each mode, the pool's R_p range in one ZGEMM over q,
+    ! qe-fast (QEF_EPW_B2W=1): for each mode, the pool's R_p range in one ZGEMM over q,
     ! epmatwp(:, :, :, imode, irg_lo:irg_hi) = epmatwe(:, :, :, imode, :) x cf(:, irg_lo:irg_hi)
     IF (b2w_gemm()) THEN
       ALLOCATE(cf(nq, irg_start:irg_stop))
@@ -1727,7 +1727,7 @@
         !
       ENDDO
     ENDDO
-    ENDIF ! rtsc epw3
+    ENDIF ! qe-fast
     !
     tmp = 0.0_DP
     !

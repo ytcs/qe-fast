@@ -77,7 +77,7 @@
   USE kfold,         ONLY : createkmap_pw2, createkmap
   USE low_lvl,       ONLY : set_ndnmbr, eqvect_strict, copy_sym_epw, fix_sym
   USE ph_restart,    ONLY : read_disp_pattern_only
-  USE io,            ONLY : read_ifc_epw, readgmap, dynmat_asr, loadumat, readdnsbare, rtsc_nowrite, rtsc_novme
+  USE io,            ONLY : read_ifc_epw, readgmap, dynmat_asr, loadumat, readdnsbare, qef_nowrite, qef_novme
   USE parallelism,   ONLY : poolgather
   USE symmetry,      ONLY : rotate_epmat, rotate_eigenm, star_q2, gmap_sym, &
                             setup_rotate_wavefunction, write_qmap,          &
@@ -301,12 +301,12 @@
   IF (epwread .AND. .NOT. epbread) THEN
     CONTINUE
   ELSE
-    ! rtsc epw4 (RTSC_EPW_NOVME=1): dmec is never read in this run; keep it allocated (zero) for build_wannier
-    IF (rtsc_novme() .AND. .NOT. lwfpt) THEN
+    ! qe-fast (QEF_EPW_NOVME=1): dmec is never read in this run; keep it allocated (zero) for build_wannier
+    IF (qef_novme() .AND. .NOT. lwfpt) THEN
       ALLOCATE(dmec(3, nbndep, nbndep, nk_loc), STAT = ierr)
       IF (ierr /= 0) CALL errore('ep_coarse_unfolding', 'Error allocating dmec', 1)
       dmec = czero
-      WRITE(stdout, '(5x,a)') 'rtsc: RTSC_EPW_NOVME, dipole matrix elements not computed (not read in this run)'
+      WRITE(stdout, '(5x,a)') 'qef: QEF_EPW_NOVME, dipole matrix elements not computed (not read in this run)'
     ELSE
     CALL compute_pmn_para(include_nonlocal = .TRUE.)
     IF (lwfpt) CALL compute_pmn_para(include_nonlocal = .FALSE.)
@@ -1036,11 +1036,11 @@
         IF (ierr /= 0) CALL errore('ep_coarse_unfolding', 'Error allocating el_ph_mat', 1)
         el_ph_mat(:, :, :, :) = czero
         IF (ep_coarse_gpu_ok()) THEN
-          ! rtsc: all modes in one pass (NC: dvscf_read and ep_coarse_compute do not depend on
+          ! qe-fast: all modes in one pass (NC: dvscf_read and ep_coarse_compute do not depend on
           ! the irrep split), so the per-k work (wfc read, projectors, FFTs) is done once per q
           ALLOCATE(dvscfins(dffts%nnr, nspin_mag, 3 * nat), STAT = ierr)
           IF (ierr /= 0) CALL errore('ep_coarse_unfolding', 'Error allocating dvscfins', 1)
-          ! rtsc epw3 (RTSC_EPW_STAR=1): members after the first use the first one's g (ep_coarse.f90 header);
+          ! qe-fast (QEF_EPW_STAR=1): members after the first use the first one's g (ep_coarse.f90 header);
           ! their dvscf is read only if some k needs the direct form (star_lazy)
           IF (star_enabled()) CALL star_begin(iq == 1, iq > 1, iq_irr, nqc_irr)
           IF (.NOT. star_lazy()) CALL dvscf_read(0, iq_irr, nqc_irr, 3 * nat, xq0, dvscfins, timerev)
@@ -1155,7 +1155,7 @@
           IF (ierr /= 0) CALL errore('ep_coarse_unfolding', 'Error allocating el_ph_mat', 1)
           el_ph_mat(:, :, :, :) = czero
           IF (ep_coarse_gpu_ok()) THEN
-            ! rtsc: all modes in one pass (NC: dvscf_read and ep_coarse_compute do not depend on
+            ! qe-fast: all modes in one pass (NC: dvscf_read and ep_coarse_compute do not depend on
             ! the irrep split), so the per-k work (wfc read, projectors, FFTs) is done once per q
             ALLOCATE(dvscfins(dffts%nnr, nspin_mag, 3 * nat), STAT = ierr)
             IF (ierr /= 0) CALL errore('ep_coarse_unfolding', 'Error allocating dvscfins', 1)
@@ -1350,8 +1350,8 @@
         WRITE(stdout, '(/5x, "The .epb files have been correctly read"/)')
       ENDIF
       !
-      ! rtsc epw3: RTSC_EPW_NOWRITE=1 skips the .epb restart files (never read in this run)
-      IF (epbwrite .AND. .NOT. rtsc_nowrite()) THEN
+      ! qe-fast: QEF_EPW_NOWRITE=1 skips the .epb restart files (never read in this run)
+      IF (epbwrite .AND. .NOT. qef_nowrite()) THEN
         OPEN(iuepb, FILE = tempfile, FORM = 'unformatted')
         WRITE(stdout, '(/5x, "Writing epmatq on .epb files"/)')
         WRITE(iuepb) nqc, xqc, et_loc, dynq, epmatq, zstar, epsi

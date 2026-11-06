@@ -1,7 +1,7 @@
 !
-! rtsc: GPU versions of host-side ph.x steps around the batched Sternheimer engine (the "CPU tail",
-! groups/compute/PH-DESIGN.md P4). Each routine is used only when RTSC_STH=1 (sth_tail_on); with
-! RTSC_STH unset or 0 the vanilla code runs unchanged.
+! qe-fast: GPU versions of host-side ph.x steps around the batched Sternheimer engine (the "CPU tail",
+! groups/compute/PH-DESIGN.md P4). Each routine is used only when QEF_STH=1 (sth_tail_on); with
+! QEF_STH unset or 0 the vanilla code runs unchanged.
 !
 !   symdvscf_acc   symdvscf (symmetrization of drho / dvscf of one irrep) as one OpenACC loop over
 !                  the FFT grid. Same formula; the phase exp(i g.r) is evaluated directly instead of
@@ -22,9 +22,9 @@ CONTAINS
     INTEGER :: ios
     IF (tail_flag < 0) THEN
       tail_flag = 0
-      CALL get_environment_variable('RTSC_STH', s, STATUS=ios)
+      CALL get_environment_variable('QEF_STH', s, STATUS=ios)
       IF (ios == 0 .AND. TRIM(s) == '1') tail_flag = 1
-      CALL get_environment_variable('RTSC_TAIL', s, STATUS=ios)     ! RTSC_TAIL=0: engine only
+      CALL get_environment_variable('QEF_TAIL', s, STATUS=ios)     ! QEF_TAIL=0: engine only
       IF (ios == 0 .AND. TRIM(s) == '0') tail_flag = 0
     ENDIF
     sth_tail_on = (tail_flag == 1)

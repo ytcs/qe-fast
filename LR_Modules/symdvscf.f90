@@ -52,7 +52,7 @@ subroutine symdvscf (dvtosym, dfft)
   ! If there is no symmetry other than identity, return.
   IF (nsymq == 1 .AND. (.NOT.minus_q) ) RETURN
 #if defined(__CUDA)
-  ! rtsc: GPU symmetrization when the fork's engine is on (RTSC_STH=1)
+  ! qe-fast: GPU symmetrization when the fork's engine is on (QEF_STH=1)
   IF (sth_tail_on()) THEN
      CALL symdvscf_acc(dvtosym, dfft)
      RETURN

@@ -364,7 +364,7 @@ END SUBROUTINE dvqpsi_us_only!
 !----------------------------------------------------------------------
 SUBROUTINE dvqpsi_us_only_acc (ik, uact, becp1, alphap)
   !----------------------------------------------------------------------
-  !! rtsc: dvqpsi_us_only for norm-conserving, collinear pseudopotentials (no okvan, no noncolin),
+  !! qe-fast: dvqpsi_us_only for norm-conserving, collinear pseudopotentials (no okvan, no noncolin),
   !! called by dvqpsi_us while dvpsi is present on the device. ps1 and ps2 are formed on the host
   !! exactly as in dvqpsi_us_only; the two plane-wave updates
   !!   dvpsi += vkb ps1   and   dvpsi += sum_ipol [ (k+q+G)_ipol vkb ] ps2(:,:,ipol)

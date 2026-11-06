@@ -1,6 +1,6 @@
 !
-! rtsc: QE-side adapter of the batched nscf Davidson (rtsc/sth/nscf_engine.f90). c_bands_nscf_ph calls
-! nscf_batched_run before its k loop. With RTSC_STH=1 (and RTSC_NSCF_BATCH not 0) and a supported case,
+! qe-fast: QE-side adapter of the batched nscf Davidson (qefast/sth/nscf_engine.f90). c_bands_nscf_ph calls
+! nscf_batched_run before its k loop. With QEF_STH=1 (and QEF_NSCF_BATCH not 0) and a supported case,
 ! all k-points are diagonalized together on the GPU, from the same starting vectors as the vanilla loop
 ! (rotated scf wavefunctions, or init_wfc), to the same threshold ethr; their wavefunctions are written
 ! to iunwfc and their eigenvalues to et, and kdone(ik) is set. k-points not done (unsupported case,
@@ -47,7 +47,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT) :: kdone(nks)
     REAL(DP), INTENT(INOUT) :: avg_iter
     LOGICAL, INTENT(IN), OPTIONAL :: kskip(nks)
-    ! rtsc (RTSC_NSCF_SYMROT): k-points already done (kdone) or marked kskip are not diagonalized here;
+    ! qe-fast (QEF_NSCF_SYMROT): k-points already done (kdone) or marked kskip are not diagonalized here;
     ! the caller initializes kdone
     !
 #if defined(__CUDA)
@@ -64,11 +64,11 @@ CONTAINS
 #endif
     !
 #if defined(__CUDA)
-    CALL get_environment_variable('RTSC_STH', s, STATUS=ios)
+    CALL get_environment_variable('QEF_STH', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
-    CALL get_environment_variable('RTSC_NSCF_BATCH', s, STATUS=ios)
+    CALL get_environment_variable('QEF_NSCF_BATCH', s, STATUS=ios)
     IF (ios == 0 .AND. TRIM(s) == '0') RETURN
-    CALL get_environment_variable('RTSC_STRICT', s, STATUS=ios)
+    CALL get_environment_variable('QEF_STRICT', s, STATUS=ios)
     strict = (ios == 0 .AND. TRIM(s) == '1')
     unsup = ik_ /= 0 .OR. isolve /= 0 .OR. david < 2
     unsup = unsup .OR. okvan .OR. noncolin .OR. npol /= 1 .OR. lsda .OR. lda_plus_u .OR. gamma_only
@@ -76,8 +76,8 @@ CONTAINS
     unsup = unsup .OR. nproc_bgrp /= 1 .OR. nbgrp /= 1 .OR. dffts%has_task_groups
     unsup = unsup .OR. dffts%nnr /= dffts%nr1x * dffts%nr2x * dffts%nr3x
     IF (unsup) THEN
-      ! RTSC_STRICT=1 (scored runs): no silent fallback to the per-k Davidson
-      IF (strict) CALL errore('nscf_batched_run', 'case not supported by the batched nscf and RTSC_STRICT=1', 1)
+      ! QEF_STRICT=1 (scored runs): no silent fallback to the per-k Davidson
+      IF (strict) CALL errore('nscf_batched_run', 'case not supported by the batched nscf and QEF_STRICT=1', 1)
       RETURN
     ENDIF
     !
@@ -150,9 +150,9 @@ CONTAINS
     ENDDO
     !$acc update device(et)
     DEALLOCATE(dmat, idx, kl)
-    WRITE(stdout, '(5x,"rtsc nscf: batched Davidson on ",I0," k-points (",I0," per chunk), ",I0, &
+    WRITE(stdout, '(5x,"qef nscf: batched Davidson on ",I0," k-points (",I0," per chunk), ",I0, &
          &" left to the per-k Davidson")') nkl - nfail, chunk, nfail
-    WRITE(stdout, '(5x,"rtsc nscf: setup ",F7.2," s, solve ",F7.2," s (host eigensolver ",F7.2," s), ",I0, &
+    WRITE(stdout, '(5x,"qef nscf: setup ",F7.2," s, solve ",F7.2," s (host eigensolver ",F7.2," s), ",I0, &
          &" steps")') tset, tsol, teig, nit
     CALL stop_clock('nscf_batch')
 #endif

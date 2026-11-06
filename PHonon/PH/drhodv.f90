@@ -82,7 +82,7 @@ subroutine drhodv (nu_i0, nper, drhos)
   ! work space
   complex(DP), allocatable :: becq_all(:,:,:,:), alpq_all(:,:,:,:,:)
   logical :: use_eng
-  ! rtsc: projections of dpsi from the batched engine (all k at once), RTSC_STH=1
+  ! qe-fast: projections of dpsi from the batched engine (all k at once), QEF_STH=1
 
 #if defined(__CUDA)
   TYPE (bec_type) :: bectmp
@@ -113,7 +113,7 @@ subroutine drhodv (nu_i0, nper, drhos)
   nsolv=1
   IF (noncolin.AND.domag) nsolv=2
   !
-  ! rtsc: the engine's dpsi lacks the q = Gamma Fermi shift (ef_shift_wfc_new acts on iudwf only)
+  ! qe-fast: the engine's dpsi lacks the q = Gamma Fermi shift (ef_shift_wfc_new acts on iudwf only)
   use_eng = .FALSE.
   IF (sth_tail_on() .AND. .NOT. (okvan .OR. noncolin .OR. lmultipole .OR. lgamma .OR. lsda)) THEN
      ALLOCATE (becq_all(nkb, nbnd, nper, nksq), alpq_all(nkb, nbnd, 3, nper, nksq))
@@ -284,7 +284,7 @@ end subroutine drhodv
 !-----------------------------------------------------------------------
 subroutine drhodvnl_nc (ik, ikk, nper, nu_i0, wdyn, becp1, alphap, dbecq, dalpq)
   !-----------------------------------------------------------------------
-  !! rtsc: drhodvnl for norm-conserving, collinear pseudopotentials (no okvan, no noncolin, one band
+  !! qe-fast: drhodvnl for norm-conserving, collinear pseudopotentials (no okvan, no noncolin, one band
   !! group), the engine path of drhodv. Same loops and operation order as drhodvnl; deff is deeq for
   !! every band (compute_deff without okvan), taken once from the host copy instead of a GPU kernel
   !! and copy-out per band.

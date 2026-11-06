@@ -469,7 +469,7 @@
     !! Cartesian coordinates of grid points nkf1, nkf2, nkf3
     REAL(KIND = DP) :: weight, weight2, weight3, weightq
     REAL(KIND = DP), ALLOCATABLE :: wq2(:, :)
-    !! rtsc: sum over (k, n, m) pairs of weight * g2 for each (mode, q)
+    !! qe-fast: sum over (k, n, m) pairs of weight * g2 for each (mode, q)
     INTEGER :: lower_q, upper_q
     !! factors in lambda_eph and a2f
     REAL(KIND = DP) :: sigma
@@ -528,7 +528,7 @@
     l_sum = zero
     lambda_max(:) = zero
     !
-    ! rtsc: the phonon Gaussian depends only on (mode, q), so first sum weight * g2 over the
+    ! qe-fast: the phonon Gaussian depends only on (mode, q), so first sum weight * g2 over the
     ! (k, n, m) pairs into wq2(mode, q), then spread each wq2 over the frequency grid once.
     ! Vanilla evaluated w0gauss for every pair, mode, frequency and smearing. Same sums,
     ! different floating-point order.

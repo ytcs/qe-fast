@@ -1749,7 +1749,7 @@
     CALL print_clock('fft')
     CALL print_clock('ffts')
     CALL print_clock('fftw')
-    ! rtsc: finer breakdown of the coarse stage
+    ! qe-fast: finer breakdown of the coarse stage
     CALL print_clock('dvscf_read')
     CALL print_clock('ep_init_q')
     CALL print_clock('ep_createkmap')
@@ -1793,7 +1793,7 @@
     CALL print_clock('Ham: step 4')
     CALL print_clock('ep: step 1')
     CALL print_clock('ep: step 2')
-    CALL print_clock('ep: step 2r') ! rtsc epw4 profiling clocks
+    CALL print_clock('ep: step 2r') ! qe-fast profiling clocks
     CALL print_clock('b2w_setup')
     CALL print_clock('b2w_wanp')
     CALL print_clock('b2w_write')
@@ -1847,8 +1847,8 @@
     CALL print_clock('epq_cfac')
     CALL print_clock('epq_rrf')
     CALL print_clock('epq_kloop')
-    CALL print_clock('rtsc_fsetup')
-    CALL print_clock('rtsc_fbatch')
+    CALL print_clock('qef_fsetup')
+    CALL print_clock('qef_fbatch')
     CALL print_clock('write_dos')
     CALL print_clock('write_phdos')
     !

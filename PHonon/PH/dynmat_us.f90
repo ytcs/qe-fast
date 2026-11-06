@@ -47,7 +47,7 @@ SUBROUTINE dynmat_us()
   USE qpoint,               ONLY : nksq, ikks
   USE control_lr,           ONLY : nbnd_occ, lgamma
   USE uspp_init,        ONLY : init_us_2
-  USE rtsc_phq_fuse,    ONLY : dyn_nl, dyn_nl_valid
+  USE qef_phq_fuse,    ONLY : dyn_nl, dyn_nl_valid
 
   IMPLICIT NONE
   
@@ -129,7 +129,7 @@ SUBROUTINE dynmat_us()
   ! each pool contributes to next term
   !
 100 CONTINUE
-  ! rtsc: RTSC_PHQ_FUSE=1, the k loop's nonlocal term was accumulated in phq_init
+  ! qe-fast: QEF_PHQ_FUSE=1, the k loop's nonlocal term was accumulated in phq_init
   IF (dyn_nl_valid) THEN
      dynwrk(:,:) = dynwrk(:,:) + dyn_nl(:,:)
      dyn_nl_valid = .FALSE.

@@ -76,8 +76,8 @@ SUBROUTINE solve_linter (irr, imode0, dfpt_data)
   USE fft_base,             ONLY : dffts
   !
   IMPLICIT NONE
-  LOGICAL :: dvb_engine                        ! rtsc: dV_bare psi built by the batched engine
-  COMPLEX(DP), ALLOCATABLE :: dvb_loc(:,:)     ! rtsc: dvloc of each perturbation of the irrep
+  LOGICAL :: dvb_engine                        ! qe-fast: dV_bare psi built by the batched engine
+  COMPLEX(DP), ALLOCATABLE :: dvb_loc(:,:)     ! qe-fast: dvloc of each perturbation of the irrep
   !
   EXTERNAL :: stop_smoothly_ph
   !
@@ -163,8 +163,8 @@ SUBROUTINE solve_linter (irr, imode0, dfpt_data)
   IF (iter0==-1000) iter0=0
   !
   ! Compute dV_bare * psi and write to buffer iubar
-  ! (rtsc: RTSC_STH_DVB=1 hands dvloc and the patterns to the batched engine instead, which builds
-  !  dV_bare psi for all (k, pert) on the device; the loop then runs only for RTSC_STH_DVB_CHECK=1)
+  ! (qe-fast: QEF_STH_DVB=1 hands dvloc and the patterns to the batched engine instead, which builds
+  !  dV_bare psi for all (k, pert) on the device; the loop then runs only for QEF_STH_DVB_CHECK=1)
   !
   dvb_engine = .NOT. elph .AND. .NOT. lmultipole .AND. sth_batched_dvb_ok(nsolv == 2, npe)
   ALLOCATE(dvb_loc(dffts%nnr, npe))
@@ -175,7 +175,7 @@ SUBROUTINE solve_linter (irr, imode0, dfpt_data)
   ENDIF
   CALL sth_batched_dvb_prepare(dvb_engine, npe, imode0, dvb_loc, u(:, imode0 + 1:imode0 + npe), alphap)
   DEALLOCATE(dvb_loc)
-  IF (.NOT. dvb_engine .OR. sth_env_flag('RTSC_STH_DVB_CHECK')) THEN
+  IF (.NOT. dvb_engine .OR. sth_env_flag('QEF_STH_DVB_CHECK')) THEN
   DO ik = 1, nksq
      !
      ikk  = ikks(ik)
@@ -230,7 +230,7 @@ SUBROUTINE solve_linter (irr, imode0, dfpt_data)
         ENDDO ! ipert
      ENDDO ! isolv
   ENDDO ! ik
-  ENDIF ! rtsc: dvb_engine
+  ENDIF ! qe-fast: dvb_engine
   !
   ! Compute the change of core charge due to atomic displacement
   ! drhoc is computed only once, stored in drhoc, passed to dfpt_kernel.

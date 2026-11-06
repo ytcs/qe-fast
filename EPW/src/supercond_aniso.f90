@@ -18,14 +18,14 @@
   USE kinds, ONLY : DP
   IMPLICIT NONE
   !
-  ! rtsc: state of the global Anderson mixing and of the warm start across temperatures
-  REAL(KIND = DP), ALLOCATABLE, SAVE :: rtsc_adx(:, :), rtsc_adf(:, :), rtsc_axp(:), rtsc_afp(:)
+  ! qe-fast: state of the global Anderson mixing and of the warm start across temperatures
+  REAL(KIND = DP), ALLOCATABLE, SAVE :: qef_adx(:, :), qef_adf(:, :), qef_axp(:), qef_afp(:)
   !! Anderson history (differences of inputs and residuals), previous input and residual
-  REAL(KIND = DP), ALLOCATABLE, SAVE :: rtsc_dprev(:, :, :), rtsc_wprev(:)
+  REAL(KIND = DP), ALLOCATABLE, SAVE :: qef_dprev(:, :, :), qef_wprev(:)
   !! converged Delta(iw, ibnd, ik) of the previous temperature and its frequency grid
-  INTEGER, SAVE :: rtsc_anh = 0, rtsc_anpos = 0
+  INTEGER, SAVE :: qef_anh = 0, qef_anpos = 0
   !! number of stored Anderson differences and the last slot written
-  REAL(KIND = DP), SAVE :: rtsc_anfmin = 0.d0
+  REAL(KIND = DP), SAVE :: qef_anfmin = 0.d0
   !! smallest residual norm seen in this temperature's Anderson history
   !
   CONTAINS
@@ -327,10 +327,10 @@
             !
           ELSE ! not fbw
             CALL start_clock('eliash_mix')
-            IF (rtsc_opt('RTSC_EPW_ELIASH_MIX')) THEN
-              ! rtsc: one Anderson mixing over all Fermi-surface states (inner products summed
+            IF (qef_opt('QEF_EPW_ELIASH_MIX')) THEN
+              ! qe-fast: one Anderson mixing over all Fermi-surface states (inner products summed
               ! over pools) instead of an independent Broyden mixing per state
-              IF (.NOT. conv) CALL rtsc_anderson(itemp, iter, lower_bnd, upper_bnd)
+              IF (.NOT. conv) CALL qef_anderson(itemp, iter, lower_bnd, upper_bnd)
             ELSE
             DO ik = lower_bnd, upper_bnd
               DO ibnd = 1, nbndfs
@@ -392,12 +392,12 @@
         ENDIF ! fbw
         !
         IF (conv) THEN
-          ! rtsc: keep this temperature's Delta(iw) for the warm start of the next one
-          IF (rtsc_opt('RTSC_EPW_ELIASH_WARM') .AND. .NOT. fbw) THEN
-            IF (ALLOCATED(rtsc_dprev)) DEALLOCATE(rtsc_dprev, rtsc_wprev)
-            ALLOCATE(rtsc_dprev(nsiw(itemp), nbndfs, nkfs), rtsc_wprev(nsiw(itemp)))
-            rtsc_dprev(:, :, :) = adeltaip(:, :, :)
-            rtsc_wprev(:) = wsi(1:nsiw(itemp))
+          ! qe-fast: keep this temperature's Delta(iw) for the warm start of the next one
+          IF (qef_opt('QEF_EPW_ELIASH_WARM') .AND. .NOT. fbw) THEN
+            IF (ALLOCATED(qef_dprev)) DEALLOCATE(qef_dprev, qef_wprev)
+            ALLOCATE(qef_dprev(nsiw(itemp), nbndfs, nkfs), qef_wprev(nsiw(itemp)))
+            qef_dprev(:, :, :) = adeltaip(:, :, :)
+            qef_wprev(:) = wsi(1:nsiw(itemp))
           ENDIF
           CALL deallocate_aniso_iaxis(1)
           !
@@ -840,7 +840,7 @@
     !! Compute the approximate theta function. Used to calculate nel
     REAL(KIND = DP), EXTERNAL :: get_clock
     REAL(KIND = DP) :: tgmax, tgmin
-    !! rtsc: per-pool GPU-sum time spread
+    !! qe-fast: per-pool GPU-sum time spread
     REAL(KIND = DP), ALLOCATABLE, SAVE :: inv_wsi(:)
     !! Invese imaginary freq. inv_wsi = 1/wsi. Defined for efficiency reason
     REAL(KIND = DP), ALLOCATABLE, SAVE :: deltaold(:)
@@ -1210,15 +1210,15 @@
         ENDDO ! ibnd
       ENDDO ! ik
       !
-      ! rtsc: warm start from the previous temperature's converged Delta(k, iw), linearly
+      ! qe-fast: warm start from the previous temperature's converged Delta(k, iw), linearly
       ! interpolated in w (constant beyond the ends of the previous grid)
-      IF (rtsc_opt('RTSC_EPW_ELIASH_WARM') .AND. ALLOCATED(rtsc_dprev) .AND. .NOT. fbw) THEN
+      IF (qef_opt('QEF_EPW_ELIASH_WARM') .AND. ALLOCATED(qef_dprev) .AND. .NOT. fbw) THEN
         DO ik = 1, nkfs
           DO ibnd = 1, nbndfs
             IF (ABS(ekfs(ibnd, ik) - ef0) < fsthick) THEN
               DO iw = 1, nsiw(itemp)
-                adeltaip(iw, ibnd, ik) = rtsc_interp(SIZE(rtsc_wprev), rtsc_wprev, &
-                                                     rtsc_dprev(:, ibnd, ik), wsi(iw))
+                adeltaip(iw, ibnd, ik) = qef_interp(SIZE(qef_wprev), qef_wprev, &
+                                                     qef_dprev(:, ibnd, ik), wsi(iw))
               ENDDO
             ENDIF
           ENDDO
@@ -1277,8 +1277,8 @@
       ENDIF
       !
       CALL memlt_eliashberg(itemp, 'imag')
-      ! rtsc: the GPU sum builds the kernel per (k,q) pair in shared memory, so akeri is not needed
-      IF (rtsc_eliash_gpu()) limag_fly = .TRUE.
+      ! qe-fast: the GPU sum builds the kernel per (k,q) pair in shared memory, so akeri is not needed
+      IF (qef_eliash_gpu()) limag_fly = .TRUE.
       IF (.NOT. limag_fly) CALL kernel_aniso_iaxis(itemp)
       !
     ENDIF ! iter
@@ -1438,13 +1438,13 @@
     !
     IF (conv .OR. iter == nsiter) THEN
       !
-      ! rtsc: per-rank spread of the cumulative GPU-sum time (rank 0's clock hides the slowest pool)
-      IF (rtsc_eliash_gpu()) THEN
+      ! qe-fast: per-rank spread of the cumulative GPU-sum time (rank 0's clock hides the slowest pool)
+      IF (qef_eliash_gpu()) THEN
         tgmax = get_clock('eliash_gpu')
         tgmin = tgmax
         CALL mp_max(tgmax, inter_pool_comm)
         CALL mp_min(tgmin, inter_pool_comm)
-        WRITE(stdout, '(5x, a, 2f12.2)') 'rtsc eliash_gpu cumulative min/max over pools (s):', tgmin, tgmax
+        WRITE(stdout, '(5x, a, 2f12.2)') 'qef eliash_gpu cumulative min/max over pools (s):', tgmin, tgmax
       ENDIF
       !
       IF (fbw) THEN
@@ -1834,8 +1834,8 @@
     CALL fkbounds(nkfs, lower_bnd, upper_bnd)
     !
 #if defined (__CUDA)
-    ! rtsc: GPU path (same sums, kernel rebuilt per pair in shared memory)
-    IF (rtsc_eliash_gpu()) THEN
+    ! qe-fast: GPU path (same sums, kernel rebuilt per pair in shared memory)
+    IF (qef_eliash_gpu()) THEN
       CALL start_clock('eliash_gpu')
       CALL ege_fsr(upper_bnd - lower_bnd + 1, lower_bnd, nkfs, nbndfs, MAXVAL(nqfs(:)), nmodes, &
                    SIZE(wqf), nsiw(itemp), 2 * (wsn(nsiw(itemp)) + 1), g2, wf, ixkqf, ixqfs, nqfs, &
@@ -4439,9 +4439,9 @@
 #endif
     IMPLICIT NONE
     INTEGER :: nst, is
-    !! rtsc: number of this pool's Fermi-surface states, counter
+    !! qe-fast: number of this pool's Fermi-surface states, counter
     COMPLEX(KIND = DP), ALLOCATABLE :: pca(:, :), pcb(:, :), ppa(:, :), ppb(:, :)
-    !! rtsc: Pade coefficients and values of all states (GPU evaluation)
+    !! qe-fast: Pade coefficients and values of all states (GPU evaluation)
     !
     INTEGER, INTENT(in) :: itemp
     !! Counter on temperature index
@@ -4599,8 +4599,8 @@
       CALL mp_sum(shift,  inter_pool_comm)
       CALL mp_barrier(inter_pool_comm)
 #if defined (__CUDA)
-    ELSEIF (rtsc_eliash_gpu()) THEN
-      ! rtsc: coefficients on the host as above; the nsw evaluations per state on the GPU;
+    ELSEIF (qef_eliash_gpu()) THEN
+      ! qe-fast: coefficients on the host as above; the nsw evaluations per state on the GPU;
       ! state sums in the same order
       nst = 0
       DO ik = lower_bnd, upper_bnd
@@ -6160,41 +6160,41 @@
   !-----------------------------------------------------------------------
     !
     !-----------------------------------------------------------------------
-    LOGICAL FUNCTION rtsc_opt(name)
+    LOGICAL FUNCTION qef_opt(name)
     !-----------------------------------------------------------------------
-    !! rtsc: .TRUE. unless the environment variable name is set to 0 (default on)
+    !! qe-fast: .TRUE. unless the environment variable name is set to 0 (default on)
     CHARACTER(LEN = *), INTENT(IN) :: name
     CHARACTER(LEN = 16) :: v
     v = ' '
     CALL GET_ENVIRONMENT_VARIABLE(name, v)
-    rtsc_opt = (TRIM(v) /= '0')
-    END FUNCTION rtsc_opt
+    qef_opt = (TRIM(v) /= '0')
+    END FUNCTION qef_opt
     !
     !-----------------------------------------------------------------------
-    REAL(KIND = DP) FUNCTION rtsc_interp(n, x, y, x0)
+    REAL(KIND = DP) FUNCTION qef_interp(n, x, y, x0)
     !-----------------------------------------------------------------------
-    !! rtsc: linear interpolation of y(x) (x increasing) at x0, constant outside [x(1), x(n)]
+    !! qe-fast: linear interpolation of y(x) (x increasing) at x0, constant outside [x(1), x(n)]
     INTEGER, INTENT(IN) :: n
     REAL(KIND = DP), INTENT(IN) :: x(n), y(n), x0
     INTEGER :: i
     IF (x0 <= x(1)) THEN
-      rtsc_interp = y(1)
+      qef_interp = y(1)
       RETURN
     ENDIF
     IF (x0 >= x(n)) THEN
-      rtsc_interp = y(n)
+      qef_interp = y(n)
       RETURN
     ENDIF
     DO i = 2, n
       IF (x(i) >= x0) EXIT
     ENDDO
-    rtsc_interp = y(i - 1) + (y(i) - y(i - 1)) * (x0 - x(i - 1)) / (x(i) - x(i - 1))
-    END FUNCTION rtsc_interp
+    qef_interp = y(i - 1) + (y(i) - y(i - 1)) * (x0 - x(i - 1)) / (x(i) - x(i - 1))
+    END FUNCTION qef_interp
     !
     !-----------------------------------------------------------------------
-    SUBROUTINE rtsc_anderson(itemp, iter, lower_bnd, upper_bnd)
+    SUBROUTINE qef_anderson(itemp, iter, lower_bnd, upper_bnd)
     !-----------------------------------------------------------------------
-    !! rtsc: Anderson mixing of the gap over all Fermi-surface states of all pools.
+    !! qe-fast: Anderson mixing of the gap over all Fermi-surface states of all pools.
     !! x = adeltaip (input), g(x) = adeltai (output), f = g - x. With the last m differences
     !! dX, dF: gamma = argmin |f - dF gamma| (normal equations, inner products summed over
     !! pools), x_new = x + beta f - (dX + beta dF) gamma. On return adeltaip holds x_new on this
@@ -6235,33 +6235,33 @@
     CALL mp_sum(fn, inter_pool_comm)
     fn = SQRT(fn)
     IF (iter == 1) THEN
-      IF (ALLOCATED(rtsc_adx)) DEALLOCATE(rtsc_adx, rtsc_adf, rtsc_axp, rtsc_afp)
-      ALLOCATE(rtsc_adx(MAX(nloc, 1), m), rtsc_adf(MAX(nloc, 1), m), rtsc_axp(MAX(nloc, 1)), &
-               rtsc_afp(MAX(nloc, 1)))
-      rtsc_adx = 0.d0; rtsc_adf = 0.d0
-      rtsc_anh = 0; rtsc_anpos = 0
-      rtsc_anfmin = fn
-    ELSEIF (fn > 10.d0 * rtsc_anfmin) THEN
+      IF (ALLOCATED(qef_adx)) DEALLOCATE(qef_adx, qef_adf, qef_axp, qef_afp)
+      ALLOCATE(qef_adx(MAX(nloc, 1), m), qef_adf(MAX(nloc, 1), m), qef_axp(MAX(nloc, 1)), &
+               qef_afp(MAX(nloc, 1)))
+      qef_adx = 0.d0; qef_adf = 0.d0
+      qef_anh = 0; qef_anpos = 0
+      qef_anfmin = fn
+    ELSEIF (fn > 10.d0 * qef_anfmin) THEN
       ! safeguard: the residual grew well above its best value, drop the history
-      rtsc_anh = 0; rtsc_anpos = 0
-      rtsc_anfmin = fn
+      qef_anh = 0; qef_anpos = 0
+      qef_anfmin = fn
     ELSE
-      rtsc_anpos = MOD(rtsc_anpos, m) + 1
-      rtsc_anh = MIN(rtsc_anh + 1, m)
-      rtsc_adx(1:nloc, rtsc_anpos) = x(1:nloc) - rtsc_axp(1:nloc)
-      rtsc_adf(1:nloc, rtsc_anpos) = f(1:nloc) - rtsc_afp(1:nloc)
-      rtsc_anfmin = MIN(rtsc_anfmin, fn)
+      qef_anpos = MOD(qef_anpos, m) + 1
+      qef_anh = MIN(qef_anh + 1, m)
+      qef_adx(1:nloc, qef_anpos) = x(1:nloc) - qef_axp(1:nloc)
+      qef_adf(1:nloc, qef_anpos) = f(1:nloc) - qef_afp(1:nloc)
+      qef_anfmin = MIN(qef_anfmin, fn)
     ENDIF
-    rtsc_axp(1:nloc) = x(1:nloc)
-    rtsc_afp(1:nloc) = f(1:nloc)
-    nh = rtsc_anh
+    qef_axp(1:nloc) = x(1:nloc)
+    qef_afp(1:nloc) = f(1:nloc)
+    nh = qef_anh
     IF (nh > 0) THEN
       ALLOCATE(gm(nh, nh), rhs(nh), ipiv(nh))
       DO i = 1, nh
         DO j = 1, nh
-          gm(i, j) = DOT_PRODUCT(rtsc_adf(1:nloc, i), rtsc_adf(1:nloc, j))
+          gm(i, j) = DOT_PRODUCT(qef_adf(1:nloc, i), qef_adf(1:nloc, j))
         ENDDO
-        rhs(i) = DOT_PRODUCT(rtsc_adf(1:nloc, i), f(1:nloc))
+        rhs(i) = DOT_PRODUCT(qef_adf(1:nloc, i), f(1:nloc))
       ENDDO
       CALL mp_sum(gm, inter_pool_comm)
       CALL mp_sum(rhs, inter_pool_comm)
@@ -6275,7 +6275,7 @@
       CALL DGESV(nh, 1, gm, nh, ipiv, rhs, nh, info)
       IF (info /= 0) rhs(:) = 0.d0
       DO i = 1, nh
-        x(1:nloc) = x(1:nloc) - rhs(i) * (rtsc_adx(1:nloc, i) + beta * rtsc_adf(1:nloc, i))
+        x(1:nloc) = x(1:nloc) - rhs(i) * (qef_adx(1:nloc, i) + beta * qef_adf(1:nloc, i))
       ENDDO
       DEALLOCATE(gm, rhs, ipiv)
     ENDIF
@@ -6292,24 +6292,24 @@
       ENDDO
     ENDDO
     DEALLOCATE(x, f)
-    END SUBROUTINE rtsc_anderson
+    END SUBROUTINE qef_anderson
     !
     !-----------------------------------------------------------------------
-    LOGICAL FUNCTION rtsc_eliash_gpu()
+    LOGICAL FUNCTION qef_eliash_gpu()
     !-----------------------------------------------------------------------
-    !! rtsc: .TRUE. when the GPU Eliashberg sum applies (FSR, uniform positive Matsubara
-    !! sampling, at most 1024 frequencies) and RTSC_EPW_ELIASH is not '0'.
+    !! qe-fast: .TRUE. when the GPU Eliashberg sum applies (FSR, uniform positive Matsubara
+    !! sampling, at most 1024 frequencies) and QEF_EPW_ELIASH is not '0'.
     USE input,            ONLY : fbw, positive_matsu, gridsamp
     USE supercond_common, ONLY : nsiw
     USE global_var,       ONLY : gtemp
     CHARACTER(LEN = 16) :: v
-    rtsc_eliash_gpu = .FALSE.
+    qef_eliash_gpu = .FALSE.
 #if defined (__CUDA)
-    CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_ELIASH', v)
-    rtsc_eliash_gpu = (TRIM(v) /= '0') .AND. (.NOT. fbw) .AND. positive_matsu .AND. (gridsamp <= 1) &
+    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_ELIASH', v)
+    qef_eliash_gpu = (TRIM(v) /= '0') .AND. (.NOT. fbw) .AND. positive_matsu .AND. (gridsamp <= 1) &
                       .AND. (MAXVAL(nsiw(:)) <= 1024)
 #endif
-    END FUNCTION rtsc_eliash_gpu
+    END FUNCTION qef_eliash_gpu
     !
   END MODULE supercond_aniso
   !-----------------------------------------------------------------------

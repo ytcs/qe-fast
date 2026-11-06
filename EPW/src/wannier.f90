@@ -49,7 +49,7 @@
                                  ephbloch2wanp_mem
     USE wigner,           ONLY : wigner_seitz_wrap, wigner_divide_ndegen,            &
                                  wigner_divide_ndegen_epmat, ws_indexes_distribution
-    USE io,               ONLY : rtsc_novme
+    USE io,               ONLY : qef_novme
     USE io,               ONLY : rwepmatw, epw_read, epw_write, loadumat,            &
                                  epw_read_ws_data, epw_write_ws_data
     USE mp,               ONLY : mp_bcast, mp_barrier
@@ -315,7 +315,7 @@
       !
       ! Hamiltonian
       !
-      CALL start_clock('b2w_setup') ! rtsc epw4 profiling clock
+      CALL start_clock('b2w_setup') ! qe-fast profiling clock
       CALL hambloch2wan(nbnd, nbndsub, nk_loc, nkpts, et_loc, xk_loc, cu, lwin, exband, nrr_k, irvec_k, wslen_k, chw)
       !
       ! Kohn-Sham eigenvalues
@@ -327,8 +327,8 @@
       !
       A(:, :, :, :) = czero
       ! Transform of position matrix elements - PRB 74 195118  (2006)
-      ! rtsc epw4 (RTSC_EPW_NOVME=1): cvmew, crrw, cdmew stay zero (not read in this run; A is zero unless qrpl)
-      IF (.NOT. rtsc_novme()) THEN
+      ! qe-fast (QEF_EPW_NOVME=1): cvmew, crrw, cdmew stay zero (not read in this run; A is zero unless qrpl)
+      IF (.NOT. qef_novme()) THEN
       CALL vmebloch2wan(dims, nbnd, nbndsub, nk_loc, nkpts, xk_loc, cu, nrr_k, irvec_k, wslen_k, lwin, exband, &
                         A(:, :, :, :), w_centers, ndegen_k)
       ! Transform of velocity matrix elements (dH/dk)
@@ -338,7 +338,7 @@
       ! Dynamical Matrix
       !
       IF (.NOT. lifc) CALL dynbloch2wan(nmodes, nqc, xqc, dynq, nrr_q, irvec_q, wslen_q)
-      CALL stop_clock('b2w_setup') ! rtsc epw4 profiling clock
+      CALL stop_clock('b2w_setup') ! qe-fast profiling clock
       !
       !
       ! Electron-Phonon vertex (Bloch el and Bloch ph -> Wannier el and Bloch ph)
@@ -394,7 +394,7 @@
       ! Electron-Phonon vertex (Wannier el and Bloch ph -> Wannier el and Wannier ph)
       !
       IF (etf_mem == 0) THEN
-        CALL start_clock('b2w_wanp') ! rtsc epw4 profiling clock
+        CALL start_clock('b2w_wanp') ! qe-fast profiling clock
         CALL ephbloch2wanp(nbndsub, nmodes, xqc, nqc, irvec_k, irvec_g, nrr_k, nrr_g, epmatwe)
         CALL stop_clock('b2w_wanp')
         ! TODO: the following I/O optimization is disabled because epmatwp was distributed across pools
@@ -410,7 +410,7 @@
       CALL mp_barrier(world_comm)
       !
       IF (epwwrite) THEN
-        CALL start_clock('b2w_write') ! rtsc epw4 profiling clock
+        CALL start_clock('b2w_write') ! qe-fast profiling clock
         CALL epw_write(nrr_k, nrr_q, nrr_g, w_centers)
         CALL stop_clock('b2w_write')
         !

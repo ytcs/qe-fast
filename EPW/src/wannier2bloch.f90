@@ -3190,9 +3190,9 @@
     !---------------------------------------------------------------------------
     !
     !---------------------------------------------------------------------------
-    SUBROUTINE rtsc_ephwan2blochp_batch(nmodes, nqb, xxqb, irvec_g, nrr_g, epmatfb, nbnd, nrr_k)
+    SUBROUTINE qef_ephwan2blochp_batch(nmodes, nqb, xxqb, irvec_g, nrr_g, epmatfb, nbnd, nrr_k)
     !---------------------------------------------------------------------------
-    !! rtsc: ephwan2blochp (etf_mem = 0) for nqb q-points at once. One ZGEMM on the pool's
+    !! qe-fast: ephwan2blochp (etf_mem = 0) for nqb q-points at once. One ZGEMM on the pool's
     !! device-resident epmatwp slice (N = nqb instead of N = 1) and one inter-pool mp_sum of
     !! the whole batch instead of nmodes reductions per q. Same sums as ephwan2blochp.
     !! epmatfb(:, j) is epmatf (nbnd, nbnd, nrr_k, nmodes) for q-point xxqb(:, j) (crystal).
@@ -3221,7 +3221,7 @@
     CALL start_clock('ephW2Bp')
     m = INT(nbnd, 8) * nbnd * nrr_k * nmodes
     ALLOCATE(cfacb(MAX(nirg_loc, 1), nqb), STAT = ierr)
-    IF (ierr /= 0) CALL errore('rtsc_ephwan2blochp_batch', 'Error allocating cfacb', 1)
+    IF (ierr /= 0) CALL errore('qef_ephwan2blochp_batch', 'Error allocating cfacb', 1)
     cfacb(:, :) = czero
     DO j = 1, nqb
       DO ir = irg_start, irg_stop
@@ -3248,7 +3248,7 @@
     CALL stop_clock('ephW2Bp')
     !
     !---------------------------------------------------------------------------
-    END SUBROUTINE rtsc_ephwan2blochp_batch
+    END SUBROUTINE qef_ephwan2blochp_batch
     !---------------------------------------------------------------------------
     !
     !---------------------------------------------------------------------------

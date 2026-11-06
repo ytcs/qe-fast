@@ -59,7 +59,7 @@ SUBROUTINE do_phonon(auxdyn)
   !
   qind = 0
   !
-  ! rtsc gen: the q of this run, for the automatic CBSR check (no effect unless RTSC_STH_CBSR=1)
+  ! qe-fast: the q of this run, for the automatic CBSR check (no effect unless QEF_STH_CBSR=1)
   IF (ALLOCATED(x_q) .AND. ALLOCATED(comp_iq)) CALL sth_batched_qplan((/ nq1, nq2, nq3 /), nqs, x_q, comp_iq)
   !
   DO iq = 1, nqs
@@ -171,7 +171,7 @@ SUBROUTINE do_phonon(auxdyn)
      ! ... cleanup of the variables for the next q point
      !
 100  CALL clean_pw_ph(iq)
-     ! rtsc (RTSC_STH=1): release the engine's per-q state and the runtime-cached device blocks;
+     ! qe-fast (QEF_STH=1): release the engine's per-q state and the runtime-cached device blocks;
      ! one line with this q's device-memory high-water
      CALL sth_batched_end_q(iq)
      !
