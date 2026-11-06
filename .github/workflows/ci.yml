@@ -56,7 +56,7 @@ jobs:
         run: cmake --build build -j 4 --target pw.x qe_lr_modules
       - name: Small pw.x test
         env:
-          ESPRESSO_PSEUDO: ${{ github.workspace }}/pseudo
+          ESPRESSO_PSEUDO: ${{ github.workspace }}/EPW/examples/sic/pp   # holds Si.pz-vbc.UPF, so no download
           OMP_NUM_THREADS: 1
         run: |
           pw="$PWD/build/bin/pw.x"
@@ -64,7 +64,8 @@ jobs:
           mkdir ci-run && cd ci-run
           cp ../test-suite/pw_scf/scf.in .
           for preset in "" off; do
-            ESPRESSO_TMPDIR=tmp QEF_PRESET=$preset "$pw" -in scf.in > "scf-$preset.out"
+            ESPRESSO_TMPDIR=tmp QEF_PRESET=$preset "$pw" -in scf.in > "scf-$preset.out" \
+              || { tail -n 20 "scf-$preset.out"; exit 1; }
             grep -q 'JOB DONE' "scf-$preset.out"
             grep 'qe-fast preset:' "scf-$preset.out"
             e=$(awk '/^!    total energy/ {print $5}' "scf-$preset.out")
