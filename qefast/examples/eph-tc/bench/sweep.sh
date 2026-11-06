@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Vanilla configuration sweep on one ph.x q-point (MILESTONE-1: baseline = vanilla's best config).
+# Vanilla configuration sweep on one ph.x q-point (the baseline is vanilla's best config).
 #   sweep.sh <inputs dir> <iq> <outdir> "label|bindir|np|nt|pool flags|mps(0/1)" ...
 # For each config: scf + ph.x restricted to q-point <iq> (start_q = last_q = iq). Prints label, scf s, ph s.
 set -euo pipefail

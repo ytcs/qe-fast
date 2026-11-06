@@ -15,7 +15,7 @@ own (parent) cell; if every phase of every channel of P is stable, all solids us
 ones keep the MatterSim Gamma-ZPE. H2: 0.270 eV. The F0-convention values (MatterSim 8^3-mesh ZPE) are reported
 alongside for comparison only.
 
-Conventions: FUNNEL-LOG F0 pre-registration (hull channel; PASS <= 0.55 in both functionals, REJECT
+Conventions (hull channel; PASS <= 0.55 in both functionals, REJECT
 > 0.8 in both, else HOLD; T1a line 1.1 eV/H2 in either model; ZPE from MatterSim phonons + H2 0.270 eV).
 """
 import json

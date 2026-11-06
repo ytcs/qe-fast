@@ -32,7 +32,7 @@ def main(src, ids, root, out, nt="8"):
     if Path(out).exists():
         seen = {(json.loads(l)["id"], json.loads(l)["xc"]) for l in Path(out).read_text().splitlines() if l.strip()}
     env = dict(os.environ, OMP_NUM_THREADS=nt, QEF_STH="0")
-    # G5 (FUNNEL section 8): one cutoff across the reaction = the G5 cutoff over every element of the phases run together
+    # G5: one cutoff across the reaction = the G5 cutoff over every element of the phases run together
     ecut = qe.ecut_rule({e for k in want if k in recs for e in qe.from_pmg(recs[k]["structure"])["species"]})
     with open(out, "a") as fo:
         for k in want:

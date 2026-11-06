@@ -1,4 +1,4 @@
-"""F0 control structures (FUNNEL.md section 2.1) as pymatgen Structures, written to controls.json.
+"""F0 control structures as pymatgen Structures, written to controls.json.
 
     python structs.py <q2q3 dir with *_pbe_vc-relax_e90.in> <out.json>
 

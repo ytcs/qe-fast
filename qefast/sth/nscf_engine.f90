@@ -1,5 +1,5 @@
 !
-! qe-fast: batched block-Davidson for the ph.x nscf (Session 2).
+! qe-fast: batched block-Davidson for the ph.x nscf.
 !
 ! All k-points of the nscf (or a chunk of them) are diagonalized together on the GPU with the
 ! algorithm of cegterg (KS_Solvers/Davidson/cegterg.f90, norm-conserving: S = 1):

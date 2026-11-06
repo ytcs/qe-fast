@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F0 packing probe (FUNNEL.md section 4 (b)): two T3a-style jobs (B2 smoke, MP) concurrently under MPS vs serially.
+# F0 packing probe: two T3a-style jobs (B2 smoke, MP) concurrently under MPS vs serially.
 #   packing.sh <bench inputs dir> <workroot> [NT, default 4] [NE epw ranks, default 4]
 # Both arms use the same NT/NE, so CPU oversubscription does not masquerade as a GPU-packing loss.
 # MPS is started once for the session (run-chain.sh would quit it at the end of its EPW stage).

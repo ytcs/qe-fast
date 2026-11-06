@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# One-shot setup on a fresh RunPod NVHPC pod. Builds on the container disk (/root);
-# /workspace is a FUSE network fs and is far too slow for compiling.
+# One-shot setup on a fresh NVHPC container. Builds on the container disk (/root);
+# /workspace, when it is a network file system, is far too slow for compiling.
 #   curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/main/qefast/pod/setup.sh | bash
 set -euo pipefail
 apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl git libfftw3-dev pkg-config cmake ninja-build python3 python3-numpy >/dev/null
 mkdir -p /root/qefast && cd /root/qefast
-# Fork (devxlib is vendored: gitlab.com is unreachable from RunPod).
+# Fork (devxlib is vendored: some build hosts cannot reach gitlab.com).
 [ -d qe-fast ] || git clone -q -b main https://github.com/ytcs/qe-fast.git
 (cd qe-fast && git submodule update -q --init external/wannier90 external/mbd external/fox)
 # Vanilla baseline: the same tag, the same submodule pins, plus the vendored devxlib snapshot.

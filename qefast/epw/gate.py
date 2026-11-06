@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""gate.py REF TEST -- MILESTONE-1 accuracy gate on two EPW run directories.
+"""gate.py REF TEST -- accuracy gate on two EPW run directories.
 
 Checks lambda and w_log (1 %), Allen-Dynes Tc (max(2 %, 0.5 K)), and at every temperature the
 mean leading-edge gap (mean of delta(0) over the Fermi-surface states in *.imag_aniso_gap_FS_<T>,

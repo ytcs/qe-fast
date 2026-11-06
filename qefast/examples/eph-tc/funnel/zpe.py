@@ -1,4 +1,4 @@
-"""DFT Gamma-ZPE for the access gate (FUNNEL.md section 7 ZPE-source rule; the LIGHT-DFT Q3 recipe on the GPU).
+"""DFT Gamma-ZPE for the access gate, on the GPU.
 
     python3 zpe.py <jobs.json> <ids,comma> <workroot> <out.jsonl> [NT]
 
@@ -33,7 +33,7 @@ def main(jobs, ids, root, out, nt="8"):
         seen = {json.loads(l)["id"] for l in Path(out).read_text().splitlines() if l.strip()}
     mpi = ["mpirun", "--bind-to", "none", "-np", "1", "-x", "OMP_NUM_THREADS", "-x", "QEF_STH", "-x", "QEF_STRICT",
            "-x", "QEF_STH_MP"]
-    # G5 (FUNNEL section 8): one cutoff for the phases of one call (F0b: 80 Ry)
+    # G5: one cutoff for the phases of one call (F0b: 80 Ry)
     ecut = qe.ecut_rule({e for i in ids.split(",") if i for e in qe.from_pmg(jobs[i]["structure"])["species"]})
     for k in [i for i in ids.split(",") if i]:
         if k in seen:

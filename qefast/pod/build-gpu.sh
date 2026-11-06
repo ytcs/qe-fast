@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a QE tree on the RunPod NVHPC image: GPU (OpenACC + CUDA Fortran) and CPU (nvfortran) variants.
+# Build a QE tree on an NVHPC 26.5 image: GPU (OpenACC + CUDA Fortran) and CPU (nvfortran) variants.
 #   build-gpu.sh <src dir> <cuda cc, e.g. 80 for A100, 90 for H100>
 set -euo pipefail
 SRC=$(realpath "$1"); CC=${2:-80}

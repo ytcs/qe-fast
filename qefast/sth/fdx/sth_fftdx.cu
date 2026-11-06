@@ -43,7 +43,7 @@ template <class T> __device__ __forceinline__ cplx<T> cmul(cplx<T> a, cplx<T> b)
 // 1D line FFT in registers, natural order in and out, unnormalised. INV = exp(+i...) (cuFFT inverse).
 // ---------------------------------------------------------------------------------------------------------------
 #ifdef FDX_EMU
-// Harness-only precision emulation of the FP32 instance (FFT-LOG scope items 2 and 3): d_emu = 1: each 1D transform
+// Harness-only precision emulation of the FP32 instance: d_emu = 1: each 1D transform
 // is a dense DFT with TF32-rounded operands (inputs and DFT matrix) and FP32 accumulation, as a TF32 tensor-core GEMM
 // would do it; 2 / 3: native FFT, data rounded to FP16 / BF16 at every transform input and output (storage in half
 // precision with ideal scaling; FP32 arithmetic, so a lower bound on the error of a real half-precision FFT).

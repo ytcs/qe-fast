@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F0c queue (FUNNEL.md section 8 rules G1-G5, S1, routing; FUNNEL-LOG "F0c" pre-registration 2026-10-30 09:50).
+# F0c queue (rules G1-G5, S1, routing).
 # Same path as F0b (f0b.sh), generator G1-G5+S1 (PSET sg15). Waits for $WAIT_FOR (a queue log) to show its DONE marker.
 #   f0c.sh <in dir: t1-structs.json, t3a-jobs.json> <work dir>
 # Mg2IrH6 end to end: T1a (both MLIPs; MLIP hull vs the Mg-Ir-H references) -> T1b (two-model rule)
@@ -63,7 +63,7 @@ $MS "$F/analyze.py" access2 t1-ms.jsonl t1-mace.jsonl t1b-ms.jsonl t1b-mace.json
 mark ZPE_END
 
 # 5. Does Mg2IrH6 reach T3a? (T1a hull + T1a gas line, T1b two-model rule, T2 metal and non-magnetic;
-#    the access gate is bypassed and flagged for this physics control, FUNNEL.md section 2.1)
+#    the access gate is bypassed and flagged for this physics control)
 $MS - "$F" "$IN/t3a-jobs.json" <<'EOP' >> queue.log 2>&1
 import json, sys
 sys.path.insert(0, sys.argv[1])

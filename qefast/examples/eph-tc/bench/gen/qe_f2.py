@@ -1,4 +1,4 @@
-"""QE input generation and output parsing for the funnel tiers (rules: FUNNEL-LOG F0 pre-registration).
+"""QE input generation and output parsing for the funnel tiers.
 
 Stdlib + numpy only (runs under the system python3 on the pod); structures are plain dicts
 {lattice: 3x3 A, species: [..], frac: [[..]..]}.
@@ -43,7 +43,7 @@ ZORDER = ("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe C
 
 
 def canonical(st, tol=1e-6):
-    """G4(a) (WANNIER-LOG.md W1): wrap fractional coordinates into [0, 1) (values within tol of 1 -> 0) and order
+    """G4(a): wrap fractional coordinates into [0, 1) (values within tol of 1 -> 0) and order
     the sites by atomic number, then by position. Hydrogenic projections are centred on the listed positions; a
     site listed one cell away (F0b Mg2IrH6: Ir at frac (1, 1, 0)) gives a k-dependent initial phase that sent one WF
     to a delocalised minimum (34.8 A^2) and moved lambda 1.67 -> 0.99. The result is the same cell, deterministic for any
@@ -314,7 +314,7 @@ def ph_input(prefix, species, nq):
 
 
 def epw_input(prefix, species, nk, nq, nkf, nqf, nsemi, nw, froz, ef, scdm=False, muc=0.10, use_ws=True, epbread=False):
-    """G4 (WANNIER-LOG.md W1): use_ws on; SCDM always WITH the frozen window (SCDM erfc without it dropped Fermi-level
+    """G4: use_ws on; SCDM always WITH the frozen window (SCDM erfc without it dropped Fermi-level
     states from the subspace on every W1 control: on-grid band errors ~ 1-2 eV, Cu lambda 0.04 -> 0.17-0.73)."""
     sp = species_order(dict(species=species))
     lines = [f"prefix = '{prefix}'"] + [f"amass({i + 1}) = {MASS[e]}" for i, e in enumerate(sp)]

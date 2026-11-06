@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""cmpgate.py REF TEST [PREFIX] -- MILESTONE-1 frequency gate (as amended 2026-10-28) on two ph.x run dirs.
+"""cmpgate.py REF TEST [PREFIX] -- frequency gate on two ph.x run dirs.
 
 Compares every q for which both directories hold <prefix>.dyn<i> (so single-q runs work). Per q:
 max |delta omega| (cm-1) over the gated modes, the largest relative deviation among gated modes above

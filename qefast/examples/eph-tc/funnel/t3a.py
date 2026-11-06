@@ -7,12 +7,12 @@ Writes <workroot>/<id>/result.json (status ok | fail:<stage>), timings.tsv; rest
 Environment: BIN (QE bin dir), PSEUDO_DIR. QEF_STH=1, QEF_STRICT=1, QEF_STH_MP=1 are set for ph.x.
 EPW computes alpha^2F only (eliashberg, no liso/laniso).
 Generator G1G2: band exclusion by qe.n_semicore and Wannier coarse k = 2 q (qe.t3a_grids).
-Generator G4 (proposed in WANNIER-LOG.md, study W1; not yet registered): (a) canonical cell (qe.canonical: fractional
+Generator G4: (a) canonical cell (qe.canonical: fractional
 coordinates wrapped into [0,1), sites sorted by Z); (b) EPW use_ws = .true.; (c) per-setup gate = G3 spread rule + on-grid
 band check; (d) two setups, generic atomic projections and SCDM erfc (mu E_F, sigma 2 eV) WITH the frozen window; (e) if
 they disagree (S_W > 0.15) or only one passes, Wannier k is refined to 3 q and both rerun; (f) still S_W > 0.15 ->
-flag_wannier (E1 s x 2; pass rule uses the larger Tc); no setup passes -> fail:wannier (FUNNEL.md section 8 routing).
-G4 is registered in FUNNEL.md section 8 (2026-10-30). F0c fixes: no frozen window -> neither setup runs (SCDM without a
+flag_wannier (E1 s x 2; pass rule uses the larger Tc); no setup passes -> fail:wannier.
+F0c fixes: no frozen window -> neither setup runs (SCDM without a
 window is retired); a 3q result replaces the 2q one only if a 3q setup passes its gate.
 G5 (section 8): ecut = qe.ecut_rule (the active set's normal hints; env PSET = sg15 | spms).
 S1 (section 8, s1.py): any DFPT mode < -30 cm^-1 (Gamma acoustic excluded) -> no pass; EPW skipped; one re-relax along the
@@ -323,7 +323,7 @@ def run_setups(st, g, nk, xs, xn, nsemi, nw, froz, prefix, ne, stage, tag=""):
 
 
 def epw_stage(res, st, g, xs, xn, prefix, ne, stage, finish, job):
-    """G4 (WANNIER-LOG.md W1). (d) two setups at the G2 Wannier grid nk = 2q; (e) if they disagree (S_W > 0.15) or
+    """G4. (d) two setups at the G2 Wannier grid nk = 2q; (e) if they disagree (S_W > 0.15) or
     only one passes its gate, refine the Wannier grid to nk = 3q (new nscf in ./k3, same scf density and DFPT) and
     rerun both setups there; the refined result replaces the 2q one. (f) still S_W > 0.15 -> flag_wannier (E1: s x 2;
     the pass rule uses the larger Tc, never rejects on that basis); no setup passing its gate -> fail:wannier."""

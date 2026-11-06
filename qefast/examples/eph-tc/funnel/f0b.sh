@@ -60,7 +60,7 @@ $MS "$F/analyze.py" access2 t1-ms.jsonl t1-mace.jsonl t1b-ms.jsonl t1b-mace.json
 mark ZPE_END
 
 # 5. Does Mg2IrH6 reach T3a? (T1a hull + T1a gas line, T1b two-model rule, T2 metal and non-magnetic;
-#    the access gate is bypassed and flagged for this physics control, FUNNEL.md section 2.1)
+#    the access gate is bypassed and flagged for this physics control)
 $MS - "$F" "$IN/t3a-jobs.json" <<'EOP' >> queue.log 2>&1
 import json, sys
 sys.path.insert(0, sys.argv[1])

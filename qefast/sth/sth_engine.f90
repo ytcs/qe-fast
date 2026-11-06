@@ -1,5 +1,5 @@
 !
-! qe-fast: batched Sternheimer engine (spec v1).
+! qe-fast: batched Sternheimer engine.
 !
 ! Replaces one call of sternheimer_kernel (LR_Modules/response_kernels.f90) for the
 ! norm-conserving, collinear, nspin=1, lgauss, q /= 0 case: every column c = (k, pert, band
