@@ -21,7 +21,7 @@ stage() { local name=$1; shift; local t0=$(date +%s.%N); "$@"; local t1=$(date +
           awk -v n="$name" -v a="$t0" -v b="$t1" 'BEGIN{printf "%s\t%.2f\n", n, b-a}' | tee -a timings.tsv; }
 T0=$(date +%s.%N)
 # the preset and every QEF_* override of the caller reach all stages
-XR=$(env | grep -o '^QEF_[A-Z0-9_]*' | sed 's/^/-x /' | tr '\n' ' ')
+XR=$(env | { grep -o '^QEF_[A-Z0-9_]*' || true; } | sed 's/^/-x /' | tr '\n' ' ')   # none set is a valid run: the built-in default
 pw1() { if [ "${QEF_RUN_DIRECT:-0}" = 1 ]; then env OMP_NUM_THREADS=$NT "$BIN"/pw.x "$@"
         else env OMP_NUM_THREADS=$NT mpirun --bind-to none -np 1 $XR -x OMP_NUM_THREADS "$BIN"/pw.x "$@"; fi; }
 runepw() { nvidia-cuda-mps-control -d 2>/dev/null || true

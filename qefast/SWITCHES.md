@@ -8,7 +8,7 @@ Every run-time switch of qe-fast is an environment variable read through `qef_ge
 3. unset: the code's own default for that switch.
 
 `QEF_PRESET` is `off`, `safe`, `fast` or `max`. Any other value stops the run. When it is unset, the
-built-in default applies: **@DEFAULT@**. Each program prints the active preset and any table override at
+built-in default applies: **`safe`**. Each program prints the active preset and any table override at
 start (`qe-fast preset:`, `qe-fast override:`). `mpirun` must pass the variables on to remote ranks;
 `qefast/examples/eph-tc/bench/run-chain.sh` runs a whole chain under one preset and passes every `QEF_*`.
 
@@ -28,8 +28,8 @@ gated on a CPU build.
 
 | preset | what it is | status |
 |---|---|---|
-| `off` | The engine with every lever off (`QEF_STH=1 QEF_STRICT=0 QEF_STH_DVB=0 QEF_W90_NT=1`). Not plain QE: `QEF_STH=0` gives QE's own loop. | Reference for every gate. @OFF_STATUS@ |
-| `safe` | All levers of classes B and E that leave the Wannier gauge alone. | @SAFE_STATUS@ |
+| `off` | The engine with every lever off (`QEF_STH=1 QEF_STRICT=0 QEF_STH_DVB=0 QEF_W90_NT=1`). Not plain QE: `QEF_STH=0` gives QE's own loop. | Reference for every gate. Bitwise identical to the pre-rename all-off path: 21 files on B1 smoke (dyn, dvscf, a2f) against a pre-rename binary; 34 files on G2, G3, G5, G6 against the archived all-off runs. |
+| `safe` | All levers of classes B and E that leave the Wannier gauge alone. | **Full gate passed** on G2, G3, G5, G6, the four materials that failed the study's earlier `safe`, and on B1 and B2 smoke. Not run itself on G1, G4, G7, G8: they passed the frequency gate with that earlier, larger set, and G1, G4, G7 its full gate; G8 has no λ reference. |
 | `fast` | The held-out study's `fast` set: `safe` + `QEF_PW_SYMROT=1 QEF_W90_WNT=8 QEF_W90_MMN=1` + lever C (`QEF_THRESH_L=10 QEF_STH_DEFL=1`). | **Phonon-gated only on held-out materials.** Frequencies pass on G1–G8. λ, ω_log or T_c fail on G2, G3, G5, G6; G8 has no λ reference. |
 | `max` | The held-out study's `max` set: `safe` + `QEF_PW_SYMROT=1 QEF_W90_WNT=8 QEF_W90_MMN=1` + CBSR (`QEF_STH_CBSR=1 QEF_STH_CBSR_XCH=1 QEF_STH_CBSR_HOST=1`, automatic check on). | **Phonon-gated only on held-out materials.** Same failures as `fast`. |
 
@@ -39,7 +39,16 @@ and their λ is subject to the gauge hazards below. To drop those from either pr
 
 Measured speedup, end to end against `off`, median / worst over the seven held-out materials with a total
 (A40): gen `safe` 1.38× / 1.11×, `fast` 1.68× / 1.42×, `max` 1.95× / 1.09×. Those `safe` figures include the three
-switches now left out. @SAFE_SPEED@
+switches now left out. The default `safe` is slower than that, because the three switches carried the nscf and part of the Wannier gain:
+
+| | G2 Al | G3 Nb | G5 LiAl₂Rh | G6 TiN | B1 smoke | B2 smoke |
+|---|---|---|---|---|---|---|
+| `safe` end to end | 1.50× | 1.35× | 1.07× | 1.10× | 1.50× | 1.61× |
+| largest \|Δω\| (cm⁻¹) | 0.054 | 0.150 | 0.000 | 0.002 | 0.016 | 0.011 |
+| rel Δλ | −6.3e-5 | −4.8e-4 | −1.6e-6 | −9.1e-6 | 3.0e-6 | 7.7e-6 |
+| largest Cartesian WF-centre shift (Å) | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 0.000000 |
+
+Margin used on G2, G3, G5, G6: 3.8 %, 15.0 %, 0.0 %, 0.2 %.
 
 ## Things to know before you rely on this
 
