@@ -1,89 +1,194 @@
-![q-e-logo](logo.jpg)
+# qe-fast
 
-This is the distribution of the Quantum ESPRESSO suite of codes (ESPRESSO:
-opEn-Source Package for Research in Electronic Structure, Simulation, and
-Optimization)
+qe-fast is a fork of [Quantum ESPRESSO](https://www.quantum-espresso.org) 7.6, EPW included. It adds a
+batched GPU path for the phonon and electron-phonon stages of a superconductivity workflow: `pw.x` scf,
+`ph.x`, `pw.x` nscf, wannier90 and `epw.x`.
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
+It is for people who run DFPT and EPW on NVIDIA GPUs for non-magnetic, norm-conserving metals and who are
+prepared to check what a run tells them. Outside that scope qe-fast runs Quantum ESPRESSO's own code, with no
+speedup, so upstream QE is the better choice there.
 
-## USAGE
-Quick installation instructions for CPU-based machines. For GPU execution, see
-file [README_GPU.md](README_GPU.md). Go to the directory where this file is. 
+This is version 0.1.0. The upstream README is kept as [README.QE.md](README.QE.md); the upstream documentation
+in `Doc/` and `*/Doc/` applies to everything that qe-fast did not change.
 
-Using "make"
-(`[]` means "optional"):
-```
-./configure [options]
-make all
-```
-"make" alone prints a list of acceptable targets. Optionally,
-`make -jN` runs parallel compilation on `N` processors.
-Link to binaries are found in bin/.
+> **Not affiliated.** qe-fast is an independent project. It is not affiliated with or endorsed by the Quantum
+> ESPRESSO Foundation or the EPW developers. The Quantum ESPRESSO name is used descriptively only, to say what
+> this software was derived from. Please do not send qe-fast questions to the upstream mailing lists or issue
+> trackers.
 
-Using "CMake" (v.3.14 or later):
+## Build
 
-```
-mkdir ./build
-cd ./build
-cmake -DCMAKE_Fortran_COMPILER=mpif90 -DCMAKE_C_COMPILER=mpicc [-DCMAKE_INSTALL_PREFIX=/path/to/install] ..
-make [-jN]
-[make install]
-```
-Although CMake has the capability to guess compilers, it is strongly recommended to specify
-the intended compilers or MPI compiler wrappers as `CMAKE_Fortran_COMPILER` and `CMAKE_C_COMPILER`.
-"make" builds all targets. Link to binaries are found in build/bin.
-If `make install` is invoked, directory `CMAKE_INSTALL_PREFIX`
-is prepended onto all install directories.
+CMake only. The fork's new sources are not wired into the `./configure` and `make` build. Clone with git:
+CMake fetches the submodules, so GitHub's source archives will not build.
 
-For more information, see the general documentation in directory Doc/, 
-package-specific documentation in \*/Doc/, and the web site 
-http://www.quantum-espresso.org/. Technical documentation for users and
-developers 
-can be found on [Wiki page on gitlab](https://gitlab.com/QEF/q-e/-/wikis/home).
+    git clone https://github.com/ytcs/qe-fast && cd qe-fast
 
-## PACKAGES
+### GPU
 
-- PWscf: structural optimisation and molecular dynamics on the electronic ground state, with self-consistent solution of DFT equations;
-- CP: Car-Parrinello molecular dynamics;
-- PHonon: vibrational and dielectric properties from DFPT (Density-Functional Perturbation Theory);
-- TD-DFPT: spectra from Time-dependent DFPT;
-- HP: calculation of Hubbard parameters from DFPT;
-- EPW: calculation of electron-phonon coefficients, carrier transport, phonon-limited superconductivity and phonon-assisted optical processes;
-- PWCOND: ballistic transport;
-- XSpectra: calculation of X-ray absorption spectra;
-- PWneb: reaction pathways and transition states with the Nudged Elastic Band method;
-- GWL: many-body perturbation theory in the GW approach using ultra-localised Wannier functions and Lanczos chains;
-- QEHeat: energy current in insulators for thermal transport calculations in DFT.
-- KCW: Koopmans-compliant functionals in a Wannier representation
+Needs the NVIDIA HPC SDK. `qefast/pod/build-gpu.sh` is written for NVHPC 26.5 at its default install path in
+a Linux container; edit the `NV` line for another location. It is the only toolchain that has been tested.
+The argument is the CUDA compute capability (86 = A40, 90 = H100, the two GPUs the results below come from).
+`CPU=0` skips the additional CPU build.
 
-## Modular libraries
-The following libraries have been isolated and partially encapsulated in view of their release for usage in other codes as well:
+    CPU=0 qefast/pod/build-gpu.sh . 90          # binaries in build-gpu/bin
 
-- UtilXlib: performing basic MPI handling, error handling, timing handling.
-- FFTXlib: parallel (MPI and OpenMP) distributed three-dimensional FFTs, performing also load-balanced distribution of data (plane waves, G-vectors and real-space grids) across processors.
-- LAXlib: parallel distributed dense-matrix diagonalization, using ELPA, SCALapack, or a custom algorithm.
-- KS Solvers: parallel iterative diagonalization for the Kohn-Sham Hamiltonian (represented as an operator),using block Davidson and band-by-band or block Conjugate-Gradient algorithms.
-- LRlib: performs a variety of tasks connected with (time-dependent) DFPT, to be used also in connection with Many-Body Perturbation Theory.
-- upflib: pseudopotential-related code.
-- devXlib: low-level utilities for GPU execution
+That build contains no MathDx code. The cuFFTDx kernels (`QEF_STH_FFTDX`) compile to a stub that always
+declines, and the run keeps cuFFT. To compile the real kernels, for your own use only (see
+[Licensing](#licensing)):
 
-## Contributing
-Quantum ESPRESSO is an open project: contributions are welcome.
-Read the [Contribution Guidelines](CONTRIBUTING.md) to see how you
-can contribute.
+    export FDX_DEPS=$HOME/.cache/qefast-fdxdeps # the script's default is under /root
+    eval "$(qefast/sth/fdx/deps.sh)"             # fetches nvidia-mathdx 25.6.0 and CUTLASS 3.9.2
+    CPU=0 qefast/pod/build-gpu.sh . 90
 
-## LICENSE
+Running `deps.sh` means accepting NVIDIA's licence for MathDx. The cmake output says which one you got: `qef fftdx: cuFFTDx kernels for sm_90` or `qef fftdx: stub`.
 
-All the material included in this distribution is free software;
-you can redistribute it and/or modify it under the terms of the GNU
-General Public License as published by the Free Software Foundation;
-either version 2 of the License, or (at your option) any later version.
+### CPU
 
-These programs are distributed in the hope that they will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-for more details.
+    sudo apt-get install gfortran gcc cmake ninja-build libopenblas-dev libfftw3-dev
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQE_ENABLE_MPI=OFF -DQE_FFTW_VENDOR=FFTW3
+    cmake --build build --target pw.x ph.x epw.x
 
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-675 Mass Ave, Cambridge, MA 02139, USA.
+The GPU engine is not compiled in a CPU build, so there is no speedup to expect. The CI builds this
+configuration and runs a small `pw.x` test. No preset has been gated on a CPU build, and the copied wannier90
+routines still read their `QEF_W90_*` switches there. For CPU-only production, use upstream QE.
+
+## Quick start
+
+The programs take the same inputs as QE's. Run `pw.x` and `ph.x` as one MPI rank per GPU with OpenMP threads,
+and pass the `QEF_*` variables on to remote ranks. Each program prints the active preset when it starts:
+
+    qe-fast preset: safe (built-in default)
+
+The MgB₂ smoke chain runs every stage, in about 430 s under `safe` on an A40. It needs `mpirun` on the `PATH`
+(NVHPC ships one in `comm_libs/mpi/bin`):
+
+    qefast/pseudo.sh                            # fetches the SG15 pseudopotentials into qefast/pseudo/sg15
+    QEF_PRESET=safe qefast/examples/eph-tc/bench/run-chain.sh \
+        qefast/examples/eph-tc/bench/B1/smoke build-gpu/bin /tmp/b1-safe 8 8
+
+The arguments after the work directory are the OpenMP threads for `pw.x` and `ph.x` and the MPI ranks for
+`epw.x`. Stage times go to `timings.tsv` in the work directory.
+
+## Presets
+
+`QEF_PRESET` selects a set of switches. Any `QEF_*` variable you set overrides its preset entry. The full table
+of switches, with the class, evidence and fallback of each, is in [qefast/SWITCHES.md](qefast/SWITCHES.md).
+
+| preset | what it is | status |
+|---|---|---|
+| `off` | The batched engine with every optional lever off. This is not plain QE: `QEF_STH=0` gives QE's own loop. | Reference for every gate |
+| `safe` (default) | Levers that keep the output bitwise identical or differ at rounding level, and leave the Wannier gauge alone | Full gate passed on 4 held-out materials and on the two smoke benchmarks |
+| `fast` | `safe` plus lever C and three Wannier-related switches | **Phonon-gated only** on held-out materials |
+| `max` | `safe` plus the CBSR exact solve and the same three switches | **Phonon-gated only** on held-out materials |
+
+The gate, against the same material's `off` run: every mode at every q within max(0.5 %, 1 cm⁻¹), the three
+acoustic modes at Γ excluded; λ and ω_log within 1 %; Allen–Dynes T_c within max(2 %, 0.5 K).
+
+`fast` and `max` passed the frequency gate on all eight held-out materials, but they may land on a different
+Wannier solution from `off`. On four of the eight, λ, ω_log or T_c failed the gate (λ moved by up to 29 %, on
+TiN), and B₁₃C₂ has no λ reference. `off` is not a truth reference for λ, but the result is not the same
+answer. Do not use `fast` or `max` for λ or T_c on a new material without checking it against `off`.
+
+## Supported cases and fallbacks
+
+The batched `ph.x` engine runs when all of these hold; `LR_Modules/sth_batched.f90` is the authority:
+
+- norm-conserving pseudopotentials;
+- collinear and non-magnetic (`nspin_mag = 1`), no spin-orbit coupling;
+- smearing occupations, so no `occupations = 'fixed'`, no tetrahedra and no two-chemical-potential runs;
+- no DFT+U, meta-GGA, EXX, `real_space`, scissor or `lelfield`;
+- k-point sampling other than Γ-only (`gamma_only`);
+- serial FFT within a pool, one band group, no task groups. Any number of pools.
+
+Any other case takes QE's own loop automatically, with no speedup. That includes magnetic, SOC, USPP/PAW and
+DFT+U systems. `QEF_STRICT=1` turns such a fallback into a stop.
+
+Two switches have no fallback once the run has started, and `safe`, `fast` and `max` all set them:
+
+- `QEF_STH_DVB=1`: if the engine declines at run time, for example for lack of device memory, the run stops
+  with `engine declined with QEF_STH_DVB=1`. Set `QEF_STH_DVB=0`.
+- `QEF_EPW_NOVME=1`: stops in an `ephwrite` + Eliashberg run if the fused fine path is not taken or a velocity
+  consumer is active. Set `QEF_EPW_NOVME=0`.
+
+## Performance
+
+Measured numbers only. **Every figure below is relative to qe-fast's own code, not to unmodified Quantum
+ESPRESSO.** There is no end-to-end comparison against unmodified QE on the same hardware, because the
+full-size unmodified runs were not completed, so qe-fast makes no such claim.
+
+### Tuned benchmarks, H100
+
+The two benchmarks that the code was tuned on, at their full size ("frozen" inputs), scf through EPW. Each run
+used a hand-picked lever set, not a preset. Neither result is what the default gives.
+
+| system | baseline | this run | speedup | gate against the baseline |
+|---|---|---|---|---|
+| MgB₂ | 2849 s | 240.84 s | **11.83×** | passed |
+| Mg₂IrH₆ | 4030 s | 818.08 s | **4.93×** | passed; **the 10× target was not reached** |
+
+- Hardware: one H100 80GB HBM3. `pw.x` and `ph.x` as 1 rank × 8 OpenMP threads, `epw.x` as 12 ranks with MPS.
+- Baseline: qe-fast's first complete engine (commit `94c1e2ccb`, 2026-10-28) on an H100, end to end. For MgB₂,
+  an all-levers-off run of the same code on the same host took 2562.21 s, which gives 10.64×.
+- Both runs were at commit `faba36128` (2026-10-30), and they have not been repeated on the v0.1.0 tree.
+- Both used `QEF_STRICT=1`, the cuFFTDx kernels, and `QEF_W90_WNT` and `QEF_W90_MMN`, which `safe` leaves out. A
+  build without MathDx cannot reproduce them. The kernels are compiled for the FFT grids of these two systems.
+- MgB₂ used the CBSR solve, `QEF_STH_DEFL=1` and `QEF_EPW_NOWRITE=1`, without `QEF_PW_SYMROT`.
+- Mg₂IrH₆ ran without CBSR, with `QEF_THRESH_L=10` and `QEF_PW_SYMROT=1`.
+
+### Default preset on held-out materials, A40
+
+End to end, `safe` against `off`: same A40, same inputs, same material. `off` is the engine with its levers off,
+not plain QE. The four held-out materials are the ones that failed an earlier, larger `safe`, so they are the
+hardest tests of the accuracy gate and not a random sample.
+
+| | Al | Nb | LiAl₂Rh | TiN (39³ grid forced) |
+|---|---|---|---|---|
+| `safe` end to end | 1.50× | 1.35× | 1.07× | 1.10× |
+
+The median is 1.23×, the range 1.07–1.50×. All four passed the full gate. `safe` itself was not run on the other
+four held-out materials (MgO, H₃S at 200 GPa, MgB₃C₃, B₁₃C₂). On the two tuning systems at smoke size, on the
+same A40, `safe` gave 1.50× (MgB₂) and 1.61× (Mg₂IrH₆), also passing the full gate.
+
+### `fast` and `max` on held-out materials, A40
+
+End to end against `off`, median / worst over the seven held-out materials with a complete chain: `fast`
+1.68× / 1.42×, `max` 1.95× / 1.09×. These two presets are phonon-gated only, see [Presets](#presets).
+
+## Limitations
+
+- **FFTDX is compiled for two FFT grids only**: 30×30×36 and 54×54×54. It declined on all eight held-out
+  materials, which is much of why `safe` gains little there: `safe` left the solve stage where it was on five of
+  seven. The decline is clean and the run keeps cuFFT.
+- **No speedup for magnetic, SOC, USPP/PAW or DFT+U systems**, or for the other cases listed above. They take
+  QE's own loop.
+- **`fast` and `max` are phonon-gated only** on held-out materials and may land on a different Wannier solution.
+- **λ is sensitive to the Wannier gauge.** Rounding-level changes can move a run off a saddle in the spread, and
+  moving Wannier functions by lattice vectors changed λ by 3.7 % on a Mg₂IrH₆ test at unchanged spread. When you
+  compare runs, compare Cartesian Wannier centres, not spreads
+  (`qefast/examples/eph-tc/bench/gen/wfcentres.py`).
+- **Evidence is limited**: two tuning systems and eight held-out materials, on A40 and H100 GPUs, with SG15
+  pseudopotentials. Gate runs were GPU runs. The grids of the held-out runs were trimmed for cost.
+- One toolchain has been tested for GPU builds (NVHPC 26.5). `./configure` and `make` are not supported.
+- CI covers a CPU build and a small `pw.x` test. It does not run GPU code, so the GPU results above are not
+  regression-tested on each commit.
+
+## Licensing
+
+qe-fast is free software under the GNU General Public License, version 2 or (at your option) any later version,
+as is Quantum ESPRESSO. The licence text is in [License](License); [NOTICE](NOTICE) records the modifications
+and every third-party component.
+
+**Do not distribute binaries built with MathDx/cuFFTDx.** NVIDIA's licence for it is proprietary and forbids use
+that would subject it to an open-source licence, while the GPL would require exactly that of a distributed
+binary. Nothing of MathDx is in this repository, and builds for your own use are not affected. For a binary you
+pass on, leave `QEF_MATHDX_INC` unset. See NOTICE for the full position. This project publishes no binaries.
+
+## Citing
+
+If you use qe-fast in published work, cite it and the upstream Quantum ESPRESSO and EPW papers. They are listed
+in [CITATION.cff](CITATION.cff).
+
+## Project files
+
+[CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
+[qefast/README.md](qefast/README.md) (layout of the fork).

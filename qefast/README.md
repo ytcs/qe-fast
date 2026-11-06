@@ -1,43 +1,23 @@
-# qe-fast
+# qefast/
 
-A fork of Quantum ESPRESSO, branched from the `qe-7.6`
-release tag. EPW is included in this tree. Everything specific to the fork
-lives under `qefast/`:
+Everything specific to qe-fast that is not a change to an upstream file lives here. See the
+[top-level README](../README.md) for what the project is and how to build it.
 
-- `bench/`: frozen benchmark inputs (`mkbench.py` generates them) and the
-  timed pipeline runner `run.sh`.
-- `pod/`: GPU build script for the NVHPC image on RunPod.
-- `pseudo.sh`: fetches the SG15 pseudopotentials the benchmarks use.
-
-Benchmark rules (baseline, accuracy gate, timing) are in MILESTONE-1.md
-in the campaign workspace.
-
-On a GPU pod:
-
-    git clone https://github.com/ytcs/qe-fast && cd qe-fast
-    qefast/pseudo.sh && qefast/pod/build-gpu.sh . 80      # 80 = A100, 90 = H100
+- `SWITCHES.md`: every run-time switch, with its default, class, gate evidence and fallback.
+- `config/`: `qef_config`, the central preset table and `qef_getenv`.
+- `sth/`: the batched Sternheimer and nscf engines and their offline harness.
+- `sth/fdx/`: the cuFFTDx kernels, a stub for builds without MathDx, `deps.sh` and microbenchmarks.
+- `epw/`: GPU paths for EPW, and the gate and comparison scripts.
+- `w90/`: patched copies of two wannier90 routines and the scripts that generate them.
+- `pod/`: build and cache scripts for an NVHPC container.
+- `pseudo.sh`: fetches the SG15 pseudopotentials that the benchmarks use.
+- `examples/eph-tc/bench/`: benchmark inputs (`B1` is MgB₂, `B2` is Mg₂IrH₆, each `smoke` and `frozen`), the chain
+  runner `run-chain.sh`, and `gen/`, the held-out study's inputs and gate report.
+- `examples/eph-tc/funnel/`: a tiered candidate-screening pipeline built on these tools, kept as an example.
+  It needs Python packages and data that are not part of this repository (see NOTICE).
 
 ## Branches and tags
 
-- `main`: integration branch. Everything here passes the benchmark
-  accuracy gate.
-- `qe-7.6`: the vanilla baseline. Every speedup is measured against a build
-  of this tag made with the same toolchain on the same node.
-- Remotes: `upstream` (gitlab.com/QEF/q-e, where development happens),
-  `github-mirror` (github.com/QEF/q-e), `origin` (ours, private).
-
-## Licence
-
-QE ships the GPL v2 text in `License`. Most source headers say "GNU General
-Public License" without a version number, and a few say "version 2 or any
-later version". Before importing code from another package, check that its
-licence is compatible and record the decision here:
-
-| Package | Licence | Status |
-|---------|---------|--------|
-| Wannier90 | GPL v2 | compatible |
-| ABINIT | GPL v3 | **do not merge code** until QE's version terms are settled; use it as an external cross-check |
-| python-sscha / CellConstructor | check before import | — |
-| phonopy, pymatgen, ASE | BSD / MIT / LGPL | interface-level use only |
-
-Changes are distributed under QE's terms (GPL).
+- `main`: integration branch.
+- `qe-7.6`: the upstream release tag this fork branched from.
+- `v*`: qe-fast releases.

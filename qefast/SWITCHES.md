@@ -28,7 +28,7 @@ gated on a CPU build.
 
 | preset | what it is | status |
 |---|---|---|
-| `off` | The engine with every lever off (`QEF_STH=1 QEF_STRICT=0 QEF_STH_DVB=0 QEF_W90_NT=1`). Not plain QE: `QEF_STH=0` gives QE's own loop. | Reference for every gate. Bitwise identical to the pre-rename all-off path: 21 files on B1 smoke (dyn, dvscf, a2f) against a pre-rename binary; 34 files on G2, G3, G5, G6 against the archived all-off runs. |
+| `off` | The engine with every lever off (`QEF_STH=1 QEF_STRICT=0 QEF_STH_DVB=0 QEF_W90_NT=1`). Not plain QE: `QEF_STH=0` gives QE's own loop. | Reference for every gate. Bitwise identical to the earlier all-off path: 21 files on B1 smoke (dyn, dvscf, a2f) against an earlier binary; 34 files on G2, G3, G5, G6 against the archived all-off runs. |
 | `safe` | All levers of classes B and E that leave the Wannier gauge alone. | **Full gate passed** on G2, G3, G5, G6, the four materials that failed the study's earlier `safe`, and on B1 and B2 smoke. Not run itself on G1, G4, G7, G8: they passed the frequency gate with that earlier, larger set, and G1, G4, G7 its full gate; G8 has no λ reference. |
 | `fast` | The held-out study's `fast` set: `safe` + `QEF_PW_SYMROT=1 QEF_W90_WNT=8 QEF_W90_MMN=1` + lever C (`QEF_THRESH_L=10 QEF_STH_DEFL=1`). | **Phonon-gated only on held-out materials.** Frequencies pass on G1–G8. λ, ω_log or T_c fail on G2, G3, G5, G6; G8 has no λ reference. |
 | `max` | The held-out study's `max` set: `safe` + `QEF_PW_SYMROT=1 QEF_W90_WNT=8 QEF_W90_MMN=1` + CBSR (`QEF_STH_CBSR=1 QEF_STH_CBSR_XCH=1 QEF_STH_CBSR_HOST=1`, automatic check on). | **Phonon-gated only on held-out materials.** Same failures as `fast`. |
@@ -84,7 +84,7 @@ Margin used on G2, G3, G5, G6: 3.8 %, 15.0 %, 0.0 %, 0.2 %.
 
 | switch | default | class | gate evidence | fallback |
 |---|---|---|---|---|
-| `QEF_STH` | 1 in all presets | — | batched Sternheimer engine, batched nscf and GPU tail; the M1 baseline | 0: QE's own loop. Unsupported cases take it automatically. |
+| `QEF_STH` | 1 in all presets | — | batched Sternheimer engine, batched nscf and GPU tail; the baseline of the H100 benchmarks | 0: QE's own loop. Unsupported cases take it automatically. |
 | `QEF_STRICT` | 0 | — | 1 turns any decline into a stop; used for timing runs | — |
 | `QEF_TAIL`, `QEF_NSCF_BATCH`, `QEF_NSCF_ROT` | on (0 disables) | E | part of `off` | 0: QE's own code for that step |
 
@@ -137,10 +137,10 @@ moved λ by at most 4.7e-4 relative on G3, G5, G6.
 | `QEF_THRESH_L=10`, `QEF_STH_DEFL=1` (lever C) | `fast` | N | ph.x 1.21× / 1.23× on B1 / B2; B2 margin used 60 %; held-out 38.7 % | tuned on B1 and B2 |
 | `QEF_STH_CBSR=1` | `max` | N | B1 smoke 0.126 cm⁻¹; held-out frequencies pass | exact spectral solve. `QEF_STH_CBSR_AUTO` is on whenever CBSR is set: it checks memory and payoff once at the first q ≠ Γ and falls back to CG. Under `QEF_STRICT=1` it only reports. |
 | `QEF_STH_CBSR_XCH`, `QEF_STH_CBSR_HOST` | `max` | B | with CBSR | memory path of the check |
-| `QEF_STH_CBSR_RF` and `_TF32`, `_ACT`, `_M0`, `_CMAX`, `_RFMAX`, `_CHK`, `_PAD`, `_GAMMA` | none | N | refinement form; B2 Route R 21 / 56 / 126 % | research only |
-| `QEF_EPW_NOWRITE=1` | none | B | λ identical | skips epmatwp and `.epb`, which breaks later EPW-only reuse (funnel, shared-gauge runs) |
+| `QEF_STH_CBSR_RF` and `_TF32`, `_ACT`, `_M0`, `_CMAX`, `_RFMAX`, `_CHK`, `_PAD`, `_GAMMA` | none | N | refinement form; B2 margin used 21 / 56 / 126 % | research only |
+| `QEF_EPW_NOWRITE=1` | none | B | λ identical | skips epmatwp and `.epb`, which breaks later EPW-only reuse (screening, shared-gauge runs) |
 | `QEF_STH_MP=1`, `QEF_MP_ETA`, `QEF_MP_SAFE` | none | N | B1, B2 PASS, 74 % margin used on B2 with lever C; about 2× on ph.x on a 4090 | FP32 inner CG; hardware dependent |
-| `QEF_TR2_SCALE` | none | N | 0.01 passes Route C at B2 q2, q3 with exact CBSR | tightens tr2_ph |
+| `QEF_TR2_SCALE` | none | N | 0.01 passes against a tight same-grid reference at B2 q2, q3 with exact CBSR | tightens tr2_ph |
 | `QEF_STH_DRF=1`, `QEF_EPW_B2WG=1` | none | E | dvscf 1.6e-15 (DRF); no A40 gain | H100 A/B not run |
 | `QEF_THRESH_G`, `QEF_STH_ETA`, `QEF_MIX_Q0`, `QEF_NSCF_ETHR_SCALE`, `QEF_W90_NITER` | none | N | not adopted; NITER fails the gate on the saddle | leave unset |
 | `QEF_STH_NOPSIR=1` | none | B | B2 q5 engine memory 68.4 → 24.1 GiB, +10 % solve | memory relief |
@@ -160,7 +160,7 @@ moved λ by at most 4.7e-4 relative on G3, G5, G6.
 
 `QEF_EPW_COARSE`, `QEF_EPW_NL`, `QEF_EPW_FINE`, `QEF_EPW_ELIASH`, `QEF_EPW_ELIASH_KERNEL`, `QEF_EPW_ELIASH_MIX`,
 `QEF_EPW_ELIASH_WARM`, `QEF_EPW_QBATCH`. `QEF_EPW_VME=1` forces the velocity matrices; `QEF_EPW_ETFMEM=keep` keeps the
-input's `etf_mem`. All were gated in the M1 chain.
+input's `etf_mem`. All were gated in the full H100 baseline chain.
 
 ## Script and build switches
 
