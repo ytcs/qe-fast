@@ -5,7 +5,7 @@ type: software
 abstract: "A fork of Quantum ESPRESSO 7.6, EPW included, with a batched GPU path for phonon and electron-phonon workflows."
 authors:
   - name: "ytcs"
-version: "0.1.0"
+version: 0.1.1
 date-released: "2026-11-06"
 license: GPL-2.0-or-later
 repository-code: "https://github.com/ytcs/qe-fast"

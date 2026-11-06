@@ -4,6 +4,12 @@ All notable changes to qe-fast are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-11-06
+
+### Fixed
+
+- `ph.x` and `epw.x` now compile without CUDA. GPU builds are unchanged. CI builds all three executables.
+
 ## [0.1.0] - 2026-11-06
 
 First public release, based on Quantum ESPRESSO 7.6 (tag `qe-7.6`), EPW included.
