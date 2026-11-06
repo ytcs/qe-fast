@@ -12,7 +12,7 @@ Generator G1G2: band exclusion by qe.n_semicore and Wannier coarse k = 2 q (qe.t
 Generator G4: (a) canonical cell (qe.canonical: fractional
 coordinates wrapped into [0,1), sites sorted by Z); (b) EPW use_ws = .true.; (c) per-setup gate = G3 spread rule + on-grid
 band check; (d) two setups, generic atomic projections and SCDM erfc (mu E_F, sigma 2 eV) WITH the frozen window; (e) if
-they disagree (S_W > 0.15) or only one passes, Wannier k is refined to 3 q and both rerun; (f) still S_W > 0.15 ->
+they disagree (S_W > 0.10) or only one passes, Wannier k is refined to 3 q and both rerun; (f) still S_W > 0.10 ->
 flag_wannier (E1 s x 2; pass rule uses the larger Tc); no setup passes -> fail:wannier.
 F0c fixes: no frozen window -> neither setup runs (SCDM without a
 window is retired); a 3q result replaces the 2q one only if a 3q setup passes its gate.
@@ -321,13 +321,13 @@ def run_setups(st, g, nk, xs, xn, nsemi, nw, froz, prefix, ne, stage, tag=""):
     if len(good) == 2:
         la, lb = (setups[k]["metrics"]["lam"] for k in good)
         sw = abs(math.log(la / lb)) if la > 0 and lb > 0 else None
-    return dict(nk=nk, setups=setups, good=good, S_W=sw, agree=(sw is not None and sw <= 0.15))
+    return dict(nk=nk, setups=setups, good=good, S_W=sw, agree=(sw is not None and sw <= 0.10))
 
 
 def epw_stage(res, st, g, xs, xn, prefix, ne, stage, finish, job):
-    """G4. (d) two setups at the G2 Wannier grid nk = 2q; (e) if they disagree (S_W > 0.15) or
+    """G4. (d) two setups at the G2 Wannier grid nk = 2q; (e) if they disagree (S_W > 0.10) or
     only one passes its gate, refine the Wannier grid to nk = 3q (new nscf in ./k3, same scf density and DFPT) and
-    rerun both setups there; the refined result replaces the 2q one. (f) still S_W > 0.15 -> flag_wannier (E1: s x 2;
+    rerun both setups there; the refined result replaces the 2q one. (f) still S_W > 0.10 -> flag_wannier (E1: s x 2;
     the pass rule uses the larger Tc, never rejects on that basis); no setup passing its gate -> fail:wannier."""
     try:
         nsemi, sinfo = qe.n_semicore(xs if xs.get("eig") else xn, st["species"], PSEUDO)

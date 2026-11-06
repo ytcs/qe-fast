@@ -340,7 +340,7 @@ def epw_input(prefix, species, nk, nq, nkf, nqf, nsemi, nw, froz, ef, scdm=False
         for e, orb in projections(species):
             i += 1
             lines.append(f"proj({i}) = '{e}:{';'.join(orb)}'")
-        lines.append("wdata(1) = 'dis_num_iter = 1000'")
+    lines.append("wdata(1) = 'dis_num_iter = 1000'")
     if use_ws:   # G4(b): Wigner-Seitz sets built from the WF centres and atom positions (EPW default .false.)
         lines.append("use_ws = .true.")
     lines += ["eps_acoustic = 2.0", "ephwrite = .true.", "fsthick = 0.4", "degaussw = 0.10", "degaussq = 0.5",
