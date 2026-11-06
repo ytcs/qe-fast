@@ -42,6 +42,7 @@ MODULE sth_engine
   INTEGER, PARAMETER :: MAXE = 64      ! RTSC_STH_DEFL: at most this many known empty bands per k   ! FFT batch sizes 2**0 .. 2**(MAXPLAN-1)
   INTEGER, PARAMETER :: maxter = 400   ! as cgsolve_all
   !
+  PUBLIC :: sth_engine_cbsr_plan
   PUBLIC :: sth_engine_init, sth_engine_set_global, sth_engine_set_k, sth_engine_set_dvbare, &
             sth_engine_set_dpsi, sth_engine_setup, sth_engine_solve, sth_engine_get_dpsi, &
             sth_engine_get_hdiag, sth_engine_set_hdiag, sth_engine_reset_dpsi, sth_engine_free, sth_engine_shutdown, &
@@ -371,6 +372,22 @@ MODULE sth_engine
   !   Where a basis is stored does not change its numbers (an A40 device for the B2 gate; a safety net on the H100).
   ! - Under RTSC_STRICT=1, a CBSR decline ("CG kept") at q /= Gamma stops ph.x (the pre-flight rule of MILESTONE-2).
   LOGICAL, SAVE :: cb_xch = .FALSE., cb_host = .FALSE., cb_strict = .FALSE.
+  !
+  ! rtsc gen (groups/compute/GEN-LOG.md): the automatic check of RTSC_STH_CBSR (RTSC_STH_CBSR_AUTO=0 turns it off), decided
+  ! once at the first q /= Gamma and printed as one line "rtsc cbsr auto:".
+  ! - memory: one basis per orbit of the k+q grid (symrot_count), n = npwx, 16 n^2 bytes each, against the device memory
+  !   left after the engine's arrays at the largest q of the run (plus pinned host memory under RTSC_STH_CBSR_HOST).
+  ! - payoff: the solve stage of the remaining q, CG = the CG wall time per column measured at Gamma x the columns to come;
+  !   CBSR = bases x the measured build (the first two real ones) + the columns x 16 n^2 flops at a measured ZGEMM rate
+  !   (+ host staging). CBSR is kept if CG / CBSR >= RTSC_STH_CBSR_MINGAIN (default 1.1).
+  ! A decline sets sth_cbsr_off: the run is the CG run (class B: nothing the CG path reads is touched). Under RTSC_STRICT=1
+  ! the check only reports (advisory); the STRICT stop on a real decline stays as it was.
+  LOGICAL, PUBLIC, SAVE :: sth_cbsr_off = .FALSE.
+  INTEGER, SAVE :: ca_state = 0                     ! 0 undecided, 1 decided
+  LOGICAL, SAVE :: ca_auto = .TRUE.
+  INTEGER, SAVE :: ca_norb = -1, ca_nkf = 0, ca_nq = 0, ca_lg(3) = 0, ca_nops = 0, ca_nk0 = 0, ca_nh = 0, ca_nb = 0
+  INTEGER(8), SAVE :: ca_sumk = 0, ca_maxk = 0, ca_cols = 0, ca_calls = 0
+  REAL(dp), SAVE :: ca_t0 = 0, ca_tcg = 0, ca_mingain = 1.1_dp, ca_rate = 0, ca_wgib = 0, ca_bdev = 0, ca_bhost = 0
   LOGICAL, SAVE :: sth_drho2 = .FALSE., sth_drho2_read = .FALSE.   ! RTSC_STH_DRHO2 (k_drho2)
   LOGICAL, SAVE :: sth_drf = .FALSE.                                 ! RTSC_STH_DRF (fdx_inv_rho_d; FDXDP path only)
   INTEGER, SAVE :: cb_hs(CB_MAXREP) = 0, cb_nh = 0, cb_nhcap = 0
@@ -3604,11 +3621,202 @@ CONTAINS
     IF (cb_strict) CALL errore_stop('cbsr (declined under RTSC_STRICT=1; see the rtsc cbsr line above)', 1)
   END SUBROUTINE cb_decline_check
   !
+  SUBROUTINE sth_engine_cbsr_plan(norb, nkf, sumk, maxk, nq, lg, nops)
+    !! the counts of the automatic check (symrot_count), once per run
+    INTEGER, INTENT(IN) :: norb, nkf, nq, lg(3), nops
+    INTEGER(8), INTENT(IN) :: sumk, maxk
+    ca_norb = norb; ca_nkf = nkf; ca_sumk = sumk; ca_maxk = maxk; ca_nq = nq; ca_lg = lg; ca_nops = nops
+  END SUBROUTINE sth_engine_cbsr_plan
+  !
+  REAL(dp) FUNCTION cb_gemm_rate(mw)
+    !! measured ZGEMM rate (flop/s) of this device at the shape of a CBSR block: n x n times n x mw (n capped at 2048)
+    INTEGER, INTENT(IN) :: mw
+    COMPLEX(dp), DEVICE, ALLOCATABLE :: a(:,:), x(:,:), y(:,:)
+    INTEGER :: nb, i, istat
+    REAL(dp) :: t0
+    cb_gemm_rate = 0.0_dp
+    nb = MIN(cb_n0, 2048)
+    ALLOCATE(a(nb, nb), x(nb, mw), y(nb, mw), STAT=istat)
+    IF (istat /= 0) RETURN
+    a = (0.0_dp, 0.0_dp); x = (0.0_dp, 0.0_dp)
+    DO i = 0, 4
+      IF (i == 1) THEN
+        CALL tsync(); t0 = wtime()
+      ENDIF
+      istat = cublasZgemm(hblas, CUBLAS_OP_N, CUBLAS_OP_N, nb, mw, nb, (1.0_dp, 0.0_dp), a, nb, x, nb, (0.0_dp, 0.0_dp), y, nb)
+      CALL chk(istat, 'cublasZgemm (cbsr rate)')
+    ENDDO
+    CALL tsync()
+    cb_gemm_rate = 4.0_dp * 8.0_dp * nb * REAL(nb, dp) * mw / MAX(wtime() - t0, 1.0e-6_dp)
+    DEALLOCATE(a, x, y)
+  END FUNCTION cb_gemm_rate
+  !
+  REAL(dp) FUNCTION cb_host_avail()
+    !! half of MemAvailable (bytes): the ceiling for pinned bases
+    INTEGER :: u, ios
+    CHARACTER(LEN=64) :: l
+    INTEGER(8) :: kb
+    cb_host_avail = 0.0_dp
+    OPEN(NEWUNIT=u, FILE='/proc/meminfo', STATUS='OLD', ACTION='READ', IOSTAT=ios)
+    IF (ios /= 0) RETURN
+    DO
+      READ(u, '(A)', IOSTAT=ios) l
+      IF (ios /= 0) EXIT
+      IF (l(1:13) == 'MemAvailable:') THEN
+        READ(l(14:), *, IOSTAT=ios) kb
+        IF (ios == 0) cb_host_avail = 0.5_dp * 1024.0_dp * kb
+        EXIT
+      ENDIF
+    ENDDO
+    CLOSE(u)
+  END FUNCTION cb_host_avail
+  !
+  SUBROUTINE cb_auto_line(path, why, tb, ntmp)
+    !! the one line: which path, why, and the counts
+    CHARACTER(LEN=*), INTENT(IN) :: path, why
+    REAL(dp), INTENT(IN) :: tb            ! seconds per basis (measured, or < 0 for the model)
+    INTEGER, INTENT(IN) :: ntmp
+    REAL(dp) :: tcg, tcb, tbl, tgm, tst, gain, ccol
+    CALL cb_auto_cost(tb, ntmp, tcg, tcb, tbl, tgm, tst, gain, ccol)
+    WRITE(*, '(5A,I0,A,3(I0,A),I0,A,I0,A,I0,A,I0,A,F9.2,A,F9.2,A,F9.2,A,F9.1,A,F9.1,A,F7.1,A,F8.1,A,F7.1,A,ES9.2,A,F6.2,A)') &
+         '     rtsc cbsr auto: ', path, ' (', why, '): orbits ', ca_norb, ' (grid ', ca_lg(1), 'x', ca_lg(2), 'x', ca_lg(3), &
+         ', ', ca_nops, ' ops), n ', cb_n0, ', bases ', ca_nb, ' + ', ntmp, ' per q, working set ', ca_wgib, &
+         ' GiB, room ', ca_bdev, ' GiB device +', ca_bhost, ' GiB host; est. solve stage CBSR ', tcb, ' s vs CG ', tcg, &
+         ' s (build ', tbl, ', GEMM ', tgm, ', staging ', tst, ', ', ccol, ' columns, ', ca_rate * 1.0e-12_dp, ' Tflop/s)'
+  END SUBROUTINE cb_auto_line
+  !
+  SUBROUTINE cb_auto_cost(tb, ntmp, tcg, tcb, tbl, tgm, tst, gain, ccol)
+    !! the payoff model (see the note at sth_cbsr_off). tb < 0: no basis measured, the build is modelled at 4 x 8 n^3 / rate
+    !! (A40, B1 and B2: 3.7 and 3.4 x; the H100 is slower than that model, which is why the check measures it when it can).
+    REAL(dp), INTENT(IN) :: tb
+    INTEGER, INTENT(IN) :: ntmp
+    REAL(dp), INTENT(OUT) :: tcg, tcb, tbl, tgm, tst, gain, ccol
+    REAL(dp) :: b, n2
+    n2 = REAL(cb_n0, dp)**2
+    b = tb
+    IF (b < 0.0_dp) b = 4.0_dp * 8.0_dp * n2 * cb_n0 / MAX(ca_rate, 1.0_dp)
+    ccol = 0.0_dp; tcg = 0.0_dp; tst = 0.0_dp
+    IF (ca_cols > 0 .AND. ca_nk0 > 0) THEN
+      ccol = REAL(ca_cols, dp) * REAL(ca_sumk, dp) / ca_nk0
+      tcg = ca_tcg / ca_cols * ccol
+      tst = REAL(ca_calls, dp) * ca_nq * ca_nh * 2.0_dp * 16.0_dp * n2 / 2.0e10_dp      ! PCIe at 20 GB/s
+    ENDIF
+    tbl = (ca_nb + REAL(ntmp, dp) * ca_nq) * b
+    tgm = ccol * 16.0_dp * n2 / MAX(ca_rate, 1.0_dp)
+    tcb = tbl + tgm + tst
+    gain = tcg / MAX(tcb, 1.0e-9_dp)
+  END SUBROUTINE cb_auto_cost
+  !
+  LOGICAL FUNCTION cb_auto_memory(sbytes, ntmp, freeb)
+    !! stage 1, before any basis: do one basis per orbit fit? .FALSE. = CG for this run (or a report under RTSC_STRICT=1)
+    INTEGER(8), INTENT(IN) :: sbytes, freeb
+    INTEGER, INTENT(IN) :: ntmp
+    INTEGER(8) :: perk0, perk, room, nfit, maxk
+    INTEGER :: mw
+    REAL(dp) :: hostb, rgib
+    CHARACTER(LEN=96) :: why
+    INTEGER :: istat
+    CHARACTER(LEN=32) :: sv
+    cb_auto_memory = .TRUE.
+    CALL get_environment_variable('RTSC_STH_CBSR_MINGAIN', sv, STATUS=istat)
+    IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) ca_mingain
+    maxk = MAX(ca_maxk, INT(nksq, 8))
+    mw = INT(MAX(8_8, MIN(256_8, (nslot * maxk / MAX(ca_norb, 1) + 7) / 8 * 8)))
+    ca_rate = cb_gemm_rate(mw)
+    ca_nb = MAX(ca_norb, 0)
+    ca_wgib = REAL(sbytes, dp) * (ca_nb + ntmp) / 1024.0_dp**3
+    ca_nh = 0
+    ca_bhost = 0.0_dp
+    ! the engine's per-k state, already on the device for this q's nksq, and what the largest q will need on top of it
+    rgib = 2.0_dp
+    CALL get_environment_variable('RTSC_STH_CBSR_RESERVE', sv, STATUS=istat)
+    IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) rgib
+    perk0 = 16_8 * npwx * (nproj + 2_8 * nbnd)
+    perk = perk0 + MERGE(5_8, 8_8, cb_xch .AND. .NOT. cbsr_rf) * 16_8 * npwx * nslot * sth_npmax
+    room = freeb + perk0 * nksq - INT(rgib * 1024.0_dp**3, 8) - perk * maxk
+    IF (cb_xch .AND. .NOT. cbsr_rf) room = room - 32_8 * cb_n0 * cb_cmax
+    IF (cbsr_rf) room = room - 48_8 * cb_n0 * cb_cmax - 16_8 * cb_n0 * cb_n0
+    ca_bdev = REAL(room, dp) / 1024.0_dp**3
+    IF (ca_norb < 0) THEN
+      why = 'orbits cannot be counted: explicit k list or no q grid'
+    ELSE IF (ca_norb > CB_MAXREP) THEN
+      why = 'more orbits than CB_MAXREP'
+    ELSE
+      nfit = MAX(0_8, room / sbytes)
+      IF (ca_nb + ntmp <= nfit) RETURN
+      IF (cb_host .AND. .NOT. cbsr_rf .AND. room > sbytes) THEN
+        ! host staging: one more device slot, the rest in pinned memory
+        ca_nh = ca_nb + ntmp - INT(MIN(INT(ca_nb + ntmp, 8), nfit - 1))
+        hostb = cb_host_avail()
+        ca_bhost = hostb / 1024.0_dp**3
+        IF (REAL(sbytes, dp) * ca_nh <= hostb) RETURN
+        why = 'working set exceeds device and host room'
+      ELSE
+        why = 'working set exceeds device room'
+      ENDIF
+    ENDIF
+    IF (ca_auto .AND. cb_strict) THEN
+      CALL cb_auto_line('advisory only under RTSC_STRICT=1, would use CG', TRIM(why), -1.0_dp, ntmp)
+      RETURN
+    ENDIF
+    CALL cb_auto_line('CG', 'memory: ' // TRIM(why), -1.0_dp, ntmp)
+    cb_auto_memory = .FALSE.
+  END FUNCTION cb_auto_memory
+  !
+  LOGICAL FUNCTION cb_auto_payoff(tb, ntmp)
+    !! stage 2, after the first real bases: does CBSR pay? .FALSE. = CG for this run
+    REAL(dp), INTENT(IN) :: tb
+    INTEGER, INTENT(IN) :: ntmp
+    REAL(dp) :: tcg, tcb, tbl, tgm, tst, gain, ccol
+    CHARACTER(LEN=96) :: why
+    cb_auto_payoff = .TRUE.
+    IF (ca_cols == 0) THEN
+      CALL cb_auto_line('CBSR', 'memory fits; payoff not measured: no CG solve earlier in this run', tb, ntmp)
+      RETURN
+    ENDIF
+    CALL cb_auto_cost(tb, ntmp, tcg, tcb, tbl, tgm, tst, gain, ccol)
+    WRITE(why, '(A,F6.2,A,F5.2,A)') 'payoff ', gain, 'x vs the ', ca_mingain, 'x line'
+    IF (gain >= ca_mingain) THEN
+      CALL cb_auto_line('CBSR', 'memory fits, ' // TRIM(why), tb, ntmp)
+    ELSE IF (cb_strict) THEN
+      CALL cb_auto_line('CBSR kept by RTSC_STRICT=1 (advisory: would use CG)', TRIM(why), tb, ntmp)
+    ELSE
+      CALL cb_auto_line('CG', TRIM(why), tb, ntmp)
+      cb_auto_payoff = .FALSE.
+    ENDIF
+  END FUNCTION cb_auto_payoff
+  !
+  SUBROUTINE cb_auto_off()
+    !! the run goes to CG: every CBSR array released
+    INTEGER :: i
+    sth_cbsr_off = .TRUE.
+    ca_state = 1
+    CALL cbsr_release()
+    IF (ALLOCATED(h_cblam)) DEALLOCATE(h_cblam)
+    DO i = 1, CB_MAXREP
+      cb_lastq(i) = 0
+    ENDDO
+    CALL sth_mem_trim()
+  END SUBROUTINE cb_auto_off
+  !
+  SUBROUTINE cb_yield(need, freeb)
+    !! the engine's arrays of a q need the room of the resident bases: the run continues on CG instead of stopping
+    INTEGER(8), INTENT(IN) :: need
+    INTEGER(8), INTENT(INOUT) :: freeb
+    INTEGER(8) :: totb
+    INTEGER :: istat
+    IF (cb_strict .OR. .NOT. ca_auto .OR. cb_nres == 0 .OR. need <= freeb - 1024_8**3) RETURN
+    WRITE(*, '(A,I6,A,F8.2,A,F8.2,A)') '     rtsc cbsr auto: CG from this q on (the engine''s arrays need ', &
+         cb_nres, ' resident bases'' room: need ', REAL(need) / 1024.0**3, ' GiB, free ', REAL(freeb) / 1024.0**3, ' GiB)'
+    CALL cb_auto_off()
+    istat = cudaMemGetInfo(freeb, totb)
+  END SUBROUTINE cb_yield
+  !
   SUBROUTINE cbsr_build()
     !! per q: the basis of every k+q (resident rep bases reused; missing ones built), the assembly check, the device maps
     INTEGER :: ik, i, r, s, m, nq, nnew, ntmp, istat, ndone, jk, nhost, nnb
     INTEGER(8) :: freeb, totb, sbytes, reserve
-    REAL(dp) :: t0, de, demo, deme, gmin, eexp, rgib
+    REAL(dp) :: t0, de, demo, deme, gmin, eexp, rgib, tb1, tbmin
     INTEGER, ALLOCATABLE :: first(:), tmpk(:)
     LOGICAL, ALLOCATABLE :: need(:)
     REAL(dp), ALLOCATABLE :: lam1(:)
@@ -3628,6 +3836,8 @@ CONTAINS
       ! test knob: at least this many new bases go to pinned host memory (exercises the staging where everything fits)
       CALL get_environment_variable('RTSC_STH_CBSR_HOSTN', sv, STATUS=istat)
       IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) cb_hostn
+      CALL get_environment_variable('RTSC_STH_CBSR_AUTO', sv, STATUS=istat)
+      ca_auto = .NOT. (istat == 0 .AND. TRIM(sv) == '0')
     ENDIF
     IF (sth_cbsr_skip) THEN
       WRITE(*, '(A)') '     rtsc cbsr: off at q = Gamma (RTSC_STH_CBSR_GAMMA unset); CG kept'
@@ -3726,6 +3936,14 @@ CONTAINS
     nhost = 0
     CALL sth_mem_trim()
     istat = cudaMemGetInfo(freeb, totb)
+    ! rtsc gen: the automatic check, stage 1 (memory), at the first q /= Gamma; nothing has been built yet
+    IF (ca_auto .AND. ca_state == 0) THEN
+      IF (.NOT. cb_auto_memory(sbytes, ntmp, freeb)) THEN
+        DEALLOCATE(first, need, tmpk)
+        CALL cb_auto_off()
+        RETURN
+      ENDIF
+    ENDIF
     IF (sbytes * (nnew + ntmp) + reserve > freeb .OR. (cb_host .AND. cb_hostn > 0 .AND. nnew > 0)) THEN
       ! evict resident bases this q does not use, least recently used first
       DO WHILE (sbytes * (nnew + ntmp) + reserve > freeb)
@@ -3775,6 +3993,25 @@ CONTAINS
              REAL(freeb - reserve, dp) / 1024.0_dp**3, ' GiB: CG kept at this q'
         DEALLOCATE(first, need, tmpk)
         CALL cb_decline_check()
+        ! rtsc gen: the resident bases must not take CG's room (the engine would decline, and RTSC_STH_DVB=1 stops on that)
+        DO WHILE (reserve > freeb .AND. cb_nres > 0)
+          m = 0
+          DO r = 1, CB_MAXREP
+            IF (ALLOCATED(cb_rep(r)%u)) THEN
+              IF (m == 0) THEN
+                m = r
+              ELSE IF (cb_lastq(r) < cb_lastq(m)) THEN
+                m = r
+              ENDIF
+            ENDIF
+          ENDDO
+          IF (m == 0) EXIT
+          DEALLOCATE(cb_rep(m)%u)
+          IF (ALLOCATED(cb_rep(m)%u32)) DEALLOCATE(cb_rep(m)%u32)
+          cb_nres = cb_nres - 1
+          CALL sth_mem_trim()
+          istat = cudaMemGetInfo(freeb, totb)
+        ENDDO
         RETURN
       ENDIF
     ENDIF
@@ -3824,6 +4061,15 @@ CONTAINS
         h_ckq(tmpk(i)) = s
       ENDDO
     ENDIF
+    ! rtsc gen: no resident basis to build and measure (every k+q of the first q has a per-q basis): the model decides
+    IF (ca_auto .AND. ca_state == 0 .AND. nnew == 0) THEN
+      ca_state = 1
+      IF (.NOT. cb_auto_payoff(-1.0_dp, ntmp)) THEN
+        DEALLOCATE(first, need, tmpk)
+        CALL cb_auto_off()
+        RETURN
+      ENDIF
+    ENDIF
     ! build the missing bases
     ndone = 0
     nnb = 0
@@ -3832,9 +4078,25 @@ CONTAINS
       IF (r > 0) THEN
         IF (ALLOCATED(cb_rep(r)%u) .OR. cb_hs(r) > 0) CYCLE
         jk = first(r)
+        IF (ca_auto .AND. ca_state == 0) THEN
+          CALL tsync(); tb1 = wtime()
+        ENDIF
         CALL cb_build_one(jk, cb_rep(r), h_cblam(:, r), d_ckmap(1, jk), d_ckph(1, jk), h_cktr(jk))
         cb_nbuilt = cb_nbuilt + 1
         nnb = nnb + 1
+        ! rtsc gen: the automatic check, stage 2 (payoff), on the first two real bases (the first pays cuSOLVER's start-up)
+        IF (ca_auto .AND. ca_state == 0) THEN
+          CALL tsync(); tb1 = wtime() - tb1
+          tbmin = MERGE(tb1, MIN(tbmin, tb1), nnb == 1)
+          IF (nnb == MIN(2, nnew)) THEN
+            ca_state = 1
+            IF (.NOT. cb_auto_payoff(tbmin, ntmp)) THEN
+              DEALLOCATE(first, need, tmpk)
+              CALL cb_auto_off()
+              RETURN
+            ENDIF
+          ENDIF
+        ENDIF
         IF (nnb > nnew - nhost) THEN
           ! b2x host staging: this basis goes to pinned host memory
           cb_nh = cb_nh + 1
@@ -5098,6 +5360,7 @@ CONTAINS
       ENDIF
     END BLOCK
     CALL sth_mem_log('setup', need)
+    CALL cb_yield(need, freeb)
     IF (need > freeb - 1024_8**3) THEN
       WRITE(*, '(A,F8.2,A,F8.2,A)') 'sth_engine: needs ', REAL(need) / 1024.0**3, ' GiB, free ', &
            REAL(freeb) / 1024.0**3, ' GiB'
@@ -5225,11 +5488,11 @@ CONTAINS
       IF (sth_lift > 0.0_dp) WRITE(*, '(A)') '     rtsc lift: ignored under RTSC_STH_MP (FP64 CG path only)'
     ENDIF
     ! CBSR canary (needs W; the box is free here); exclusive with LIFT-F and MP
-    IF (sth_cbsr .AND. .NOT. mp_q .AND. .NOT. lift_q) THEN
+    IF (sth_cbsr .AND. .NOT. sth_cbsr_off .AND. .NOT. mp_q .AND. .NOT. lift_q) THEN
       CALL cbsr_build()
     ELSE
       CALL cbsr_free()
-      IF (sth_cbsr) WRITE(*, '(A)') '     rtsc cbsr: ignored (RTSC_STH_MP or LIFT-F on)'
+      IF (sth_cbsr .AND. .NOT. sth_cbsr_off) WRITE(*, '(A)') '     rtsc cbsr: ignored (RTSC_STH_MP or LIFT-F on)'
     ENDIF
     IF (psir_part) CALL psir_part_build()
     IF (ALLOCATED(h_evc)) DEALLOCATE(h_evc)
@@ -5633,6 +5896,10 @@ CONTAINS
       sth_nsteps = 0; sth_ncolapp = 0; sth_nact0 = 0
       sth_n64 = 0; sth_n32 = 0; sth_nround = 0
     ELSE
+    ! rtsc gen: the automatic CBSR check's CG reference (the CG solves before its decision; synchronisation only)
+    IF (sth_cbsr .AND. ca_state == 0) THEN
+      CALL tsync(); ca_t0 = wtime()
+    ENDIF
     ax_valid = .FALSE.
     IF (first_iter) CALL zero_c(d_dpsi, INT(npwx, 8) * nsl)
     ! dpsi extrapolation (sth_engine_xp_set): keep the start dpsi(k-1), then add sum_j c_j delta_j
@@ -5743,6 +6010,13 @@ CONTAINS
     ENDIF
     xp_nc = 0
     xp_rec = 0
+    IF (sth_cbsr .AND. ca_state == 0) THEN
+      CALL tsync()
+      ca_tcg = ca_tcg + wtime() - ca_t0
+      ca_cols = ca_cols + sth_nvalid
+      ca_calls = ca_calls + 1
+      ca_nk0 = nksq
+    ENDIF
     IF (sth_timing) THEN
       CALL tsync(); t1 = wtime(); sth_t_cg = t1 - t0; t0 = t1
       IF (lift_q) WRITE(*, '(A,F9.3,A,I10)') '     rtsc lift apply ', sth_t_lapply, ' s, colapp ', sth_ncolapp

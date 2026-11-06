@@ -41,7 +41,7 @@ MODULE sth_batched
     COMPLEX(DP), ALLOCATABLE :: k(:,:)
   END TYPE bec_type_copy
   PUBLIC :: sth_batched_kernel, sth_env_flag, sth_batched_flush, sth_batched_becs, sth_batched_flush_end, &
-            sth_batched_end_q, sth_strict_check, sth_batched_dvb_ok, sth_batched_dvb_prepare
+            sth_batched_end_q, sth_strict_check, sth_batched_dvb_ok, sth_batched_dvb_prepare, sth_batched_qplan
   !
   ! dV_bare psi built in the engine (RTSC_STH_DVB=1, KERNEL-LOG lever 4). solve_linter (PHonon) decides it
   ! with sth_batched_dvb_ok() and, instead of the per-(k, pert) dvqpsi_us + save_buffer loop, hands over
@@ -72,6 +72,11 @@ MODULE sth_batched
   ! relative stopping factor for the next call (set by dfpt_kernel: RTSC_STH_ETA on non-final iterations)
   REAL(DP), SAVE :: sth_call_eta = 0.d0
   REAL(DP), SAVE :: t_kqg = 0.d0                     ! RTSC_STH_TIME: host k+q+G table of the last dvb_build
+  ! the q grid of this run, for the CBSR automatic check (sth_batched_qplan; ph.x's do_phonon)
+  INTEGER, SAVE :: qp_g(3) = 0
+  REAL(DP), ALLOCATABLE, SAVE :: qp_x(:,:)
+  LOGICAL, ALLOCATABLE, SAVE :: qp_d(:)
+  LOGICAL, SAVE :: qp_done = .FALSE.
   !
 CONTAINS
   !
@@ -422,6 +427,16 @@ CONTAINS
   END SUBROUTINE sth_batched_kernel
   !
   !--------------------------------------------------------------------------------------------
+  SUBROUTINE sth_batched_qplan(nqg, nq, xq, doq)
+    !! ph.x, before the q loop: the q grid and the q computed in this run (read by the CBSR automatic check)
+    INTEGER, INTENT(IN) :: nqg(3), nq
+    REAL(DP), INTENT(IN) :: xq(3, nq)
+    LOGICAL, INTENT(IN) :: doq(nq)
+    IF (ALLOCATED(qp_x)) DEALLOCATE(qp_x, qp_d)
+    ALLOCATE(qp_x(3, nq), qp_d(nq))
+    qp_g = nqg; qp_x = xq; qp_d = doq
+  END SUBROUTINE sth_batched_qplan
+  !
   SUBROUTINE sth_strict_check(what, done)
     !--------------------------------------------------------------------------------------------
     !! RTSC_STRICT=1 with RTSC_STH=1: a step that did not run on the engine is an error
@@ -634,8 +649,9 @@ CONTAINS
                                  sth_engine_set_nlk, sth_qcache, sth_engine_wdev, sth_engine_set_wdev, &
                                  sth_lift, sth_lift_kchunk, sth_lift_fb, sth_cbsr, sth_cbsr_skip, &
                                  sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, &
+                                 sth_engine_cbsr_plan, sth_cbsr_off, &
                                  sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op
-    USE sth_nscf_symrot,  ONLY : symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop
+    USE sth_nscf_symrot,  ONLY : symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
     USE rtsc_vkb,         ONLY : vkb_batch
     USE lrus,             ONLY : becp1
     !
@@ -680,7 +696,8 @@ CONTAINS
     CALL env_real('RTSC_STH_LIFT', sth_lift)
     sth_lift_kchunk = sth_env_int('RTSC_STH_LIFT_KCHUNK')
     sth_lift_fb = sth_env_int('RTSC_STH_LIFT_FB')            ! LIFT-F v2 per-column TPA fallback (SOLVE-LOG "LIFT-F v2")
-    sth_cbsr = sth_env_flag('RTSC_STH_CBSR')                 ! CBSR canary: exact spectral solve (SOLVE-LOG "CBSR canary")
+    ! CBSR: exact spectral solve (SOLVE-LOG "CBSR canary"); sth_cbsr_off = the automatic check chose CG for this run
+    sth_cbsr = sth_env_flag('RTSC_STH_CBSR') .AND. .NOT. sth_cbsr_off
     nslot = 0
     DO ik = 1, nksq
       nslot = MAX(nslot, nbnd_occ(ikks(ik)))
@@ -909,6 +926,18 @@ CONTAINS
       IF (lgamma) THEN
         CALL get_environment_variable('RTSC_STH_CBSR_GAMMA', sv, STATUS=ios)
         sth_cbsr_skip = .NOT. (ios == 0 .AND. TRIM(sv) == '1')
+      ENDIF
+      IF (.NOT. lgamma .AND. .NOT. qp_done) THEN
+        ! the automatic check's counts, once per run (the group is known after the first q's nscf)
+        qp_done = .TRUE.
+        IF (ALLOCATED(qp_x)) THEN
+          BLOCK
+            INTEGER :: norb, nkf, nq, lg(3)
+            INTEGER(8) :: sumk, maxk
+            CALL symrot_count(qp_g, SIZE(qp_d), qp_x, qp_d, norb, nkf, sumk, maxk, nq, lg)
+            CALL sth_engine_cbsr_plan(norb, nkf, sumk, maxk, nq, lg, symrot_nops())
+          END BLOCK
+        ENDIF
       ENDIF
       ALLOCATE(imap(npwx), ph(npwx))
       ! the SYMROT cache entries (Miller indices for the device maps) not yet on the device

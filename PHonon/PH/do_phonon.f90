@@ -28,7 +28,7 @@ SUBROUTINE do_phonon(auxdyn)
   !! it can calculate also the electro-optic and the raman tensors.
   !
 
-  USE disp,            ONLY : nqs
+  USE disp,            ONLY : nqs, nq1, nq2, nq3, x_q, comp_iq
   USE control_flags,   ONLY : use_gpu
   USE control_lr,      ONLY : rec_code, where_rec, reduce_io
   USE control_ph,      ONLY : epsil, trans, qplot, only_init, only_wfc, lmultipole
@@ -48,7 +48,7 @@ SUBROUTINE do_phonon(auxdyn)
   USE buffers,        ONLY : close_buffer
   USE control_flags,  ONLY : use_gpu
   USE environment,   ONLY : print_cuda_info
-  USE sth_batched,   ONLY : sth_batched_end_q
+  USE sth_batched,   ONLY : sth_batched_end_q, sth_batched_qplan
   
   IMPLICIT NONE
   !
@@ -58,6 +58,9 @@ SUBROUTINE do_phonon(auxdyn)
   LOGICAL,EXTERNAL :: check_gpu_support
   !
   qind = 0
+  !
+  ! rtsc gen: the q of this run, for the automatic CBSR check (no effect unless RTSC_STH_CBSR=1)
+  IF (ALLOCATED(x_q) .AND. ALLOCATED(comp_iq)) CALL sth_batched_qplan((/ nq1, nq2, nq3 /), nqs, x_q, comp_iq)
   !
   DO iq = 1, nqs
      !

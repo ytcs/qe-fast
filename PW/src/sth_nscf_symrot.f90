@@ -32,7 +32,7 @@ MODULE sth_nscf_symrot
   PUBLIC :: symrot_on, symrot_plan, symrot_after_solve, symrot_report, symrot_tight, symrot_check_on, symrot_resid
   ! rtsc epw3 (RTSC_PW_SYMROT=1; groups/compute/EPW3-LOG.md): the same rotation in pw.x's nscf (c_bands_nscf), the
   ! Wannier k grid read by EPW. The module lives in PW/src so that both pw.x and ph.x use it.
-  PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop
+  PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
   PUBLIC :: symrot_pw_on, symrot_pw_tight, symrot_pw_check_on, symrot_note_notconv, symrot_rep_guard
   INTEGER, SAVE :: last_notconv = 0, nbadrep = 0
   !
@@ -768,6 +768,125 @@ CONTAINS
     IF (ANY(imap(1:ngs) < 1)) RETURN
     ok = .TRUE.
   END SUBROUTINE symrot_kmap
+  !
+  INTEGER FUNCTION symrot_nops()
+    symrot_nops = nsr
+  END FUNCTION symrot_nops
+  !
+  SUBROUTINE symrot_count(nqg, nqs, xqc, doq, norb, nkf, sumk, maxk, nq, lg)
+    !------------------------------------------------------------------------------------------
+    !! rtsc gen (RTSC_STH_CBSR's automatic fallback; groups/compute/GEN-LOG.md): what the run will need, before any basis
+    !! is built. Every k+q of a ph.x run lies on the grid of lcm(nk, nq) points per direction, and every orbit of that grid
+    !! under the full group (with time reversal) is reached, so
+    !!   norb = the number of orbits on it = the number of bases (one per orbit), -1 if the k-points are an explicit list;
+    !!   nkf  = nk1 nk2 nk3; sumk, maxk = sum and maximum over the q of this run (q /= Gamma) of the estimated nksq,
+    !!   N_k / |effective small group of q|; nq = how many such q; lg = the grid.
+    USE cell_base, ONLY : at
+    USE start_k,   ONLY : nk1, nk2, nk3, k1, k2, k3
+    USE symm_base, ONLY : time_reversal
+    INTEGER, INTENT(IN) :: nqg(3), nqs
+    REAL(DP), INTENT(IN) :: xqc(3, nqs)
+    LOGICAL, INTENT(IN) :: doq(nqs)
+    INTEGER, INTENT(OUT) :: norb, nkf, nq, lg(3)
+    INTEGER(8), INTENT(OUT) :: sumk, maxk
+    INTEGER :: nk(3), kk(3), i, j, is, itr, tr, n, a, b, c, u(3), ig, jg, r1, r2, ng, iq, no, m(3, 3, 96)
+    INTEGER, ALLOCATABLE :: par(:)
+    REAL(DP) :: x(3), y(3), d(3)
+    LOGICAL :: dup
+    !
+    norb = -1; nkf = 0; sumk = 0; maxk = 0; nq = 0; lg = 0
+    nk = (/ nk1, nk2, nk3 /); kk = (/ k1, k2, k3 /)
+    IF (ANY(nk <= 0) .OR. nsr == 0) RETURN
+    nkf = nk(1) * nk(2) * nk(3)
+    DO i = 1, 3
+      lg(i) = nk(i)
+      IF (nqg(i) > 0) lg(i) = nk(i) / gcd2(nk(i), nqg(i)) * nqg(i)
+    ENDDO
+    ng = lg(1) * lg(2) * lg(3)
+    ALLOCATE(par(ng))
+    DO ig = 1, ng
+      par(ig) = ig
+    ENDDO
+    DO c = 0, lg(3) - 1
+      DO b = 0, lg(2) - 1
+        DO a = 0, lg(1) - 1
+          ig = 1 + a + lg(1) * (b + lg(2) * c)
+          x = (/ (a + 0.5_DP * kk(1) * lg(1) / nk(1)) / lg(1), (b + 0.5_DP * kk(2) * lg(2) / nk(2)) / lg(2), &
+                 (c + 0.5_DP * kk(3) * lg(3) / nk(3)) / lg(3) /)
+          DO itr = 1, 2
+            tr = 3 - 2 * itr
+            IF (tr == -1 .AND. .NOT. time_reversal) EXIT
+            DO is = 1, nsr
+              DO j = 1, 3
+                y(j) = tr * (sr(j, 1, is) * x(1) + sr(j, 2, is) * x(2) + sr(j, 3, is) * x(3))
+              ENDDO
+              ! back to grid indices; an image off the grid connects nothing
+              d = y * lg - 0.5_DP * kk * lg / nk
+              IF (ANY(ABS(d - NINT(d)) > 1.d-6)) CYCLE
+              u = MODULO(NINT(d), lg)
+              jg = 1 + u(1) + lg(1) * (u(2) + lg(2) * u(3))
+              r1 = froot(ig); r2 = froot(jg)
+              IF (r1 /= r2) par(MAX(r1, r2)) = MIN(r1, r2)
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDDO
+    ENDDO
+    norb = 0
+    DO ig = 1, ng
+      IF (froot(ig) == ig) norb = norb + 1
+    ENDDO
+    DEALLOCATE(par)
+    ! nksq of each q of this run: the distinct actions on k of {S : S q = q} and {-S : S q = -q} (time reversal)
+    DO iq = 1, nqs
+      IF (.NOT. doq(iq)) CYCLE
+      DO j = 1, 3
+        x(j) = xqc(1, iq) * at(1, j) + xqc(2, iq) * at(2, j) + xqc(3, iq) * at(3, j)
+      ENDDO
+      IF (ALL(ABS(x - NINT(x)) < 1.d-6)) CYCLE
+      no = 0
+      DO itr = 1, 2
+        tr = 3 - 2 * itr
+        IF (tr == -1 .AND. .NOT. time_reversal) EXIT
+        DO is = 1, nsr
+          DO j = 1, 3
+            y(j) = tr * (sr(j, 1, is) * x(1) + sr(j, 2, is) * x(2) + sr(j, 3, is) * x(3))
+          ENDDO
+          d = y - x
+          IF (ANY(ABS(d - NINT(d)) > 1.d-6)) CYCLE
+          dup = .FALSE.
+          DO n = 1, no
+            IF (ALL(m(:, :, n) == tr * sr(:, :, is))) dup = .TRUE.
+          ENDDO
+          IF (.NOT. dup) THEN
+            no = no + 1
+            m(:, :, no) = tr * sr(:, :, is)
+          ENDIF
+        ENDDO
+      ENDDO
+      nq = nq + 1
+      sumk = sumk + (nkf + no - 1) / no
+      maxk = MAX(maxk, INT((nkf + no - 1) / no, 8))
+    ENDDO
+  CONTAINS
+    INTEGER FUNCTION froot(i0)
+      INTEGER, INTENT(IN) :: i0
+      froot = i0
+      DO WHILE (par(froot) /= froot)
+        par(froot) = par(par(froot))
+        froot = par(froot)
+      ENDDO
+    END FUNCTION froot
+    INTEGER FUNCTION gcd2(p, q)
+      INTEGER, INTENT(IN) :: p, q
+      INTEGER :: aa, bb, t
+      aa = p; bb = q
+      DO WHILE (bb /= 0)
+        t = MOD(aa, bb); aa = bb; bb = t
+      ENDDO
+      gcd2 = aa
+    END FUNCTION gcd2
+  END SUBROUTINE symrot_count
   !
   INTEGER FUNCTION symrot_cache_n()
     !! number of cached representatives (RTSC_STH_KDEV keeps a device copy)

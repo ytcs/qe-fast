@@ -11,7 +11,7 @@ mkdir -p "$W"; W=$(realpath "$W"); cd "$W"
 cp "$IN"/*.in .
 PSEUDO_DIR=$(realpath "${PSEUDO_DIR:-$HERE/../pseudo/sg15}")
 sed -i "s|@PSEUDO@|$PSEUDO_DIR|" *.in
-export RTSC_STH=1 RTSC_STRICT=1   # strict: an engine decline stops ph.x (no silent vanilla path)
+export RTSC_STH=1 RTSC_STRICT=${RTSC_STRICT:-1}   # strict (default): an engine decline stops ph.x (no silent vanilla path)
 # kernel branch (groups/compute/KERNEL-LOG.md): dV_bare psi built in the engine (class E, gated on the B1/B2 smoke
 # chains), and wannier90's disentanglement over NE OpenMP threads on EPW's ionode (bitwise identical)
 export RTSC_STH_DVB=${RTSC_STH_DVB:-1} RTSC_W90_NT=${RTSC_W90_NT:-$NE}
