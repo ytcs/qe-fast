@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """mkepw.py <input dir> <prep dir>: epw.in from the preparation scf + nscf (funnel setup A: atomic projections, G1, frozen window)."""
 import json, os, re, sys
 import qe_f2 as qe

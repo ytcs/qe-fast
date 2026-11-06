@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """T1: MLIP relax (T1a) and MLIP phonons with soft-mode following (T1b).
 
     python t1.py relax  <model> <structs.json> <out.jsonl>        # model: mattersim | mace

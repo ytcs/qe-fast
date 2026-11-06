@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # DIAGNOSTIC: which lever moves the Wannier solution. Chains on one material, all-off plus one lever group.
 #  diag.sh <material>
 M=$1; G=/root/gen; Q=/root/qefast/qe-fast; D=$G/diag/$M

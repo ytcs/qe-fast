@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Compare Wannier-interpolated bands with DFT on the same path: python -I cmp.py <dir> [EF]
 import sys, re, numpy as np
 d, EF = sys.argv[1], float(sys.argv[2]) if len(sys.argv) > 2 else 10.83

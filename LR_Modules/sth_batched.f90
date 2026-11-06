@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: QE-side adapter of the batched Sternheimer engine (qefast/sth/sth_engine.f90).
 ! sternheimer_kernel dispatches here when QEF_STH=1 and the

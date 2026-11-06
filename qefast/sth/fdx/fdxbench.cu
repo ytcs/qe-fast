@@ -1,3 +1,5 @@
+// Copyright (C) 2026 The qe-fast authors
+// SPDX-License-Identifier: GPL-2.0-or-later
 // fdxbench: per-application cost of the engine's local-operator FFT chain.
 //   y = g2kin x + (1/N) FFT_fwd[ V(r) FFT_inv[ scatter(x) ] ](sphere) - e x   for nl columns, batched.
 // Variants, each FP64 and FP32 (the MP inner path):

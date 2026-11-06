@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """gate.py REF TEST -- accuracy gate on two EPW run directories.
 
 Checks lambda and w_log (1 %), Allen-Dynes Tc (max(2 %, 0.5 K)), and at every temperature the

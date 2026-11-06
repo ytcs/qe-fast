@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """QE input generation and output parsing for the funnel tiers.
 
 Stdlib + numpy only (runs under the system python3 on the pod); structures are plain dicts

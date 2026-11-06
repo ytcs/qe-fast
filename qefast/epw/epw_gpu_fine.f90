@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: fused fine-grid electron-phonon interpolation for ephwrite (Eliashberg) runs.
 !

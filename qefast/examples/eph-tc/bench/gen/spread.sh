@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # timing spread: 3 repeats of G2's all-off ph.x, on the preparation scf
 G=/root/gen; Q=/root/qefast/qe-fast
 source /root/qefast/env.sh; export QEF_PRESET=off

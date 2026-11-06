@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # F0 T3b probe: mid-grid DFPT with MP + one anisotropic ME solve at 0.7 T_target.
 #   t3b-probe.sh <workroot>
 # Mg2IrH6 (B2 inputs): scf k 8^3, q 3^3, Wannier coarse k 6^3, fine 12^3 / 6^3, T = 0.7 * 77 = 53.9 K.

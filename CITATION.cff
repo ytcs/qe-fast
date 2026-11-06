@@ -1,0 +1,60 @@
+cff-version: 1.2.0
+message: "If you use qe-fast, please cite it and the Quantum ESPRESSO and EPW papers listed under references."
+title: "qe-fast"
+type: software
+abstract: "A fork of Quantum ESPRESSO 7.6, EPW included, with a batched GPU path for phonon and electron-phonon workflows."
+authors:
+  - name: "ytcs"
+version: "0.1.0"
+date-released: "2026-11-06"
+license: GPL-2.0-or-later
+repository-code: "https://github.com/ytcs/qe-fast"
+keywords:
+  - density-functional perturbation theory
+  - electron-phonon coupling
+  - GPU
+references:
+  - type: article
+    title: "QUANTUM ESPRESSO: a modular and open-source software project for quantum simulations of materials"
+    authors:
+      - family-names: Giannozzi
+        given-names: Paolo
+      - name: "et al."
+    journal: "Journal of Physics: Condensed Matter"
+    volume: 21
+    start: 395502
+    year: 2009
+    doi: "10.1088/0953-8984/21/39/395502"
+  - type: article
+    title: "Advanced capabilities for materials modelling with Quantum ESPRESSO"
+    authors:
+      - family-names: Giannozzi
+        given-names: P.
+      - name: "et al."
+    journal: "Journal of Physics: Condensed Matter"
+    volume: 29
+    start: 465901
+    year: 2017
+    doi: "10.1088/1361-648X/aa8f79"
+  - type: article
+    title: "Quantum ESPRESSO toward the exascale"
+    authors:
+      - family-names: Giannozzi
+        given-names: Paolo
+      - name: "et al."
+    journal: "The Journal of Chemical Physics"
+    volume: 152
+    start: 154105
+    year: 2020
+    doi: "10.1063/5.0005082"
+  - type: article
+    title: "Electron-phonon physics from first principles using the EPW code"
+    authors:
+      - family-names: Lee
+        given-names: Hyungjun
+      - name: "et al."
+    journal: "npj Computational Materials"
+    volume: 9
+    start: 156
+    year: 2023
+    doi: "10.1038/s41524-023-01107-3"

@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: offline dump of one sternheimer_kernel call (inputs and outputs), for developing and
 ! testing the batched Sternheimer engine without ph.x in the loop.

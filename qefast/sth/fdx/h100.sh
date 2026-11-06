@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # H100 measurement of the cuFFTDx local operator (stop criterion: FP64 FFT-chain gain < 2x).
 # Budget <= 1 h. Phase 1 (~15 min) decides the kill; phase 2 (~35 min) is the in-situ ph.x A/B, run only if time is left.
 #   curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/main/qefast/sth/fdx/h100.sh | bash

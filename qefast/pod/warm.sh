@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Warm start for a dev pod.
 # Expects the build-cache volume mounted at $CACHE (default /cache).
 #   curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/main/qefast/pod/warm.sh | bash

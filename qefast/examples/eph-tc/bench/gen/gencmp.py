@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """gencmp.py <run dir> [materials...]: the gate and report of the held-out check. For every material and preset against
 that material's `off` run: frequencies (Gamma acoustic excluded), lambda, omega_log, Allen-Dynes Tc (a2f_proj, funnel a2f_metrics), margin used,
 stage speedups, peak memory, decline lines, Wannier spread sum."""

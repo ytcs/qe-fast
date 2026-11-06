@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 import json, sys, glob, os
 root = sys.argv[1]
 for f in sorted(glob.glob(f"{root}/*/result.json")):

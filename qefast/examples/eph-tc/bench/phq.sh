@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # ph.x alone on a finished scf (the full pipeline is run-chain.sh).
 #   phq.sh <scf dir> <run dir> <bin dir> [start_q last_q]
 # Copies the scf inputs and <prefix>.save into <run dir>, optionally restricts ph.in to

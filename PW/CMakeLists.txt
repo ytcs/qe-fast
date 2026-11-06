@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30; see NOTICE.
 set(src_pw
    src/a2fmod.f90 
    src/add_bfield.f90 

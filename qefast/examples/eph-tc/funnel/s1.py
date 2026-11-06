@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """S1: T3a dynamic-stability rule, from the ph.x dyn files of the T3a run.
 
 A candidate with any DFPT mode < -30 cm^-1 (Gamma acoustic excluded) does not pass T3a; it gets one re-relax along the

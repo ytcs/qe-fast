@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """wfcentres.py <run dir> [materials...]: Cartesian Wannier centres of each preset's run against the material's `off` run.
 
 The spread sum cannot see a WF move to another lattice cell, and lambda depends on those home cells, so identity of two

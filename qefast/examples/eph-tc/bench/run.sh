@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Timed T_c pipeline. Usage:
 #   run.sh <inputs dir> <bin dir> <workdir> [mpi ranks] [omp threads] [pool flags]
 # Writes <workdir>/timings.tsv: stage, seconds.

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """M3-3 Phase 0 tool, part 1: plane-wave Hamiltonian from a QE save (norm-conserving, no spin), wavefunction I/O.
 
 numpy by default; set M33_XP=cupy to run the array work on a GPU (cupy mirrors the numpy API used here).

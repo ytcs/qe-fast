@@ -1,3 +1,5 @@
+/* Copyright (C) 2026 The qe-fast authors
+   SPDX-License-Identifier: GPL-2.0-or-later */
 /* qef: stand-in for sth_fftdx.cu when the build has no MathDx/CUTLASS headers. fdx_setup reports
    "unsupported" (99), so the engine keeps cuFFT and the other entry points are never reached. */
 #include <stddef.h>

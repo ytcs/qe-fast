@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Build F0 job lists.
 
     python jobs.py t3a-controls <controls.json> <t1-ms.jsonl> <out.json>

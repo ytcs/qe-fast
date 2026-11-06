@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # DIAGNOSTIC: shared gauge. EPW only, on the off run's nscf and the off run's Wannier output (wannierize = .false.), with each set's
 # ph.x data (save/). A control with its own save/ must give the off run's numbers. So any change left comes from the phonon/DFPT data, not from Wannier.
 #  sg.sh <material> [sets...]

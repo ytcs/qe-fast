@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """cmpgate.py REF TEST [PREFIX] -- frequency gate on two ph.x run dirs.
 
 Compares every q for which both directories hold <prefix>.dyn<i> (so single-q runs work). Per q:

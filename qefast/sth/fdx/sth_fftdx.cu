@@ -1,3 +1,5 @@
+// Copyright (C) 2026 The qe-fast authors
+// SPDX-License-Identifier: GPL-2.0-or-later
 // qe-fast: pruned fused local operator on cuFFTDx. QEF_STH_FFTDX=1.
 //
 // Separable and pruned, with the 1D transforms

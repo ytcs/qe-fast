@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build the cuFFTDx microbenchmark: qefast/sth/fdx/build.sh [sm, e.g. 86 or 90] -> build/fdxbench
 # Needs NVHPC 26.5 (nvfortran, nvcc), MathDx (pip nvidia-mathdx 25.6) and CUTLASS headers:
 #   MDX=<.../nvidia/mathdx/include> CUTLASS=<cutlass/include>

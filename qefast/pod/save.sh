@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Save the dev tree (source, build-gpu objects and binaries, pseudo, NVTX shim) to the build cache.
 # Run at the end of a dev session so the next pod starts warm. Runs and data are not saved.
 set -euo pipefail

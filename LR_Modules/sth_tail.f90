@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: GPU versions of host-side ph.x steps around the batched Sternheimer engine (the "CPU tail").
 ! Each routine is used only when QEF_STH=1 (sth_tail_on); with

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # One-shot setup on a fresh NVHPC container. Builds on the container disk (/root);
 # /workspace, when it is a network file system, is far too slow for compiling.
 #   curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/main/qefast/pod/setup.sh | bash

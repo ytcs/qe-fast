@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """M3-3 Phase 0 driver.
 
     run.py <sysdir> <stage: A | B> <N_c> <N_f> <q1 q2 q3 (crystal)> <W dirs, comma: name=dir> [out.json]

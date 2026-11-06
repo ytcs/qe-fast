@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Archive EPW-reusable T3a outputs per control to /cache/funnel-data/F0c/<id>.tar.zst (<= 1.5 GB each).
 #   archive.sh <t3a root> <id...>
 R=$1; shift

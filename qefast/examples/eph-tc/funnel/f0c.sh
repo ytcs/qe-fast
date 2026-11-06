@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # F0c queue (rules G1-G5, S1, routing).
 # Same path as F0b (f0b.sh), generator G1-G5+S1 (PSET sg15). Waits for $WAIT_FOR (a queue log) to show its DONE marker.
 #   f0c.sh <in dir: t1-structs.json, t3a-jobs.json> <work dir>

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Standalone Wannier check of B2 (no ph.x): scf -> nscf on an NK^3 full list -> W90 variants,
 # each scored against DFT bands on the interpolation path (cmp.py).
 #   run.sh <bin dir> <wannier90.x> <workdir> <NK> <np> "name|nw|froz|projs" ...

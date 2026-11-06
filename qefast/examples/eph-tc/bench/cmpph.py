@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """cmpph.py REF TEST [PREFIX] -- compare two ph.x run directories (ldisp, fildvscf set).
 
 Per q: max |delta omega| (cm-1) over the modes of <prefix>.dyn<i> (all "freq" lines), the largest

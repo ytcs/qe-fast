@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Wannier90 .win for the B2 check: python mkwin.py "name|num_wann|dis_froz_max|proj;proj" (NK env = coarse k)
 import itertools, sys
 name, nw, froz, projs = sys.argv[1].split("|")

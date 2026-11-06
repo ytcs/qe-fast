@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Vanilla configuration sweep on one ph.x q-point (the baseline is vanilla's best config).
 #   sweep.sh <inputs dir> <iq> <outdir> "label|bindir|np|nt|pool flags|mps(0/1)" ...
 # For each config: scf + ph.x restricted to q-point <iq> (start_q = last_q = iq). Prints label, scf s, ph s.

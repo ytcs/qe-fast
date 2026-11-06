@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build a QE tree on an NVHPC 26.5 image: GPU (OpenACC + CUDA Fortran) and CPU (nvfortran) variants.
 #   build-gpu.sh <src dir> <cuda cc, e.g. 80 for A100, 90 for H100>
 set -euo pipefail

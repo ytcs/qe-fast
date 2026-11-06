@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """F0 database subset (JARVIS-BCS supercon_3d) and its hull reference phases (JARVIS dft_3d).
 
     python db.py <store dir> <subset.json> <refs.json>

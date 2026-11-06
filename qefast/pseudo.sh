@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Fetch the SG15 ONCV pseudopotentials (CC BY-SA 4.0, quantum-simulation.org) used by the benchmarks.
 set -euo pipefail
 D=${1:-$(dirname "$(realpath "$0")")/pseudo/sg15}

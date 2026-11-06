@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # after the queue: regression on B1/B2 smoke, then the diagnostics
 G=/root/gen; Q=/root/qefast/qe-fast; P=$Q/qefast/examples/eph-tc/bench/phq.sh; B2=$Q/build-gpu/bin
 source /root/qefast/env.sh; cd $G/p1

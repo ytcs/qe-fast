@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """M3-3 Phase 0 inputs: B1 and B2 frozen cells/ecut/sigma (bench/mkbench.py), Si control.
 
     prep.py <system B1|B2|Si> <outdir> <pseudo dir>

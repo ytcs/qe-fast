@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """F0 control structures as pymatgen Structures, written to controls.json.
 
     python structs.py <q2q3 dir with *_pbe_vc-relax_e90.in> <out.json>

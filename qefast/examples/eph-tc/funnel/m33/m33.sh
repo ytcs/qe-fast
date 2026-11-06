@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # M3-3 Phase 0 queue. Waits for $WAIT_FOR's DONE marker.
 #   m33.sh <work dir> <stages: A | AB> <systems, e.g. "Si B1 B2">
 set -uo pipefail

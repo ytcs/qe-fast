@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Column ratio R: standard = nksq(q) x n_occ (ph.x at the production k; n_occ = mean count of bands with
 eps < E_F + 5 sigma on the full N_f grid); factorised = N_c^3 (no coarse symmetry) x N_W.
 

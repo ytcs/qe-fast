@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """P1 NLCC gate (PSEUDO-SURVEY section 7(2) sub-test).
 
     PSET=spms PSEUDO_DIR=<spms dir> python3 p1gate.py prep <structure json (plain dict)> <dir>

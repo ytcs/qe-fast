@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # chain.sh <material> <preset> <time limit s>: one held-out chain. Writes <run>/<material>/<preset>/ with
 # timings.tsv, status (exit code of run-chain.sh; 124 = timeout), peakmem (MiB, nvidia-smi every 2 s).
 M=$1; S=$2; LIM=$3

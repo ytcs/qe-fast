@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """P1 decision: SG15 arm = F0c runs (H3S MgB2 Mg2IrH6 Cu) + /root/p1/t3a-sg15 (Al Pb Nb); SPMS arm = /root/p1/t3a-spms."""
 import json, statistics, os
 sg = {}

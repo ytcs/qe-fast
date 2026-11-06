@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # MathDx (cuFFTDx) and CUTLASS headers for the fftdx engine path. Prints the two include dirs.
 #   eval "$(qefast/sth/fdx/deps.sh)"   -> MDX=..., CUTLASS=...
 set -euo pipefail

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """M3-3 Phase 0 tool, part 2: standard metallic chi0 and the occupation-factorised coarse-k response (return M3/3 D1-D5 with
 referee A's F2), on the same Hamiltonian (pwtool), for one q and one local perturbation dV (periodic part on the dense box).
 

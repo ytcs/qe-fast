@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # the pre-registered order; all-off first, then limit = min(2700, 2 x all-off + 300)
 G=/root/gen
 for M in "$@"; do

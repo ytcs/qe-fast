@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: exact symmetry rotation instead of the per-q nscf eigensolve (QEF_NSCF_SYMROT=1).
 !

@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: modified Broyden mixing of the DFPT induced potential with a Kerker preconditioner
 ! (QEF_MIX_Q0 = q0 > 0, in bohr^-1).

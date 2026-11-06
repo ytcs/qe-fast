@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """F0 analysis: access gate (T1a MLIP and T2 DFT), MLIP hull (T1a), T1b, T2 metallicity/hull.
 
     python analyze.py access <t1 ms.jsonl> <t1 mace.jsonl> <t1b ms.jsonl> <t2.jsonl> <out.json>

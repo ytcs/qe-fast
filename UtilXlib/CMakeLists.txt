@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-06; see NOTICE.
 set(src_util
     clocks_handler.f90
     divide.f90

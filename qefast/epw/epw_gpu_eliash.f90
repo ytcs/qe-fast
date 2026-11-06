@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: GPU version of sum_eliashberg_aniso_iaxis_fsr_simple (anisotropic Migdal-Eliashberg,
 ! Fermi-surface restricted, uniform positive Matsubara sampling).

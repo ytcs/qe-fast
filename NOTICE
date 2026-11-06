@@ -1,0 +1,177 @@
+qe-fast NOTICE
+==============
+
+qe-fast is a modified version of Quantum ESPRESSO 7.6 (tag qe-7.6, 2026-07-09),
+EPW included. It is distributed under the GNU General Public License, version 2
+or (at your option) any later version, as Quantum ESPRESSO is. The licence text
+is in the file License. There is NO WARRANTY; see sections 11 and 12 of it.
+
+qe-fast is not affiliated with or endorsed by the Quantum ESPRESSO Foundation or
+the EPW developers. The Quantum ESPRESSO name is used descriptively only. All
+upstream copyright notices are kept; the copyright in upstream code stays with
+its authors. Changes and new files are Copyright (C) 2026 The qe-fast authors.
+
+This file is a statement of the project's position. It is not legal advice.
+
+
+1. Modifications to Quantum ESPRESSO (GPL section 2a)
+-----------------------------------------------------
+
+All changes were made between 2026-10-27 and 2026-11-06. The commit history of
+this repository records each one. The modified upstream files, each of which
+also carries a notice in its first line, with the dates of their changes:
+
+  .gitmodules                              2026-10-27
+  EPW/CMakeLists.txt                       2026-10-28 to 2026-11-06
+  EPW/src/bloch2wannier.f90                2026-10-30 to 2026-11-06
+  EPW/src/ep_coarse.f90                    2026-10-28 to 2026-11-06
+  EPW/src/ep_coarse_unfolding.f90          2026-10-28 to 2026-11-06
+  EPW/src/epw.f90                          2026-10-30 to 2026-11-06
+  EPW/src/io/io.f90                        2026-10-29 to 2026-11-06
+  EPW/src/io/io_supercond.f90              2026-10-28 to 2026-11-06
+  EPW/src/printing.f90                     2026-10-28 to 2026-11-06
+  EPW/src/pw2wan.f90                       2026-10-30 to 2026-11-06
+  EPW/src/readin.f90                       2026-10-28 to 2026-11-06
+  EPW/src/supercond.f90                    2026-10-28 to 2026-11-06
+  EPW/src/supercond_aniso.f90              2026-10-28 to 2026-11-06
+  EPW/src/supercond_driver.f90             2026-10-28
+  EPW/src/use_wannier.f90                  2026-10-28 to 2026-11-06
+  EPW/src/wannier.f90                      2026-10-30 to 2026-11-06
+  EPW/src/wannier2bloch.f90                2026-10-28 to 2026-11-06
+  EPW/src/wannierization.f90               2026-10-30 to 2026-11-06
+  LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-06
+  LR_Modules/c_bands_ph.f90                2026-10-28 to 2026-11-06
+  LR_Modules/dfpt_kernels.f90              2026-10-28 to 2026-11-06
+  LR_Modules/dgradcorr.f90                 2026-10-30 to 2026-11-06
+  LR_Modules/dv_of_drho.f90                2026-10-30 to 2026-11-06
+  LR_Modules/response_kernels.f90          2026-10-28 to 2026-11-06
+  LR_Modules/symdvscf.f90                  2026-10-28 to 2026-11-06
+  Modules/environment.f90                  2026-11-06
+  PHonon/CMakeLists.txt                    2026-10-30 to 2026-11-06
+  PHonon/PH/do_phonon.f90                  2026-10-28 to 2026-11-06
+  PHonon/PH/drhodv.f90                     2026-10-28 to 2026-11-06
+  PHonon/PH/dvqpsi_us.f90                  2026-10-28 to 2026-11-06
+  PHonon/PH/dvqpsi_us_only.f90             2026-10-28 to 2026-11-06
+  PHonon/PH/dynmat_us.f90                  2026-10-30 to 2026-11-06
+  PHonon/PH/phq_init.f90                   2026-10-30 to 2026-11-06
+  PHonon/PH/phq_readin.f90                 2026-10-31 to 2026-11-06
+  PHonon/PH/phqscf.f90                     2026-10-30 to 2026-11-06
+  PHonon/PH/run_nscf.f90                   2026-10-28 to 2026-11-06
+  PHonon/PH/solve_linter.f90               2026-10-29 to 2026-11-06
+  PW/CMakeLists.txt                        2026-10-30
+  PW/src/c_bands.f90                       2026-10-30 to 2026-11-06
+  UtilXlib/CMakeLists.txt                  2026-11-06
+  UtilXlib/mp_base.f90                     2026-10-30 to 2026-11-06
+  external/devxlib.cmake                   2026-10-27 to 2026-11-06
+  external/submodule_commit_hash_records   2026-10-27
+  external/wannier90.cmake                 2026-10-29 to 2026-11-06
+
+external/submodule_commit_hash_records (2026-10-27) lost its devxlib line; the
+format has no comments, so the notice for that file is here only.
+
+Summary of the changes: a batched GPU Sternheimer engine and batched nscf for
+ph.x, GPU paths for EPW, OpenMP over k in two wannier90 routines, and a central
+table of run-time switches (qefast/SWITCHES.md). With QEF_STH=0 and
+QEF_NSCF_ROT=0 ph.x takes QE's own loop.
+
+New source files are under qefast/, and in LR_Modules/ (qef_*.f90, sth_*.f90),
+PHonon/PH/qef_phq_fuse.f90 and PW/src/sth_nscf_symrot.f90. They carry an SPDX
+tag; several adapt upstream routines, and those portions remain under the
+copyright of their QE and EPW authors.
+
+Documentation: README.md was replaced and the upstream text moved unchanged to
+README.QE.md. CONTRIBUTING.md and .github/pull_request_template.md were
+rewritten for this fork. logo.jpg is the upstream project's mark. It is kept
+for README.QE.md only and is not a logo of qe-fast.
+
+
+2. Components with their own licences
+-------------------------------------
+
+In this repository:
+
+- external/devxlib: deviceXlib at commit a6b89ef (2021-06-21), vendored
+  unmodified in place of the upstream submodule. MIT licence, (c) 2021 MaX -
+  Materials at the eXascale - CoE. That commit has no licence file; LICENSE.txt
+  was added here from the upstream repository's later commit 0766c7d. Several
+  of its files carry a Quantum ESPRESSO GPL header of their own.
+
+- qefast/w90/disentangle.F90, wannierise.F90: modified copies of wannier90 3.1
+  routines (commit 1d6b187), with wannier90's header kept. Their licence is
+  wannier90's. At that commit its README says "licensed under GPLv2" and
+  LICENSE is the version 2 text, with no later-version statement. Treat a
+  binary that contains wannier90 code, such as epw.x, as licensed under GPL
+  version 2.
+
+Git submodules, not part of this repository, at the pins of tag qe-7.6, each
+under its own licence: external/wannier90 (see above), external/lapack
+(BSD-style), external/fox, external/mbd (MPL-2.0), external/d3q,
+external/pw2qmcpack, external/qe-gipaw (GPL-2.0).
+
+Other third-party code in the upstream tree, such as dft-d3, is as upstream
+ships it.
+
+Not in this repository, fetched by scripts at the user's request:
+
+- SG15 ONCV pseudopotentials, by qefast/pseudo.sh from quantum-simulation.org.
+  Licensed CC BY-SA 4.0, as stated in each file. No SG15 file is in this
+  repository; the inputs only name them. If you redistribute them, the licence
+  terms apply to you. Please cite D. R. Hamann, Phys. Rev. B 88, 085117 (2013)
+  and M. Schlipf and F. Gygi, Comput. Phys. Commun. 196, 36 (2015).
+
+- CUTLASS 3.9.2, by qefast/sth/fdx/deps.sh from GitHub. BSD-3-Clause, compatible
+  with the GPL; keep its notice with anything you distribute.
+
+- NVIDIA MathDx (cuFFTDx) 25.6.0: see section 3.
+
+- For the examples under qefast/examples/eph-tc/funnel only: the Python packages
+  pymatgen, ase, jarvis-tools, mace-torch and mattersim, the machine-learned
+  potentials they download, and the JARVIS datasets. None are in this
+  repository. Check their terms before use.
+
+
+3. NVIDIA MathDx / cuFFTDx, and GPU builds
+------------------------------------------
+
+Status. No MathDx or cuFFTDx file is in this repository or in any release
+asset. qefast/sth/fdx/deps.sh fetches the
+nvidia-mathdx package from PyPI at build time, and only when a user runs it.
+qefast/sth/fdx/sth_fftdx.cu is qe-fast's own code, GPL-licensed. It uses the
+public cuFFTDx API and contains no NVIDIA sample code.
+
+Terms. MathDx is proprietary: "LICENSE AGREEMENT FOR NVIDIA MATH LIBRARIES
+SOFTWARE DEVELOPMENT KITS" (v. February 10, 2022), as shipped with
+nvidia-mathdx 25.6.0. Whoever downloads it accepts that agreement. Section 2.6
+reads: "You may not use the SDK in any manner that would cause it to become
+subject to an open source software license", with examples of licences that
+require the SDK to be disclosed or distributed in source code form, licensed
+for making derivative works, or redistributable at no charge. Section 1.2(v)
+requires the terms of a distributed application to be consistent with the
+agreement.
+
+The conflict. cuFFTDx is a C++ header library. Its code is instantiated into
+the kernels in the object file, and that object file is linked into ph.x and
+epw.x. Distributing such a binary would require offering the complete
+corresponding source under the GPL (sections 2 and 3), which the NVIDIA terms
+do not allow for MathDx. It cannot satisfy both. The GPL's system-library
+exception does not plausibly help: MathDx is a separately downloaded SDK whose
+code is compiled into the program. A linking exception is not a way out either,
+since it would have to come from all the copyright holders of Quantum ESPRESSO.
+
+Position.
+- The source code in this repository can be distributed under the GPL. It
+  contains no NVIDIA MathDx code.
+- Building with MathDx for your own use involves no distribution, so the GPL
+  places no condition on it.
+- DO NOT distribute a binary, container image or other package built with
+  QEF_MATHDX_INC set. The qe-fast project does not publish any.
+- The build works without MathDx. When QEF_MATHDX_INC and QEF_CUTLASS_INC are
+  not both set, CMake compiles qefast/sth/fdx/sth_fftdx_stub.c instead. The stub
+  always declines, so the run keeps cuFFT and loses only the gain of the
+  cuFFTDx kernels. CPU builds never touch this code.
+
+Other GPU build dependencies. Every GPU build, of upstream QE as well, links
+NVIDIA's proprietary runtime libraries (CUDA, cuFFT, cuBLAS and the NVHPC
+runtime). Those are dynamically linked and are not compiled into the program,
+and whether the GPL's system-library exception covers them is a question that
+anyone distributing GPU binaries should answer with their own legal advice.

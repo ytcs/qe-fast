@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: QE-side adapter of the batched nscf Davidson (qefast/sth/nscf_engine.f90). c_bands_nscf_ph calls
 ! nscf_batched_run before its k loop. With QEF_STH=1 (and QEF_NSCF_BATCH not 0) and a supported case,

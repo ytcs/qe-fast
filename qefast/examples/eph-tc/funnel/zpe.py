@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """DFT Gamma-ZPE for the access gate, on the GPU.
 
     python3 zpe.py <jobs.json> <ids,comma> <workroot> <out.jsonl> [NT]

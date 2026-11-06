@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # F0b queue (pre-registered 2026-10-29 before any F0b run).
 #   f0b.sh <in dir: t1-structs.json, t3a-jobs.json> <work dir>
 # Mg2IrH6 end to end: T1a (both MLIPs; MLIP hull vs the Mg-Ir-H references) -> T1b (two-model rule)

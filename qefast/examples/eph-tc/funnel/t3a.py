@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """T3a: DFT vc-relax -> scf -> ph.x (engine, MP) -> nscf -> EPW alpha^2F -> lambda, omega_log, Tc^AD.
 
     python3 t3a.py <jobs.json> <id> <workroot> [NT omp threads, default 8] [NE epw ranks, default 8]

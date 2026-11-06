@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # End-to-end T_c chain: scf, ph, collect, nscf, epw, one timing line per stage in timings.tsv.
 #   [QEF_PRESET=off|safe|fast|max] run-chain.sh <inputs dir> <bin dir> <workdir> [omp threads for pw/ph] [epw ranks]
 # pw/ph: 1 MPI rank x NT OpenMP threads on the GPU. epw: NE ranks + MPS, -npool NE.

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build the offline harness of the batched Sternheimer engine (no CMake, no QE libraries).
 #   qefast/sth/build.sh            -> qefast/sth/build/sth_harness.x
 # Needs nvfortran (NVHPC) with CUDA; on the dev pod: source /root/qefast/env.sh first.

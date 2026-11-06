@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: vkb of many k-points in one set of kernels (moved verbatim from
 ! PHonon/PH/qef_phq_fuse.f90, QEF_PHQ_VKB, so that the engine adapter's per-k loop can use it too: QEF_STH_KDEV).

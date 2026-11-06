@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # P1 queue. Waits for $WAIT_FOR's DONE marker.
 #   p1.sh <in dir: p1-base.json (H3S MgB2 Cu Nb Pb Al jobs), mg2irh6-st.json> <work dir> [F0c t3a-jobs.json for Mg2IrH6]
 # 1. NLCC gate: Mg2IrH6 SPMS scf, ph.x q1-q2 with the T3a engine (QEF_STH=1 QEF_STH_MP=1) and with QEF_STH=0; frequencies

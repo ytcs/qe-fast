@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Fallback checks D1-D3: ph.x only. D1, D2: off vs max, q1-q2. D3: max to q2 under a time limit, then safe if the check chose CG.
 G=/root/gen; Q=/root/qefast/qe-fast; B=$Q/build-gpu/bin; P=$Q/qefast/examples/eph-tc/bench/phq.sh; PS=$Q/qefast/pseudo/sg15
 source /root/qefast/env.sh

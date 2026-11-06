@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
 ! qe-fast: starting wavefunctions for the ph.x nscf (c_bands_nscf_ph) by symmetry rotation of the scf
 ! wavefunctions in the restart directory, instead of random vectors.

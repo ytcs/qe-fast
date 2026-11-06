@@ -1,3 +1,5 @@
+// Copyright (C) 2026 The qe-fast authors
+// SPDX-License-Identifier: GPL-2.0-or-later
 // gemmbench: dense local potential V(G-G') on the k+q sphere as a batched ZGEMM / CGEMM.
 // Y(npw, ncol) = V_k(npw, npw) X(npw, ncol) for the columns sharing one k, materialised V_k (the best case for cuBLAS;
 // an on-the-fly V(G-G') lookup would need a custom GEMM). Reports us per column and achieved TFLOP/s (8 npw^2 per column).

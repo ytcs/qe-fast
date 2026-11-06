@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """ephcmp.py REF TEST -- compare the ephmat files (<prefix>.ephmat/ephmatN, egnv, freq, ikmap) of
 two EPW run directories written with the same number of pools.
 

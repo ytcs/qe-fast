@@ -1,3 +1,5 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 ! fftbench: per-column cost of the engine's local-potential chain (scatter, FFT^-1, xV, FFT, gather)
 ! for cuFFT plan variants (Step 2 probe). Standalone:
 !   nvfortran -O3 -cuda -gpu=cc86 -cudalib=cufft fftbench.f90 -o fftbench ; ./fftbench n1 n2 n3 [B]

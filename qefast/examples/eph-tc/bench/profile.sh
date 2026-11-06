@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 # nsys profile of ph.x on one q-point (PH-DESIGN Step 0). Run scf unprofiled, then trace a window of ph.x.
 #   profile.sh <inputs dir> <iq> <bin dir> <workdir> [delay s] [duration s] [np]
 # Use a bin dir built with -DQE_ENABLE_PROFILE_NVTX=ON so QE's start_clock/stop_clock become NVTX ranges.

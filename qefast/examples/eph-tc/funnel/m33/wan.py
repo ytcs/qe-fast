@@ -1,3 +1,5 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
 """M3-3 Phase 0 tool, part 3: the W manifold (wannier90 on the coarse full-grid nscf; all bands from the lowest).
 
     wan.py <nscf dir (prefix.save inside)> <prefix> <n coarse> <E_F eV> <E_froz - E_F eV> <out dir> [poor]
