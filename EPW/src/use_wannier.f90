@@ -2038,6 +2038,7 @@ CONTAINS
   ENDDO
   END SUBROUTINE qef_fine_eig
   !
+#if defined(__CUDA)
   !--------------------------------------------------------------------------
   SUBROUTINE qef_fine_setup(iq1)
   !--------------------------------------------------------------------------
@@ -2271,6 +2272,15 @@ CONTAINS
   DEALLOCATE(cq, ufb, wfb, pair)
   CALL stop_clock('qef_fbatch')
   END SUBROUTINE qef_fine_batch
+#else
+  !--------------------------------------------------------------------------
+  SUBROUTINE qef_fine_batch(iqq0)
+  !--------------------------------------------------------------------------
+  !! qe-fast: unreachable without CUDA (qef_fine_ok is false there).
+  INTEGER, INTENT(IN) :: iqq0
+  CALL errore('qef_fine_batch', 'GPU fine path in a build without CUDA', 1)
+  END SUBROUTINE qef_fine_batch
+#endif
   !
   !--------------------------------------------------------------------------
   LOGICAL FUNCTION ekfs_win(ib, k)
