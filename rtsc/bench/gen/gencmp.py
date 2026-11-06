@@ -2,7 +2,7 @@
 """gencmp.py <run dir> [materials...]: the pre-registered gate and report of groups/compute/GEN-LOG.md. For every material and set against
 that material's all-off run: frequencies (Gamma acoustic excluded), lambda, omega_log, Allen-Dynes Tc (a2f_proj, funnel a2f_metrics), margin used,
 stage speedups, peak memory, decline lines, Wannier spread sum."""
-import glob, json, os, re, statistics as st, sys
+import filecmp, glob, json, os, re, statistics as st, sys
 import numpy as np
 import qe_f2 as qe
 
@@ -129,6 +129,11 @@ for M in MATS:
               " ".join(f"{k} {v[1]:+.2e}" for k, v in res.items()))
         for l in lines(D):
             print("     ", l)
+        # class B on a real material: a declined max must equal the CG path, i.e. safe (max = safe + CBSR)
+        if S == "max" and any("rtsc cbsr auto: CG" in l for l in lines(D)):
+            same = [filecmp.cmp(f, f"{R}/{M}/safe/{os.path.basename(f)}", shallow=False)
+                    for f in sorted(glob.glob(f"{D}/x.dyn[0-9]*")) if os.path.exists(f"{R}/{M}/safe/{os.path.basename(f)}")]
+            print(f"      class B: max declined; dyn files identical to safe {sum(same)}/{len(same)}")
         sp.setdefault(S, []).append((spd["total"], M, ok, spd["ph"]))
 print("\n## summary")
 for S in SETS:

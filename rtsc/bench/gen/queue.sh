@@ -2,6 +2,7 @@
 # the pre-registered order; all-off first, then limit = min(2700, 2 x all-off + 300)
 G=/root/gen
 for M in "$@"; do
+  if [ "$M" != G1 ] && [ ! -f $G/in/$M/epw.in ]; then echo "$(date -u +%H:%M:%S) SKIP $M: no epw.in (preparation failed; see prep.log)"; continue; fi
   A=2700
   bash $G/chain.sh $M alloff 2700
   if [ "$(cat $G/run/$M/alloff/status)" = 0 ]; then
