@@ -6,6 +6,8 @@ M=$1; S=$2; LIM=$3
 G=/root/gen; W=$G/run/$M/$S; Q=/root/rtsc/qe-rtsc
 source /root/rtsc/env.sh; source $G/env/$S.env
 [ "$M" = G1 ] && export RTSC_RUN_NOEPW=1
+# GEN-LOG amendment 06:06 UTC: G8's EPW is OOM-killed on the 50 GB pod; if safe dies the same way, the later chains skip it
+if [ "$M" = G8 ] && { [ "$S" = fast ] || [ "$S" = max ]; } && [ "$(cat $G/run/G8/safe/status)" != 0 ]; then export RTSC_RUN_NOEPW=1; fi
 rm -rf $W; mkdir -p $W
 ( while :; do nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits; sleep 2; done ) > $W/mem.log 2>/dev/null &
 MP=$!

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # D1-D3 of GEN-LOG: ph.x only. D1, D2: all-off vs max, q1-q2. D3: max to q2 under a time limit, then safe if the check chose CG.
-G=/root/gen; Q=/root/rtsc/qe-rtsc; B=/root/rtsc/bin-gen; P=$Q/rtsc/bench/phq.sh; PS=$Q/rtsc/pseudo/sg15
+G=/root/gen; Q=/root/rtsc/qe-rtsc; B=/root/rtsc/bin-gen2; P=$Q/rtsc/bench/phq.sh; PS=$Q/rtsc/pseudo/sg15
 source /root/rtsc/env.sh
 pwr() { ( source $G/env/alloff.env; cd $1; OMP_NUM_THREADS=8 mpirun --bind-to none -np 1 -x OMP_NUM_THREADS -x RTSC_STH $B/pw.x -in scf.in > scf.out 2>&1 ); }
 for D in D1 D2 D3; do
