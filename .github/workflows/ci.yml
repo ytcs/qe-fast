@@ -52,7 +52,8 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQE_ENABLE_MPI=OFF -DQE_ENABLE_TEST=OFF \
             -DQE_FFTW_VENDOR=FFTW3
       - name: Build
-        run: cmake --build build -j 4 --target pw.x ph.x epw.x
+        # ph.x and epw.x do not compile without CUDA yet (README, CPU build).
+        run: cmake --build build -j 4 --target pw.x qe_lr_modules
       - name: Small pw.x test
         env:
           ESPRESSO_PSEUDO: ${{ github.workspace }}/pseudo

@@ -28,6 +28,7 @@ First public release, based on Quantum ESPRESSO 7.6 (tag `qe-7.6`), EPW included
 ### Known limitations
 
 - Only CMake builds are supported, and only NVHPC 26.5 has been tested for GPU builds.
+- CPU builds provide `pw.x` only: `ph.x` and `epw.x` do not compile without CUDA.
 - `fast` and `max` are phonon-gated only on held-out materials and may land on a different Wannier solution.
 - Magnetic, SOC, USPP/PAW and DFT+U systems take QE's own loop, with no speedup.
 - `safe` gave 1.07–1.50× end to end against `off` on four held-out materials (A40).
