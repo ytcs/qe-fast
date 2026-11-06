@@ -37,6 +37,25 @@ def from_pmg(d):
     return dict(lattice=lat, species=sp, frac=fr)
 
 
+ZORDER = ("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y "
+          "Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os "
+          "Ir Pt Au Hg Tl Pb Bi").split()
+
+
+def canonical(st, tol=1e-6):
+    """G4(a) (WANNIER-LOG.md W1): wrap fractional coordinates into [0, 1) (values within tol of 1 -> 0) and order
+    the sites by atomic number, then by position. Hydrogenic projections are centred on the listed positions; a
+    site listed one cell away (F0b Mg2IrH6: Ir at frac (1, 1, 0)) gives a k-dependent initial phase that sent one WF
+    to a delocalised minimum (34.8 A^2) and moved lambda 1.67 -> 0.99. The result is the same cell, deterministic for any
+    input order or image."""
+    fr = []
+    for f in st["frac"]:
+        g = [x - math.floor(x) for x in f]
+        fr.append([0.0 if (x < tol or x > 1 - tol) else x for x in g])
+    idx = sorted(range(len(fr)), key=lambda i: (ZORDER.index(st["species"][i]), [round(x, 6) for x in fr[i]]))
+    return dict(st, species=[st["species"][i] for i in idx], frac=[fr[i] for i in idx])
+
+
 def recip_norms(lat):
     a = np.array(lat, float)
     b = 2 * np.pi * np.linalg.inv(a).T
@@ -47,9 +66,46 @@ def kgrid(lat, dk):
     return [max(1, math.ceil(x / dk)) for x in recip_norms(lat)]
 
 
+# G5 (FUNNEL.md section 8, pre-registered 2026-10-30): ecutwfc = max over the elements present of the pseudopotential
+# set's "normal" hint; ecutrho = 4 x ecutwfc (NC; pw.x default). Retires the F0 rule (80 Ry with H/B/C/N/O/F or a 3d
+# metal, else 60), which under-converged Nb (SG15 needs ~82 Ry).
+# SG15: PseudoDojo standard-table "normal" hints (github PseudoDojo/ONCVPSP-PBE-SR standard.djson; PSEUDO-SURVEY section 2).
+HINT_SG15 = dict(H=72, Li=74, Be=88, B=76, C=82, N=84, O=84, F=84, Na=88, Mg=84, Al=40, Si=36, P=44, S=52, Cl=58, K=74,
+                 Ca=68, Sc=78, Ti=84, V=84, Cr=94, Mn=96, Fe=90, Co=96, Ni=98, Cu=92, Zn=84, Ga=80, Ge=78, As=84, Se=86,
+                 Br=46, Rb=46, Sr=68, Y=72, Zr=66, Nb=82, Mo=80, Tc=84, Ru=84, Rh=88, Pd=82, Ag=82, Cd=102, In=70,
+                 Sn=72, Sb=80, Te=80, I=70, Cs=50, Ba=44, La=110, Hf=58, Ta=58, W=74, Re=72, Os=74, Ir=68, Pt=84,
+                 Au=76, Hg=66, Tl=62, Pb=56, Bi=66)
+# SPMS v1.0: the 1e-4 Ha/atom total-energy cutoff of SPMS_v1.0.pdf (Ha x 2; PSEUDO-SURVEY section 7, test P1).
+HINT_SPMS = dict(H=60, Li=52, Be=52, B=58, C=76, N=76, O=76, F=74, Na=48, Mg=56, Al=28, Si=30, P=34, S=40, Cl=40, K=26,
+                 Ca=32, Sc=40, Ti=52, V=62, Cr=64, Mn=74, Fe=64, Co=62, Ni=68, Cu=70, Zn=60, Ga=68, Ge=50, As=60, Se=60,
+                 Br=28, Rb=18, Sr=26, Y=32, Zr=34, Nb=56, Mo=46, Tc=28, Ru=48, Rh=50, Pd=48, Ag=44, Cd=48, In=40,
+                 Sn=36, Sb=48, Te=50, I=28, Cs=30, Ba=22, La=36, Hf=30, Ta=34, W=32, Re=32, Os=32, Ir=34, Pt=42,
+                 Au=38, Hg=46, Tl=28, Pb=28, Bi=38)
+
+
+def pset():
+    """Pseudopotential set of this run: env PSET (sg15 | spms), default sg15."""
+    import os
+    return os.environ.get("PSET", "sg15").lower()
+
+
 def ecut_rule(species):
-    s = set(species)
-    return 80 if (s & FIRST_ROW or s & D3) else 60
+    """G5: max over the elements present of the active set's normal hint (Ry)."""
+    hint = HINT_SPMS if pset() == "spms" else HINT_SG15
+    return max(hint[e] for e in set(species))
+
+
+def upf_name(e, pseudo=None):
+    """UPF file of element e in the active set: SG15 '<El>_ONCV_PBE-1.2.upf'; SPMS '<Z>_<El>_<z>_<rc>..._v1.0.upf'
+    (found by glob in the pseudo dir)."""
+    if pset() != "spms":
+        return f"{e}_ONCV_PBE-1.2.upf"
+    import glob
+    import os
+    hits = sorted(glob.glob(os.path.join(pseudo or os.environ.get("PSEUDO_DIR", "."), f"[0-9][0-9]_{e}_*.upf")))
+    if len(hits) != 1:
+        raise FileNotFoundError(f"SPMS UPF for {e}: {hits}")
+    return os.path.basename(hits[0])
 
 
 def species_order(st):
@@ -87,7 +143,7 @@ def pw_input(st, calc, prefix, k, ecut, pseudo="@PSEUDO@", smear=0.02, extra_sys
         txt += "&ions\n/\n"
     if calc == "vc-relax":
         txt += "&cell\n    press_conv_thr = 0.5\n" + (f"    press = {press}\n" if press else "") + "/\n"
-    txt += "ATOMIC_SPECIES\n" + "".join(f" {e} {MASS[e]} {e}_ONCV_PBE-1.2.upf\n" for e in sp)
+    txt += "ATOMIC_SPECIES\n" + "".join(f" {e} {MASS[e]} {upf_name(e, pseudo)}\n" for e in sp)
     txt += "CELL_PARAMETERS angstrom\n" + "".join(" " + " ".join(f"{x:.10f}" for x in v) + "\n" for v in st["lattice"])
     txt += "ATOMIC_POSITIONS crystal\n" + "".join(
         f" {e} {f[0]:.10f} {f[1]:.10f} {f[2]:.10f}\n" for e, f in zip(st["species"], st["frac"]))
@@ -179,7 +235,7 @@ VAL_E = dict(H=1, Li=1, Na=1, K=1, Rb=1, Cs=1, Be=2, Mg=2, Ca=2, Sr=2, Ba=2, B=3
 
 
 def z_valence(e, pseudo):
-    t = open(f"{pseudo}/{e}_ONCV_PBE-1.2.upf").read(20000)
+    t = open(f"{pseudo}/{upf_name(e, pseudo)}").read(20000)
     return float(re.search(r'z_valence\s*=\s*"\s*([-+0-9.eEdD]+)', t).group(1).replace("d", "e").replace("D", "e"))
 
 
@@ -257,10 +313,13 @@ def ph_input(prefix, species, nq):
             f"  fildvscf = 'dvscf'\n  nq1 = {nq}, nq2 = {nq}, nq3 = {nq}\n  tr2_ph = 1.0d-14\n  reduce_io = .true.\n/\n")
 
 
-def epw_input(prefix, species, nk, nq, nkf, nqf, nsemi, nw, froz, ef, scdm=False, muc=0.10):
+def epw_input(prefix, species, nk, nq, nkf, nqf, nsemi, nw, froz, ef, scdm=False, muc=0.10, use_ws=True, epbread=False):
+    """G4 (WANNIER-LOG.md W1): use_ws on; SCDM always WITH the frozen window (SCDM erfc without it dropped Fermi-level
+    states from the subspace on every W1 control: on-grid band errors ~ 1-2 eV, Cu lambda 0.04 -> 0.17-0.73)."""
     sp = species_order(dict(species=species))
     lines = [f"prefix = '{prefix}'"] + [f"amass({i + 1}) = {MASS[e]}" for i, e in enumerate(sp)]
-    lines += ["outdir = './'", "ep_coupling = .true.", "elph = .true.", "epbwrite = .true.", "epwwrite = .true.",
+    lines += ["outdir = './'", "ep_coupling = .true.", "elph = .true.",
+              "epbread = .true." if epbread else "epbwrite = .true.", "epwwrite = .true.",
               "etf_mem = 1", f"nbndsub = {nw}"]
     if nsemi:
         lines.append(f"bands_skipped = 'exclude_bands = 1-{nsemi}'")
@@ -268,6 +327,8 @@ def epw_input(prefix, species, nk, nq, nkf, nqf, nsemi, nw, froz, ef, scdm=False
     if scdm:
         lines += ["auto_projections = .true.", "scdm_proj = .true.", "scdm_entanglement = 'erfc'",
                   f"scdm_mu = {ef:.4f}", "scdm_sigma = 2.0"]
+        if froz is not None:
+            lines.append(f"dis_froz_max = {ef + froz:.4f}")
     else:
         lines.append(f"dis_froz_max = {ef + froz:.4f}")
         i = 0
@@ -275,6 +336,8 @@ def epw_input(prefix, species, nk, nq, nkf, nqf, nsemi, nw, froz, ef, scdm=False
             i += 1
             lines.append(f"proj({i}) = '{e}:{';'.join(orb)}'")
         lines.append("wdata(1) = 'dis_num_iter = 1000'")
+    if use_ws:   # G4(b): Wigner-Seitz sets built from the WF centres and atom positions (EPW default .false.)
+        lines.append("use_ws = .true.")
     lines += ["eps_acoustic = 2.0", "ephwrite = .true.", "fsthick = 0.4", "degaussw = 0.10", "degaussq = 0.5",
               "nqstep = 500", "eliashberg = .true.", "wscut = 1.0", "temps = 1.0", "nstemp = 1",
               f"muc = {muc}", "dvscf_dir = './save'", f"nk1 = {nk}, nk2 = {nk}, nk3 = {nk}",
@@ -283,11 +346,63 @@ def epw_input(prefix, species, nk, nq, nkf, nqf, nsemi, nw, froz, ef, scdm=False
     return "&inputepw\n" + "".join(f"  {x}\n" for x in lines) + "/\n"
 
 
-def t3a_grids(st):
+def t3a_grids(st, nq=None):
     nat = len(st["species"])
     k = kgrid(st["lattice"], 0.20 if nat <= 4 else 0.27)
-    nq = 4 if nat == 1 else (3 if nat <= 4 else 2)
-    nk = 2 * nq   # G2 (FUNNEL.md section 7): Wannier/EPW coarse k = 2 q for every cell size (F0: k = q for 3-4 atoms)
+    nq = nq or (4 if nat == 1 else (3 if nat <= 4 else 2))
+    nk = 2 * nq   # G2 (FUNNEL.md section 7): Wannier/EPW coarse k = 2 q for every cell size (F0: k = q for 3-4 atoms).
+    # G4(e) (W1) refines to 3 q inside t3a.epw_stage when the two Wannier setups disagree; W1 found 2 q unconverged for
+    # sigma-band MgB2 (lambda 1.34 / 0.85 at 2q / 3q) and for H3S under use_ws (2.09 / 2.94).
     nkf = max(kgrid(st["lattice"], 0.2))
     nkf += nkf % 2
     return dict(k=k, nq=nq, nk=nk, nkf=nkf, nqf=nkf // 2)
+
+
+def wannier_ham(rundir):
+    """H(R) (eV), R vectors and WS degeneracies from EPW's epwdata.fmt + wigner.fmt."""
+    t = open(f"{rundir}/epwdata.fmt").read().split("\n")
+    nb, nr = [int(x) for x in t[1].split()[:2]]
+    body = "\n".join(t[2:])
+    vals = re.findall(r"\(\s*([-+0-9.EeDd]+)\s*,\s*([-+0-9.EeDd]+)\s*\)", body[body.index("("):])[:nb * nb * nr]
+    chw = np.array([complex(float(a.replace("D", "E")), float(b.replace("D", "E"))) for a, b in vals]).reshape(nb, nb, nr)
+    w = open(f"{rundir}/wigner.fmt").read().split("\n")
+    nrk, _, _, dims, _ = [int(x) for x in w[0].split()]
+    irv, deg, i = [], [], 1
+    for _ in range(nrk):
+        irv.append([int(x) for x in w[i].split()[:3]])
+        deg.append([[int(x) for x in w[i + 1 + j].split()] for j in range(dims)])
+        i += 1 + dims
+    return chw * RY, np.array(irv), np.array(deg)
+
+
+def wannier_eigs(rundir, kcrys):
+    chw, irv, deg = wannier_ham(rundir)
+    out = []
+    for k in kcrys:
+        ph = np.exp(2j * np.pi * irv @ np.asarray(k))
+        if deg.shape[1] == 1:
+            H = np.tensordot(chw, ph / deg[:, 0, 0], axes=([2], [0]))
+        else:
+            H = np.einsum("ijr,rij->ij", chw, np.where(deg > 0, ph[:, None, None] / np.maximum(deg, 1), 0))
+        out.append(np.linalg.eigvalsh((H + H.conj().T) / 2))
+    return np.array(out)
+
+
+def band_check(rundir, x_nscf, nk, nsemi, ef, win=0.3):
+    """G4(c) on-grid band check (no extra DFT): Wannier bands at the coarse nscf k (full nk^3 grid, as written by
+    kfull) against the nscf eigenvalues, within E_F +- win eV; two-sided nearest-level distance. Returns max meV.
+    If no level falls in the window at any coarse k (small Fermi surface on a coarse grid), the window widens to
+    +- 1 eV; if still empty, returns inf (gate fails). W1: a vacuous 0 meV let plain-SCDM failures pass at nk 3-4.
+    Inside the frozen window the error is zero by construction: this is a SUBSPACE check (dropped Fermi-level states),
+    not an interpolation-quality check; interpolation error is handled by the two-setup S_W and k refinement."""
+    pts = [(i / nk, j / nk, l / nk) for i in range(nk) for j in range(nk) for l in range(nk)]
+    ew = wannier_eigs(rundir, pts)
+    ed = np.array(x_nscf["eig"])[:, nsemi:]
+    for w in (win, 1.0):
+        dev = []
+        for i in range(len(pts)):
+            dev += [float(np.min(np.abs(ew[i] - d))) for d in ed[i][np.abs(ed[i] - ef) <= w]]
+            dev += [float(np.min(np.abs(ed[i] - e))) for e in ew[i][np.abs(ew[i] - ef) <= w]]
+        if dev:
+            return 1000 * max(dev)
+    return float("inf")
