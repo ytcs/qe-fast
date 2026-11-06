@@ -28,7 +28,7 @@ MODULE qef_config
   !
   PUBLIC :: qef_getenv, qef_preset_name, qef_report
   !
-  CHARACTER(LEN=*), PARAMETER :: default_preset = 'off'
+  CHARACTER(LEN=*), PARAMETER :: default_preset = 'safe'
   !
   INTEGER, PARAMETER :: npreset = 4
   CHARACTER(LEN=4), PARAMETER :: preset_names(npreset) = (/ 'off ', 'safe', 'fast', 'max ' /)
