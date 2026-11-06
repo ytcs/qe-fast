@@ -3652,10 +3652,12 @@ CONTAINS
   END FUNCTION cb_gemm_rate
   !
   REAL(dp) FUNCTION cb_host_avail()
-    !! half of MemAvailable (bytes): the ceiling for pinned bases
+    !! the ceiling for pinned bases: half of what this process can still get. /proc/meminfo reports the node, so a container's
+    !! cgroup limit caps it (a 50 GB pod on a 503 GB node: EPW was OOM-killed there, groups/compute/GEN-LOG.md)
     INTEGER :: u, ios
     CHARACTER(LEN=64) :: l
     INTEGER(8) :: kb
+    REAL(dp) :: lim, cur
     cb_host_avail = 0.0_dp
     OPEN(NEWUNIT=u, FILE='/proc/meminfo', STATUS='OLD', ACTION='READ', IOSTAT=ios)
     IF (ios /= 0) RETURN
@@ -3664,11 +3666,31 @@ CONTAINS
       IF (ios /= 0) EXIT
       IF (l(1:13) == 'MemAvailable:') THEN
         READ(l(14:), *, IOSTAT=ios) kb
-        IF (ios == 0) cb_host_avail = 0.5_dp * 1024.0_dp * kb
+        IF (ios == 0) cb_host_avail = 1024.0_dp * kb
         EXIT
       ENDIF
     ENDDO
     CLOSE(u)
+    lim = cg_read('/sys/fs/cgroup/memory.max')
+    cur = cg_read('/sys/fs/cgroup/memory.current')
+    IF (lim < 0.0_dp) THEN        ! cgroup v1
+      lim = cg_read('/sys/fs/cgroup/memory/memory.limit_in_bytes')
+      cur = cg_read('/sys/fs/cgroup/memory/memory.usage_in_bytes')
+    ENDIF
+    IF (lim > 0.0_dp .AND. cur >= 0.0_dp) cb_host_avail = MIN(cb_host_avail, MAX(lim - cur, 0.0_dp))
+    cb_host_avail = 0.5_dp * cb_host_avail
+  CONTAINS
+    REAL(dp) FUNCTION cg_read(f)
+      !! a number from a cgroup file; -1 if missing or not a number ('max')
+      CHARACTER(LEN=*), INTENT(IN) :: f
+      INTEGER :: v, e
+      cg_read = -1.0_dp
+      OPEN(NEWUNIT=v, FILE=f, STATUS='OLD', ACTION='READ', IOSTAT=e)
+      IF (e /= 0) RETURN
+      READ(v, *, IOSTAT=e) cg_read
+      IF (e /= 0) cg_read = -1.0_dp
+      CLOSE(v)
+    END FUNCTION cg_read
   END FUNCTION cb_host_avail
   !
   SUBROUTINE cb_auto_line(path, why, tb, ntmp)

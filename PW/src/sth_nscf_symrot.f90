@@ -779,8 +779,8 @@ CONTAINS
     !! is built. Every k+q of a ph.x run lies on the grid of lcm(nk, nq) points per direction, and every orbit of that grid
     !! under the full group (with time reversal) is reached, so
     !!   norb = the number of orbits on it = the number of bases (one per orbit), -1 if the k-points are an explicit list;
-    !!   nkf  = nk1 nk2 nk3; sumk, maxk = sum and maximum over the q of this run (q /= Gamma) of the estimated nksq,
-    !!   N_k / |effective small group of q|; nq = how many such q; lg = the grid.
+    !!   nkf  = nk1 nk2 nk3; sumk, maxk = sum and maximum over the q of this run (q /= Gamma) of nksq, the orbits of the
+    !!   k grid under the effective small group of q; nq = how many such q; lg = the grid.
     USE cell_base, ONLY : at
     USE start_k,   ONLY : nk1, nk2, nk3, k1, k2, k3
     USE symm_base, ONLY : time_reversal
@@ -789,7 +789,7 @@ CONTAINS
     LOGICAL, INTENT(IN) :: doq(nqs)
     INTEGER, INTENT(OUT) :: norb, nkf, nq, lg(3)
     INTEGER(8), INTENT(OUT) :: sumk, maxk
-    INTEGER :: nk(3), kk(3), i, j, is, itr, tr, n, a, b, c, u(3), ig, jg, r1, r2, ng, iq, no, m(3, 3, 96)
+    INTEGER :: nk(3), kk(3), i, j, is, itr, tr, n, iq, no, nsk, m(3, 3, 96)
     INTEGER, ALLOCATABLE :: par(:)
     REAL(DP) :: x(3), y(3), d(3)
     LOGICAL :: dup
@@ -802,42 +802,18 @@ CONTAINS
       lg(i) = nk(i)
       IF (nqg(i) > 0) lg(i) = nk(i) / gcd2(nk(i), nqg(i)) * nqg(i)
     ENDDO
-    ng = lg(1) * lg(2) * lg(3)
-    ALLOCATE(par(ng))
-    DO ig = 1, ng
-      par(ig) = ig
-    ENDDO
-    DO c = 0, lg(3) - 1
-      DO b = 0, lg(2) - 1
-        DO a = 0, lg(1) - 1
-          ig = 1 + a + lg(1) * (b + lg(2) * c)
-          x = (/ (a + 0.5_DP * kk(1) * lg(1) / nk(1)) / lg(1), (b + 0.5_DP * kk(2) * lg(2) / nk(2)) / lg(2), &
-                 (c + 0.5_DP * kk(3) * lg(3) / nk(3)) / lg(3) /)
-          DO itr = 1, 2
-            tr = 3 - 2 * itr
-            IF (tr == -1 .AND. .NOT. time_reversal) EXIT
-            DO is = 1, nsr
-              DO j = 1, 3
-                y(j) = tr * (sr(j, 1, is) * x(1) + sr(j, 2, is) * x(2) + sr(j, 3, is) * x(3))
-              ENDDO
-              ! back to grid indices; an image off the grid connects nothing
-              d = y * lg - 0.5_DP * kk * lg / nk
-              IF (ANY(ABS(d - NINT(d)) > 1.d-6)) CYCLE
-              u = MODULO(NINT(d), lg)
-              jg = 1 + u(1) + lg(1) * (u(2) + lg(2) * u(3))
-              r1 = froot(ig); r2 = froot(jg)
-              IF (r1 /= r2) par(MAX(r1, r2)) = MIN(r1, r2)
-            ENDDO
-          ENDDO
-        ENDDO
+    ! the full group with time reversal, on the k+q grid
+    no = 0
+    DO itr = 1, 2
+      tr = 3 - 2 * itr
+      IF (tr == -1 .AND. .NOT. time_reversal) EXIT
+      DO is = 1, nsr
+        no = no + 1
+        m(:, :, no) = tr * sr(:, :, is)
       ENDDO
     ENDDO
-    norb = 0
-    DO ig = 1, ng
-      IF (froot(ig) == ig) norb = norb + 1
-    ENDDO
-    DEALLOCATE(par)
-    ! nksq of each q of this run: the distinct actions on k of {S : S q = q} and {-S : S q = -q} (time reversal)
+    norb = norbits(lg, no)
+    ! nksq of each q of this run: the k grid's orbits under the distinct actions on k of {S : S q = q} and {-S : S q = -q}
     DO iq = 1, nqs
       IF (.NOT. doq(iq)) CYCLE
       DO j = 1, 3
@@ -864,11 +840,48 @@ CONTAINS
           ENDIF
         ENDDO
       ENDDO
+      nsk = norbits(nk, no)
       nq = nq + 1
-      sumk = sumk + (nkf + no - 1) / no
-      maxk = MAX(maxk, INT((nkf + no - 1) / no, 8))
+      sumk = sumk + nsk
+      maxk = MAX(maxk, INT(nsk, 8))
     ENDDO
   CONTAINS
+    INTEGER FUNCTION norbits(g, nop)
+      !! orbits of the grid of g points per direction (shifted as the k grid) under m(:, :, 1:nop); an image off the grid connects nothing
+      INTEGER, INTENT(IN) :: g(3), nop
+      INTEGER :: a, b, c, ig, jg, r1, r2, ng, u(3), io
+      REAL(DP) :: xx(3), yy(3), dd(3)
+      ng = g(1) * g(2) * g(3)
+      ALLOCATE(par(ng))
+      DO ig = 1, ng
+        par(ig) = ig
+      ENDDO
+      DO c = 0, g(3) - 1
+        DO b = 0, g(2) - 1
+          DO a = 0, g(1) - 1
+            ig = 1 + a + g(1) * (b + g(2) * c)
+            xx = (/ (a + 0.5_DP * kk(1) * g(1) / nk(1)) / g(1), (b + 0.5_DP * kk(2) * g(2) / nk(2)) / g(2), &
+                    (c + 0.5_DP * kk(3) * g(3) / nk(3)) / g(3) /)
+            DO io = 1, nop
+              DO j = 1, 3
+                yy(j) = m(j, 1, io) * xx(1) + m(j, 2, io) * xx(2) + m(j, 3, io) * xx(3)
+              ENDDO
+              dd = yy * g - 0.5_DP * kk * g / nk
+              IF (ANY(ABS(dd - NINT(dd)) > 1.d-6)) CYCLE
+              u = MODULO(NINT(dd), g)
+              jg = 1 + u(1) + g(1) * (u(2) + g(2) * u(3))
+              r1 = froot(ig); r2 = froot(jg)
+              IF (r1 /= r2) par(MAX(r1, r2)) = MIN(r1, r2)
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDDO
+      norbits = 0
+      DO ig = 1, ng
+        IF (froot(ig) == ig) norbits = norbits + 1
+      ENDDO
+      DEALLOCATE(par)
+    END FUNCTION norbits
     INTEGER FUNCTION froot(i0)
       INTEGER, INTENT(IN) :: i0
       froot = i0
