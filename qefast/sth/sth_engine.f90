@@ -23,6 +23,7 @@
 ! ZGEMMs over k on all slots; FFT work runs only on the active columns.
 !
 MODULE sth_engine
+  USE qef_config, ONLY : qef_getenv
   USE cudafor
   USE cufft
   USE cublas_v2
@@ -337,7 +338,7 @@ MODULE sth_engine
   LOGICAL, SAVE :: cb_xch = .FALSE., cb_host = .FALSE., cb_strict = .FALSE.
   !
   ! qe-fast (groups/compute/GEN-LOG.md): the automatic check of QEF_STH_CBSR (QEF_STH_CBSR_AUTO=0 turns it off), decided
-  ! once at the first q /= Gamma and printed as one line "qe-fast auto:".
+  ! once at the first q /= Gamma and printed as one line "qef cbsr auto:".
   ! - memory: one basis per orbit of the k+q grid (symrot_count), n = npwx, 16 n^2 bytes each, against the device memory
   !   left after the engine's arrays at the largest q of the run (plus pinned host memory under QEF_STH_CBSR_HOST).
   ! - payoff: the solve stage of the remaining q, CG = the CG wall time per column measured at Gamma x the columns to come;
@@ -2018,7 +2019,7 @@ CONTAINS
     LOGICAL, SAVE :: first = .TRUE., on = .FALSE.
     REAL(dp), PARAMETER :: g = 1024.0_dp**3
     IF (first) THEN
-      CALL get_environment_variable('QEF_STH_MEMLOG', sv, STATUS=ios)
+      CALL qef_getenv('QEF_STH_MEMLOG', sv, STATUS=ios)
       on = ios == 0 .AND. TRIM(sv) == '1'
       first = .FALSE.
     ENDIF
@@ -2132,7 +2133,7 @@ CONTAINS
     REAL(dp) :: rg
     CHARACTER(LEN=16) :: sv
     rg = 1.5_dp
-    CALL get_environment_variable('QEF_STH_PSIR_RES', sv, STATUS=istat)
+    CALL qef_getenv('QEF_STH_PSIR_RES', sv, STATUS=istat)
     IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) rg
     res = INT(rg * 1024.0_dp**3, 8) + MERGE(5_8, 8_8, cb_lean()) * 16_8 * npwx * nslot * sth_npmax * nksq
     IF (cbsr_q .AND. cbsr_rf) res = res + 48_8 * cb_n0 * cb_cmax
@@ -2143,7 +2144,7 @@ CONTAINS
     per = 16_8 * nnr * nslot
     psir_kc = INT(MAX(0_8, MIN(INT(nksq, 8), (freeb - res) / per)))
     ! QEF_STH_PSIR_KC: a cap on the cached k-points (tests the cached / recomputed split where everything would fit)
-    CALL get_environment_variable('QEF_STH_PSIR_KC', sv, STATUS=istat)
+    CALL qef_getenv('QEF_STH_PSIR_KC', sv, STATUS=istat)
     IF (istat == 0 .AND. LEN_TRIM(sv) > 0) THEN
       READ(sv, *, IOSTAT=istat) b0
       IF (istat == 0) psir_kc = MAX(0, MIN(psir_kc, b0))
@@ -3228,7 +3229,7 @@ CONTAINS
     INTEGER :: istat
     CHARACTER(LEN=32) :: sv
     cb_auto_memory = .TRUE.
-    CALL get_environment_variable('QEF_STH_CBSR_MINGAIN', sv, STATUS=istat)
+    CALL qef_getenv('QEF_STH_CBSR_MINGAIN', sv, STATUS=istat)
     IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) ca_mingain
     maxk = MAX(ca_maxk, INT(nksq, 8))
     mw = INT(MAX(8_8, MIN(256_8, (nslot * maxk / MAX(ca_norb, 1) + 7) / 8 * 8)))
@@ -3239,7 +3240,7 @@ CONTAINS
     ca_bhost = 0.0_dp
     ! the engine's per-k state, already on the device for this q's nksq, and what the largest q will need on top of it
     rgib = 2.0_dp
-    CALL get_environment_variable('QEF_STH_CBSR_RESERVE', sv, STATUS=istat)
+    CALL qef_getenv('QEF_STH_CBSR_RESERVE', sv, STATUS=istat)
     IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) rgib
     perk0 = 16_8 * npwx * (nproj + 2_8 * nbnd)
     perk = perk0 + MERGE(5_8, 8_8, cb_xch .AND. .NOT. cbsr_rf) * 16_8 * npwx * nslot * sth_npmax
@@ -3336,17 +3337,17 @@ CONTAINS
     CALL cbsr_free()
     IF (.NOT. cbsr_rf_read) THEN
       ! qe-fast switches (read once, before any decline check)
-      CALL get_environment_variable('QEF_STRICT', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STRICT', sv, STATUS=istat)
       cb_strict = istat == 0 .AND. TRIM(sv) == '1'
-      CALL get_environment_variable('QEF_STH_CBSR_XCH', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_XCH', sv, STATUS=istat)
       cb_xch = istat == 0 .AND. TRIM(sv) == '1'
-      CALL get_environment_variable('QEF_STH_CBSR_HOST', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_HOST', sv, STATUS=istat)
       cb_host = istat == 0 .AND. TRIM(sv) == '1'
       IF (cb_host) cb_xch = .TRUE.
       ! test knob: at least this many new bases go to pinned host memory (exercises the staging where everything fits)
-      CALL get_environment_variable('QEF_STH_CBSR_HOSTN', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_HOSTN', sv, STATUS=istat)
       IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) cb_hostn
-      CALL get_environment_variable('QEF_STH_CBSR_AUTO', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_AUTO', sv, STATUS=istat)
       ca_auto = .NOT. (istat == 0 .AND. TRIM(sv) == '0')
     ENDIF
     IF (sth_cbsr_skip) THEN
@@ -3388,19 +3389,19 @@ CONTAINS
     IF (.NOT. cbsr_rf_read) THEN
       ! qe-fast: refinement form and the pre-check prints (off by default)
       cbsr_rf_read = .TRUE.
-      CALL get_environment_variable('QEF_STH_CBSR_RF', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_RF', sv, STATUS=istat)
       cbsr_rf = istat == 0 .AND. TRIM(sv) == '1'
-      CALL get_environment_variable('QEF_STH_CBSR_CHK', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_CHK', sv, STATUS=istat)
       cb_chk = istat == 0 .AND. TRIM(sv) == '1'
-      CALL get_environment_variable('QEF_STH_CBSR_TF32', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_TF32', sv, STATUS=istat)
       cb_tf32 = istat == 0 .AND. TRIM(sv) == '1'
-      CALL get_environment_variable('QEF_STH_CBSR_ACT', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_ACT', sv, STATUS=istat)
       cb_act = .NOT. (istat == 0 .AND. TRIM(sv) == '0')
-      CALL get_environment_variable('QEF_STH_CBSR_M0', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_M0', sv, STATUS=istat)
       IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) cb_m0
-      CALL get_environment_variable('QEF_STH_CBSR_CMAX', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_CMAX', sv, STATUS=istat)
       IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) cb_cmax
-      CALL get_environment_variable('QEF_STH_CBSR_RFMAX', sv, STATUS=istat)
+      CALL qef_getenv('QEF_STH_CBSR_RFMAX', sv, STATUS=istat)
       IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) cb_rfmax
       cb_m0 = MAX(8, MIN(cb_m0, cb_n0 - 8))
       cb_cmax = MAX(64, cb_cmax)
@@ -3432,7 +3433,7 @@ CONTAINS
     sbytes = 16_8 * cb_n0 * cb_n0
     IF (cbsr_rf) sbytes = 16_8 * cb_n0 * cb_m0 + 8_8 * cb_n0 * (cb_n0 - cb_m0)
     rgib = 2.0_dp
-    CALL get_environment_variable('QEF_STH_CBSR_RESERVE', sv, STATUS=istat)
+    CALL qef_getenv('QEF_STH_CBSR_RESERVE', sv, STATUS=istat)
     IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) rgib
     ! b2x: the irrep arrays at the q's LARGEST irrep (sth_npmax, set by phqscf), not the first one's npert: with the bases
     ! filling the device, a later 2-dim irrep otherwise declines (seen at B2 frozen q2, A40)
@@ -3773,7 +3774,7 @@ CONTAINS
       BLOCK
         CHARACTER(LEN=16) :: sv
         INTEGER :: ios, v
-        CALL get_environment_variable('QEF_STH_CBSR_PAD', sv, STATUS=ios)
+        CALL qef_getenv('QEF_STH_CBSR_PAD', sv, STATUS=ios)
         IF (ios == 0 .AND. LEN_TRIM(sv) > 0) THEN
           READ(sv, *, IOSTAT=ios) v
           IF (ios == 0 .AND. v >= 1) cb_pad = v
@@ -3906,7 +3907,7 @@ CONTAINS
       BLOCK
         CHARACTER(LEN=16) :: sv
         INTEGER :: ios, v
-        CALL get_environment_variable('QEF_STH_CBSR_PAD', sv, STATUS=ios)
+        CALL qef_getenv('QEF_STH_CBSR_PAD', sv, STATUS=ios)
         IF (ios == 0 .AND. LEN_TRIM(sv) > 0) THEN
           READ(sv, *, IOSTAT=ios) v
           IF (ios == 0 .AND. v >= 1) cb_pad = v
@@ -4762,7 +4763,7 @@ CONTAINS
     INTEGER :: istat, ios
     CHARACTER(LEN=8) :: sv
     IF (.NOT. qc_q .OR. kqg_q) RETURN
-    CALL get_environment_variable('QEF_STH_QCACHE_NOKQG', sv, STATUS=ios)
+    CALL qef_getenv('QEF_STH_QCACHE_NOKQG', sv, STATUS=ios)
     need = 8_8 * npwx * 3 * nksq
     istat = cudaMemGetInfo(freeb, totb)
     IF ((ios == 0 .AND. TRIM(sv) == '1') .OR. need > freeb - 1024_8**3) THEN
@@ -4841,14 +4842,14 @@ CONTAINS
       CHARACTER(LEN=8) :: sv
       INTEGER :: ios
       INTEGER(8) :: need_nc
-      CALL get_environment_variable('QEF_STH_NOPSIR', sv, STATUS=ios)
+      CALL qef_getenv('QEF_STH_NOPSIR', sv, STATUS=ios)
       ! without the psi(r) cache: evc stays on the device and one more FFT box holds a chunk's psi(r)
       need_nc = need - 16_8 * nnr * nbox + 16_8 * npwx * nbox + 16_8 * nnr * sth_bmax
       psir_cached = .NOT. (ios == 0 .AND. TRIM(sv) == '1')
-      CALL get_environment_variable('QEF_STH_PSIR_PART', sv, STATUS=ios)
+      CALL qef_getenv('QEF_STH_PSIR_PART', sv, STATUS=ios)
       psir_part = psir_cached .AND. ios == 0 .AND. TRIM(sv) == '1'
       IF (psir_part) psir_cached = .FALSE.     ! start without the cache; the partial cache is sized at the end of setup
-      CALL get_environment_variable('QEF_STH_NOPSIR', sv, STATUS=ios)
+      CALL qef_getenv('QEF_STH_NOPSIR', sv, STATUS=ios)
       IF (psir_cached .AND. need > freeb - 1024_8**3 .AND. need_nc <= freeb - 1024_8**3) THEN
         WRITE(*, '(A,F8.2,A,F8.2,A,F8.2,A)') 'sth_engine: psi(r) cache needs ', REAL(need) / 1024.0**3, &
              ' GiB, free ', REAL(freeb) / 1024.0**3, ' GiB: psi(r) recomputed per chunk (', &
@@ -5274,9 +5275,9 @@ CONTAINS
       BLOCK
         CHARACTER(LEN=8) :: sv
         INTEGER :: ios
-        CALL get_environment_variable('QEF_STH_DRHO2', sv, STATUS=ios)
+        CALL qef_getenv('QEF_STH_DRHO2', sv, STATUS=ios)
         sth_drho2 = ios == 0 .AND. TRIM(sv) == '1'
-        CALL get_environment_variable('QEF_STH_DRF', sv, STATUS=ios)
+        CALL qef_getenv('QEF_STH_DRF', sv, STATUS=ios)
         sth_drf = ios == 0 .AND. TRIM(sv) == '1'
         sth_drho2_read = .TRUE.
       END BLOCK
@@ -5378,7 +5379,7 @@ CONTAINS
       BLOCK
         CHARACTER(LEN=8) :: sv
         INTEGER :: ios
-        CALL get_environment_variable('QEF_STH_TRUERES', sv, STATUS=ios)
+        CALL qef_getenv('QEF_STH_TRUERES', sv, STATUS=ios)
         sth_trn = 0
         IF (ios == 0 .AND. TRIM(sv) == '1') sth_trn = 1
         IF (sth_trn == 1) WRITE(*, '(A,L2)') '     qef trueres: stop on ||g||_2 + true-residual recheck; DEFL path', sth_defl > 0

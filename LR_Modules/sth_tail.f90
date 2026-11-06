@@ -8,6 +8,7 @@
 !                  by running products along the grid (rounding-level difference only).
 !
 MODULE sth_tail
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -22,9 +23,9 @@ CONTAINS
     INTEGER :: ios
     IF (tail_flag < 0) THEN
       tail_flag = 0
-      CALL get_environment_variable('QEF_STH', s, STATUS=ios)
+      CALL qef_getenv('QEF_STH', s, STATUS=ios)
       IF (ios == 0 .AND. TRIM(s) == '1') tail_flag = 1
-      CALL get_environment_variable('QEF_TAIL', s, STATUS=ios)     ! QEF_TAIL=0: engine only
+      CALL qef_getenv('QEF_TAIL', s, STATUS=ios)     ! QEF_TAIL=0: engine only
       IF (ios == 0 .AND. TRIM(s) == '0') tail_flag = 0
     ENDIF
     sth_tail_on = (tail_flag == 1)

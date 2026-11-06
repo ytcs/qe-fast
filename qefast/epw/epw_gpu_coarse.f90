@@ -13,6 +13,7 @@
 ! No QE modules: plain arrays in and out (like qefast/sth/sth_engine.f90).
 !
 MODULE epw_gpu_coarse
+  USE qef_config, ONLY : qef_getenv
   USE cudafor
   USE cufft
   USE cublas_v2
@@ -103,7 +104,7 @@ CONTAINS
   LOGICAL FUNCTION egc_prof_on()
     CHARACTER(LEN=8) :: ev
     IF (.NOT. prof_read) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_PROF', ev)
+      CALL qef_getenv('QEF_EPW_PROF', ev)
       prof = TRIM(ev) == '1'
       prof_read = .TRUE.
     ENDIF
@@ -259,9 +260,9 @@ CONTAINS
   LOGICAL FUNCTION egc_fdx_on()
     CHARACTER(LEN=8) :: ev
     IF (.NOT. fdx_read) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_FDX', ev)
+      CALL qef_getenv('QEF_EPW_FDX', ev)
       fdx_req = TRIM(ev) == '1'
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_FDX_CHECK', ev)
+      CALL qef_getenv('QEF_EPW_FDX_CHECK', ev)
       fdx_chk = fdx_req .AND. TRIM(ev) == '1'
       fdx_read = .TRUE.
     ENDIF

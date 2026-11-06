@@ -6,6 +6,7 @@
 ! or http://www.gnu.org/copyleft/gpl.txt .
 !
 MODULE dv_of_drho_lr
+  USE qef_config, ONLY : qef_getenv
 
 PUBLIC :: dv_of_drho
 PUBLIC :: dv_of_drho_xc
@@ -320,7 +321,7 @@ subroutine dv_of_drho_xc (dv, drho, drhoc)
      BLOCK
        CHARACTER(LEN=16) :: sv
        INTEGER :: ios
-       CALL get_environment_variable('QEF_DVXC_GPU', sv, STATUS=ios)
+       CALL qef_getenv('QEF_DVXC_GPU', sv, STATUS=ios)
        qef_dvxc_gpu = (ios == 0 .AND. TRIM(sv) == '1')
        IF (qef_dvxc_gpu) WRITE(*, '(A)') '     qef dvxc_gpu: GGA response kernel (dgradcorr) on the device'
      END BLOCK

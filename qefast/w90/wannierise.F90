@@ -21,6 +21,7 @@
 !------------------------------------------------------------!
 
 module w90_wannierise
+  USE qef_config, ONLY : qef_getenv
   !! Main routines for the minimisation of the spread
 
   use w90_constants
@@ -427,7 +428,7 @@ contains
       character(len=16) :: ntval
       integer :: ios_nt
       qef_wnt = 1
-      call get_environment_variable('QEF_W90_WNT', ntval, status=ios_nt)
+      CALL qef_getenv('QEF_W90_WNT', ntval, status=ios_nt)
       if (ios_nt == 0) then
         read (ntval, *, iostat=ios_nt) qef_wnt
         if (ios_nt /= 0) qef_wnt = 1

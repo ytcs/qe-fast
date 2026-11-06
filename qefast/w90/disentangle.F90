@@ -19,6 +19,7 @@
 !------------------------------------------------------------!
 
 module w90_disentangle
+  USE qef_config, ONLY : qef_getenv
   !! This module contains the core routines to extract an optimal
   !! subspace from a set of entangled bands.
 
@@ -1603,7 +1604,7 @@ contains
 
     if (timing_level > 1 .and. on_root) call io_stopwatch('dis: extract', 1)
     nthr = 1
-    call get_environment_variable('QEF_W90_NT', ntval, status=ios_nt)
+    CALL qef_getenv('QEF_W90_NT', ntval, status=ios_nt)
     if (ios_nt == 0) then
       read (ntval, *, iostat=ios_nt) nthr
       if (ios_nt /= 0) nthr = 1

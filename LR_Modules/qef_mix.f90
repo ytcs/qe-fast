@@ -14,6 +14,7 @@
 ! criterion; only the path changes.
 !
 MODULE qef_mix
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -30,7 +31,7 @@ CONTAINS
     INTEGER :: ios
     REAL(DP) :: v
     qef_mix_q0 = 0.d0
-    CALL get_environment_variable('QEF_MIX_Q0', s, STATUS=ios)
+    CALL qef_getenv('QEF_MIX_Q0', s, STATUS=ios)
     IF (ios /= 0) RETURN
     READ(s, *, IOSTAT=ios) v
     IF (ios == 0 .AND. v > 0.d0) qef_mix_q0 = v

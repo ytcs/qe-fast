@@ -336,6 +336,7 @@ END SUBROUTINE reduce_base_real
 !
 !----------------------------------------------------------------------------
 SUBROUTINE reduce_base_real( dim, ps, comm, root )
+  USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------------
   !
   ! ... sums a distributed variable ps(dim) over the processors.
@@ -383,7 +384,7 @@ SUBROUTINE reduce_base_real( dim, ps, comm, root )
   ! over the whole array instead of dim/maxb chunked calls through a buffer (as QE_ENABLE_MPI_INPLACE builds do).
   ! Only multi-rank communicators reach this point (nproc <= 1 returned above). Default off.
   IF (.NOT. qef_rd) THEN
-     CALL GET_ENVIRONMENT_VARIABLE('QEF_MP_INPLACE', qef_ev)
+     CALL qef_getenv('QEF_MP_INPLACE', qef_ev)
      qef_inplace = TRIM(qef_ev) == '1'
      qef_rd = .TRUE.
   ENDIF

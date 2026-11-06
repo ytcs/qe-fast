@@ -10,6 +10,7 @@
   !
   !----------------------------------------------------------------------
   MODULE wannierization
+    USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------
   !!
   !! This module contains routines related to the control of the Wannier90 run
@@ -176,7 +177,7 @@
       IF (dis_froz_max <  9000) WRITE(iuwinfil, '("dis_froz_max = ", f18.12)') dis_froz_max
       ! qe-fast (groups/compute/EPW4-LOG.md): QEF_W90_NITER=n overrides num_iter (default: the input's num_iter)
       qef_niter = num_iter
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_NITER', qef_ev)
+      CALL qef_getenv('QEF_W90_NITER', qef_ev)
       IF (LEN_TRIM(qef_ev) > 0) THEN
         READ(qef_ev, *, IOSTAT = qef_ios) qef_niter
         IF (qef_ios /= 0 .OR. qef_niter < 0) qef_niter = num_iter
@@ -223,7 +224,7 @@
       ! so wannier90 skips its plotting stage (H(R) and the _hr.dat, which EPW never reads). Default off.
       ! Without write_hr wannier90 also leaves the .bvec file empty, which vmebloch2wan reads: NOHR acts only
       ! together with QEF_EPW_NOVME (which skips vmebloch2wan), and is ignored otherwise.
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_NOHR', qef_ev)
+      CALL qef_getenv('QEF_W90_NOHR', qef_ev)
       qef_nohr = TRIM(qef_ev) == '1' .AND. qef_novme()
       IF (TRIM(qef_ev) == '1' .AND. .NOT. qef_nohr) &
         WRITE(stdout, '(5x,a)') 'qef: QEF_W90_NOHR ignored (needs QEF_EPW_NOVME=1: the .bvec file is written with write_hr)'

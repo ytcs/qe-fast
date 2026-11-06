@@ -14,6 +14,7 @@
 ! fixed order (deterministic).
 !
 MODULE epw_gpu_eliash
+  USE qef_config, ONLY : qef_getenv
   USE cudafor
   USE cublas_v2
   IMPLICIT NONE
@@ -768,7 +769,7 @@ CONTAINS
     uniform = uniform .AND. (n2 == 2 * nsiw)
     ! Default: low-rank GEMM path (uniform grid). QEF_EPW_ELIASH_KERNEL=1 selects the direct
     ! kernel k_fsr; 4 or 5 the register-window variants k_fsr4/k_fsr5.
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_ELIASH_KERNEL', envval)
+    CALL qef_getenv('QEF_EPW_ELIASH_KERNEL', envval)
     IF (uniform .AND. TRIM(envval) /= '1' .AND. TRIM(envval) /= '4' .AND. TRIM(envval) /= '5') THEN
       lrok = (pit == lr_pit .AND. nsiw == lr_nsiw)
       IF (.NOT. lrok .AND. .NOT. (pit == lr_fail_pit .AND. nsiw == lr_fail_nsiw)) THEN
@@ -782,7 +783,7 @@ CONTAINS
       ENDIF
       IF (lrok) THEN
         CALL lr_iter(nkl, nkfs, nb, nsiw, naz, az, ad)
-        CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_ELIASH_CHECK', envval)
+        CALL qef_getenv('QEF_EPW_ELIASH_CHECK', envval)
         IF (TRIM(envval) /= '1') RETURN
         ! check mode: also run k_fsr on the same input and report the max relative differences
         ALLOCATE(chk_n(nsiw, nb, nkl), chk_z(nsiw, nb, nkl), chk_d(nsiw, nb, nkl))

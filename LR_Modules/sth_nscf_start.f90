@@ -15,6 +15,7 @@
 ! Then c_k'(tr S m - G0) = c_k(m) (tr = +1) or conj(c_k(m)) (tr = -1), m the Miller indices.
 !
 MODULE sth_nscf_start
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -51,7 +52,7 @@ CONTAINS
     !
     CALL nscf_start_free()
     ! on by default (passed the nscf gate on the full B1 smoke); QEF_NSCF_ROT=0 restores vanilla
-    CALL get_environment_variable('QEF_NSCF_ROT', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_ROT', s, STATUS=ios)
     IF (ios == 0 .AND. TRIM(s) == '0') RETURN
     IF (noncolin .OR. gamma_only .OR. lsda .OR. nproc_bgrp /= 1) RETURN
     CALL start_clock('nscf_rot')
@@ -201,7 +202,7 @@ CONTAINS
     CHARACTER(LEN=32) :: s
     INTEGER :: ios
     nscf_ethr_scale = 1.0_DP
-    CALL get_environment_variable('QEF_NSCF_ETHR_SCALE', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_ETHR_SCALE', s, STATUS=ios)
     IF (ios == 0 .AND. LEN_TRIM(s) > 0) READ(s, *, IOSTAT=ios) nscf_ethr_scale
     IF (ios /= 0 .OR. nscf_ethr_scale <= 0) nscf_ethr_scale = 1.0_DP
   END FUNCTION nscf_ethr_scale

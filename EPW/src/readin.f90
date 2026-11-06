@@ -11,6 +11,7 @@
   ! Adapted from the code PH/phq_readin - Quantum-ESPRESSO group
   !-----------------------------------------------------------------------
   SUBROUTINE readin()
+    USE qef_config, ONLY : qef_getenv
   !-----------------------------------------------------------------------
   !!
   !! This routine reads the control variables for the program epw.
@@ -1067,7 +1068,7 @@
   ! re-reading it from disk for every fine q (etf_mem = 1). Same interpolation, cuBLAS instead
   ! of per-record ZAXPY. QEF_EPW_ETFMEM=keep restores the input value.
   IF (etf_mem == 1 .AND. (.NOT. lfast_kmesh)) THEN
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_ETFMEM', qef_env)
+    CALL qef_getenv('QEF_EPW_ETFMEM', qef_env)
     IF (TRIM(qef_env) /= 'keep') THEN
       etf_mem = 0
       WRITE(stdout, '(/5x, a)') 'qef: etf_mem = 1 -> 0 (GPU build: epmatwp kept in memory)'

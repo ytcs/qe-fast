@@ -13,6 +13,7 @@
 ! igk_* hold FFT linear indices dffts%nl(igk_k(:,ik)), 1-based, length npw / npwq.
 !
 MODULE sth_dump
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -99,10 +100,10 @@ CONTAINS
     !
     ncall = ncall + 1
     active = .FALSE.
-    CALL get_environment_variable('QEF_STH_DUMP', dir, STATUS=ios)
+    CALL qef_getenv('QEF_STH_DUMP', dir, STATUS=ios)
     IF (ios /= 0 .OR. LEN_TRIM(dir) == 0) RETURN
     want = 2
-    CALL get_environment_variable('QEF_STH_DUMP_CALL', s, STATUS=ios)
+    CALL qef_getenv('QEF_STH_DUMP_CALL', s, STATUS=ios)
     IF (ios == 0) READ(s, *) want
     IF (ncall /= want) RETURN
     IF (noncolin .OR. lsda .OR. okvan .OR. npool > 1 .OR. nproc_bgrp > 1 .OR. nspin_mag /= 1) THEN

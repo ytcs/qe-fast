@@ -13,6 +13,7 @@
 ! adds this term. Norm-conserving, collinear, no DFT+U, no elph_mat; otherwise the vanilla path runs.
 !
 MODULE qef_phq_fuse
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   USE qef_vkb, ONLY : vkb_batch     ! moved to LR_Modules (QEF_STH_KDEV uses it too); same code
   IMPLICIT NONE
@@ -39,7 +40,7 @@ CONTAINS
     INTEGER :: ios
     phq_fuse_on = .FALSE.
 #if defined(__CUDA)
-    CALL get_environment_variable('QEF_PHQ_FUSE', s, STATUS=ios)
+    CALL qef_getenv('QEF_PHQ_FUSE', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
     IF (noncolin .OR. okvan .OR. lda_plus_u .OR. elph_mat .OR. lsda .OR. nproc_bgrp /= 1 .OR. nkb == 0) RETURN
     phq_fuse_on = .TRUE.
@@ -151,7 +152,7 @@ CONTAINS
     !! QEF_PHQ_VKB=1 (with QEF_PHQ_FUSE=1): phq_init's k loop in chunks, vkb of a whole chunk in one set of kernels
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
-    CALL get_environment_variable('QEF_PHQ_VKB', s, STATUS=ios)
+    CALL qef_getenv('QEF_PHQ_VKB', s, STATUS=ios)
     phq_vkb_on = (ios == 0 .AND. TRIM(s) == '1')
   END FUNCTION phq_vkb_on
   !

@@ -11,6 +11,7 @@
   !
   !----------------------------------------------------------------------
   MODULE pw2wan
+    USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------
   !!
   !! This module contains routine to go from PW results to Wannier90 to EPW
@@ -26,7 +27,7 @@
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_IDLEWAIT', ev)
+      CALL qef_getenv('QEF_EPW_IDLEWAIT', ev)
       on = TRIM(ev) == '1'
       rd = .TRUE.
     ENDIF
@@ -79,7 +80,7 @@
     CHARACTER(LEN = 512) :: gf
     LOGICAL :: ex
     INTEGER :: rc
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_GOFILE', gf)
+    CALL qef_getenv('QEF_EPW_GOFILE', gf)
     IF (LEN_TRIM(gf) == 0) RETURN
     !$acc init
     DO
@@ -2239,10 +2240,10 @@
       !
     ENDIF
     !
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_MMN', fev)
+    CALL qef_getenv('QEF_W90_MMN', fev)
     fmmn = TRIM(fev) == '1' .AND. .NOT. noncolin .AND. .NOT. any_uspp .AND. &
            dffts%nnr == dffts%nr1x * dffts%nr2x * dffts%nr3x
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_MMN_CHECK', fev)
+    CALL qef_getenv('QEF_W90_MMN_CHECK', fev)
     fmmn_chk = fmmn .AND. TRIM(fev) == '1'
     dfm = 0.d0; mfm = 0.d0
     IF (fmmn) THEN
@@ -3270,7 +3271,7 @@
     qg(:) = DSQRT(qg(:)) * tpiba
     !
     ! RM changed according to QE4.0.3/PP/pw2wannier90
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_W90_AMN', fev)
+    CALL qef_getenv('QEF_W90_AMN', fev)
     famn = TRIM(fev) == '1'
     alpha_c = -1.d0; rw_c = -1
     DO iw = 1, n_proj

@@ -26,6 +26,7 @@
 ! computed with h_psi and their maxima printed (exactness check of the rotation, phases and time reversal).
 !
 MODULE sth_nscf_symrot
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -79,7 +80,7 @@ CONTAINS
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
     symrot_on = .FALSE.
-    CALL get_environment_variable('QEF_NSCF_SYMROT', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_SYMROT', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
     ! single pool / band group: the cache must see every k of the list
     IF (noncolin .OR. gamma_only .OR. lsda .OR. nproc_bgrp /= 1 .OR. npool /= 1 .OR. lda_plus_u) RETURN
@@ -117,7 +118,7 @@ CONTAINS
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
     symrot_pw_on = .FALSE.
-    CALL get_environment_variable('QEF_PW_SYMROT', s, STATUS=ios)
+    CALL qef_getenv('QEF_PW_SYMROT', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
     symrot_pw_on = symrot_ok()
   END FUNCTION symrot_pw_on
@@ -139,7 +140,7 @@ CONTAINS
     CHARACTER(LEN=32) :: s
     INTEGER :: ios
     symrot_pw_tight = 1.0_DP
-    CALL get_environment_variable('QEF_PW_SYMROT_TIGHT', s, STATUS=ios)
+    CALL qef_getenv('QEF_PW_SYMROT_TIGHT', s, STATUS=ios)
     IF (ios == 0 .AND. LEN_TRIM(s) > 0) READ(s, *, IOSTAT=ios) symrot_pw_tight
     IF (ios /= 0 .OR. symrot_pw_tight <= 0) symrot_pw_tight = 1.0_DP
   END FUNCTION symrot_pw_tight
@@ -147,7 +148,7 @@ CONTAINS
   LOGICAL FUNCTION symrot_pw_check_on()
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
-    CALL get_environment_variable('QEF_PW_SYMROT_CHECK', s, STATUS=ios)
+    CALL qef_getenv('QEF_PW_SYMROT_CHECK', s, STATUS=ios)
     symrot_pw_check_on = (ios == 0 .AND. TRIM(s) == '1')
   END FUNCTION symrot_pw_check_on
   !
@@ -155,7 +156,7 @@ CONTAINS
     CHARACTER(LEN=32) :: s
     INTEGER :: ios
     symrot_tight = 0.01_DP
-    CALL get_environment_variable('QEF_NSCF_SYMROT_TIGHT', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_SYMROT_TIGHT', s, STATUS=ios)
     IF (ios == 0 .AND. LEN_TRIM(s) > 0) READ(s, *, IOSTAT=ios) symrot_tight
     IF (ios /= 0 .OR. symrot_tight <= 0) symrot_tight = 0.01_DP
   END FUNCTION symrot_tight
@@ -163,7 +164,7 @@ CONTAINS
   LOGICAL FUNCTION symrot_check_on()
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
-    CALL get_environment_variable('QEF_NSCF_SYMROT_CHECK', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_SYMROT_CHECK', s, STATUS=ios)
     symrot_check_on = (ios == 0 .AND. TRIM(s) == '1')
   END FUNCTION symrot_check_on
   !
@@ -445,12 +446,12 @@ CONTAINS
     CALL h_reset(tl)
     IF (tc%cap == 0) THEN
       CALL h_reset(tc)
-      CALL get_environment_variable('QEF_NSCF_SYMROT_PREFER_FT', sv, STATUS=ios)
+      CALL qef_getenv('QEF_NSCF_SYMROT_PREFER_FT', sv, STATUS=ios)
       prefer_ft = (ios == 0 .AND. TRIM(sv) == '1')
       nsr = nsym_cur
       sr(:, :, 1:nsr) = s_cur(:, :, 1:nsr)
       ftr(:, 1:nsr) = ft_cur(:, 1:nsr)
-      CALL get_environment_variable('QEF_NSCF_SYMROT_REVOPS', sv, STATUS=ios)
+      CALL qef_getenv('QEF_NSCF_SYMROT_REVOPS', sv, STATUS=ios)
       rev_ops = (ios == 0 .AND. TRIM(sv) == '1')
     ENDIF
     IF (npos /= dfftp%nr1 * dfftp%nr2 * dfftp%nr3) THEN

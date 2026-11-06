@@ -25,6 +25,7 @@ MODULE environment
   USE fox_init_module, ONLY: fox_init
   USE command_line_options, ONLY : nmany_
   USE clib_wrappers, ONLY : get_mem_avail
+  USE qef_config, ONLY : qef_report
 #if defined(__HDF5)
   USE qeh5_base_module,   ONLY: initialize_hdf5, finalize_hdf5
 #endif
@@ -117,6 +118,7 @@ CONTAINS
     END IF
     !
     CALL opening_message( code_version )
+    IF ( meta_ionode ) CALL qef_report( stdout )
 #if defined(__MPI)
     CALL parallel_info ( )
 #else

@@ -8,6 +8,7 @@
 !
 !------------------------------------------------------------------------------
 MODULE dfpt_kernels
+  USE qef_config, ONLY : qef_getenv
 IMPLICIT NONE
 CONTAINS
 SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
@@ -255,14 +256,14 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    BLOCK
      CHARACTER(LEN=32) :: sv
      INTEGER :: ios
-     CALL get_environment_variable('QEF_THRESH_L', sv, STATUS=ios)
+     CALL qef_getenv('QEF_THRESH_L', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_l
      IF (ios /= 0) xl_l = 1.d0
-     CALL get_environment_variable('QEF_THRESH_G', sv, STATUS=ios)
+     CALL qef_getenv('QEF_THRESH_G', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_g
      IF (ios /= 0) xl_g = 1.d2
      xl_eta = 0.d0
-     CALL get_environment_variable('QEF_STH_ETA', sv, STATUS=ios)
+     CALL qef_getenv('QEF_STH_ETA', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_eta
      IF (ios /= 0) xl_eta = 0.d0
    END BLOCK

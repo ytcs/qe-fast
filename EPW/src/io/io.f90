@@ -10,6 +10,7 @@
   !
   !----------------------------------------------------------------------
   MODULE io
+    USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------
   !!
   !! This module contains various writing or reading routines to files.
@@ -26,7 +27,7 @@
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_NOWRITE', ev)
+      CALL qef_getenv('QEF_EPW_NOWRITE', ev)
       on = TRIM(ev) == '1'
       rd = .TRUE.
     ENDIF
@@ -45,7 +46,7 @@
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_NOVME', ev)
+      CALL qef_getenv('QEF_EPW_NOVME', ev)
       on = TRIM(ev) == '1' .AND. ephwrite .AND. eliashberg .AND. .NOT. lpolar .AND. .NOT. epwread
       rd = .TRUE.
     ENDIF

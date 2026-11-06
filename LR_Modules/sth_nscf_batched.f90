@@ -10,6 +10,7 @@
 ! Davidson (isolve = 0), one band group, serial FFT, no restart inside the nscf.
 !
 MODULE sth_nscf_batched
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -64,11 +65,11 @@ CONTAINS
 #endif
     !
 #if defined(__CUDA)
-    CALL get_environment_variable('QEF_STH', s, STATUS=ios)
+    CALL qef_getenv('QEF_STH', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
-    CALL get_environment_variable('QEF_NSCF_BATCH', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_BATCH', s, STATUS=ios)
     IF (ios == 0 .AND. TRIM(s) == '0') RETURN
-    CALL get_environment_variable('QEF_STRICT', s, STATUS=ios)
+    CALL qef_getenv('QEF_STRICT', s, STATUS=ios)
     strict = (ios == 0 .AND. TRIM(s) == '1')
     unsup = ik_ /= 0 .OR. isolve /= 0 .OR. david < 2
     unsup = unsup .OR. okvan .OR. noncolin .OR. npol /= 1 .OR. lsda .OR. lda_plus_u .OR. gamma_only

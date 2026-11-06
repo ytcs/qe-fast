@@ -33,6 +33,7 @@
 ! the NVHPC runtime keeps after DEALLOCATE, and prints one line with the q's device-memory high-water.
 !
 MODULE sth_batched
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -76,7 +77,7 @@ CONTAINS
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
     sth_env_flag = .FALSE.
-    CALL get_environment_variable(name, s, STATUS=ios)
+    CALL qef_getenv(name, s, STATUS=ios)
     IF (ios == 0) sth_env_flag = (TRIM(s) == '1')
   END FUNCTION sth_env_flag
   !
@@ -158,7 +159,7 @@ CONTAINS
     CHARACTER(LEN=32) :: s
     INTEGER :: ios
     REAL(DP) :: v
-    CALL get_environment_variable(name, s, STATUS=ios)
+    CALL qef_getenv(name, s, STATUS=ios)
     IF (ios /= 0 .OR. LEN_TRIM(s) == 0) RETURN
     READ(s, *, IOSTAT=ios) v
     IF (ios == 0) val = v
@@ -169,7 +170,7 @@ CONTAINS
     CHARACTER(LEN=16) :: s
     INTEGER :: ios, v
     sth_env_int = 0
-    CALL get_environment_variable(name, s, STATUS=ios)
+    CALL qef_getenv(name, s, STATUS=ios)
     IF (ios /= 0) RETURN
     READ(s, *, IOSTAT=ios) v
     IF (ios == 0) sth_env_int = v
@@ -808,7 +809,7 @@ CONTAINS
       ! (|K_irr| eigendecompositions for one q); CG is kept there unless QEF_STH_CBSR_GAMMA=1
       sth_cbsr_skip = .FALSE.
       IF (lgamma) THEN
-        CALL get_environment_variable('QEF_STH_CBSR_GAMMA', sv, STATUS=ios)
+        CALL qef_getenv('QEF_STH_CBSR_GAMMA', sv, STATUS=ios)
         sth_cbsr_skip = .NOT. (ios == 0 .AND. TRIM(sv) == '1')
       ENDIF
       IF (.NOT. lgamma .AND. .NOT. qp_done) THEN

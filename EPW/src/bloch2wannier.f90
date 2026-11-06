@@ -9,6 +9,7 @@
   !
   !----------------------------------------------------------------------
   MODULE bloch2wannier
+    USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------
   !!
   !! Contains all the routines that transforms quantities from Bloch space
@@ -26,7 +27,7 @@
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_B2W', ev)
+      CALL qef_getenv('QEF_EPW_B2W', ev)
       on = TRIM(ev) == '1'
       rd = .TRUE.
     ENDIF
@@ -41,7 +42,7 @@
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_B2WG', ev)
+      CALL qef_getenv('QEF_EPW_B2WG', ev)
       on = TRIM(ev) == '1'
 #if !defined (__CUDA)
       on = .FALSE.

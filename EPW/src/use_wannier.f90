@@ -11,6 +11,7 @@
   !----------------------------------------------------------------------
   SUBROUTINE use_wannier(dims, dims2, nrr_k, irvec_k, ndegen_k, wslen_k, nrr_q, &
                          irvec_q, ndegen_q, wslen_q, nrr_g, irvec_g, ndegen_g, wslen_g)
+    USE qef_config, ONLY : qef_getenv
   !---------------------------------------------------------------------
   !!
   !! Wannier interpolation of electron-phonon vertex
@@ -1098,7 +1099,7 @@
         ! qe-fast: vmef (Wannier velocities) is read only by transport, self-energy, spectral,
         ! absorption, polaron, nesting, adaptive-smearing and printing code; an Eliashberg /
         ! ephwrite run never reads it, so skip vmewan2bloch_batch then. QEF_EPW_VME=1 forces it.
-        CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_VME', qef_env)
+        CALL qef_getenv('QEF_EPW_VME', qef_env)
         qef_need_vme = (TRIM(qef_env) == '1') .OR. (.NOT. ephwrite) .OR. elecselfen .OR. phonselfen &
           .OR. plselfen .OR. specfun_el .OR. specfun_ph .OR. specfun_pl .OR. scattering &
           .OR. iterative_bte .OR. lindabs .OR. loptabs .OR. adapt_smearing .OR. prtvkk .OR. nest_fn &
@@ -1107,7 +1108,7 @@
         ! QEF_EPW_QBATCH=0 restores the per-q call
         qef_batchp = .FALSE.
 #if defined(__CUDA)
-        CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_QBATCH', qef_env)
+        CALL qef_getenv('QEF_EPW_QBATCH', qef_env)
         qef_batchp = (TRIM(qef_env) /= '0') .AND. (etf_mem == 0) .AND. (.NOT. lfast_kmesh) &
                       .AND. (.NOT. lopt_w2b) .AND. (.NOT. longrange_only)
 #endif
@@ -1976,7 +1977,7 @@ CONTAINS
   why = ' '
 #if defined(__CUDA)
   v = ' '
-  CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_FINE', v)
+  CALL qef_getenv('QEF_EPW_FINE', v)
   IF (TRIM(v) == '0') RETURN
   IF (.NOT. ephwrite) RETURN
   IF (etf_mem /= 0) why = 'etf_mem /= 0'

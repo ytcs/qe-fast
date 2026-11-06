@@ -11,6 +11,7 @@
   !
   !----------------------------------------------------------------------
   MODULE ep_coarse
+    USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------
   !!
   !! This module contains routines for the EPC computed on the coarse grid.
@@ -42,11 +43,11 @@
     !! qe-fast: QEF_EPW_STAR=1 and the all-modes GPU path of ep_coarse_compute applies
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. star_read) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_STAR', ev)
+      CALL qef_getenv('QEF_EPW_STAR', ev)
       star_req = TRIM(ev) == '1'
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_STAR_CHECK', ev)
+      CALL qef_getenv('QEF_EPW_STAR_CHECK', ev)
       star_chk = star_req .AND. TRIM(ev) == '1'
-      CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_STAR_FB', ev)
+      CALL qef_getenv('QEF_EPW_STAR_FB', ev)
       IF (LEN_TRIM(ev) > 0) READ(ev, *, ERR = 10) star_fbk
 10    CONTINUE
       star_read = .TRUE.
@@ -393,7 +394,7 @@
     CHARACTER(LEN = 16) :: envval
     ep_coarse_gpu_ok = .FALSE.
 #if defined (__CUDA)
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_COARSE', envval)
+    CALL qef_getenv('QEF_EPW_COARSE', envval)
     ep_coarse_gpu_ok = (TRIM(envval) /= '0') .AND. (.NOT. okvan) .AND. (.NOT. noncolin) .AND. &
                        (.NOT. lda_plus_u) .AND. (TRIM(lsda) == 'none') .AND. (npol == 1)
 #endif
@@ -1203,9 +1204,9 @@
         ! nonlocal part on the GPU too (QEF_EPW_NL=0 keeps the host code below)
         BLOCK
           CHARACTER(LEN = 16) :: ev
-          CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_NL', ev)
+          CALL qef_getenv('QEF_EPW_NL', ev)
           nl_gpu = (TRIM(ev) /= '0') .AND. nkb > 0
-          CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_BEC', ev)
+          CALL qef_getenv('QEF_EPW_BEC', ev)
           bec_gpu = nl_gpu .AND. TRIM(ev) == '1' .AND. .NOT. noncolin .AND. lower_band == 1 .AND. upper_band == nbndep
           IF (bec_gpu) ALLOCATE(kgk(npwx, 3))
         END BLOCK

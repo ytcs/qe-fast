@@ -8,6 +8,7 @@
 !
 !----------------------------------------------------------------------------
 SUBROUTINE phq_readin()
+  USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------------
   !! This routine reads the control variables for the program \(\texttt{phononq}\).
   !! A second routine, \(\texttt{read_file_ph}\), reads the variables saved to file
@@ -417,7 +418,7 @@ SUBROUTINE phq_readin()
     CHARACTER(LEN=32) :: sv_tr2
     INTEGER :: ios_tr2
     REAL(DP) :: sc_tr2
-    CALL get_environment_variable('QEF_TR2_SCALE', sv_tr2, STATUS=ios_tr2)
+    CALL qef_getenv('QEF_TR2_SCALE', sv_tr2, STATUS=ios_tr2)
     IF (ios_tr2 == 0 .AND. LEN_TRIM(sv_tr2) > 0) THEN
       READ(sv_tr2, *, IOSTAT=ios_tr2) sc_tr2
       IF (ios_tr2 == 0 .AND. sc_tr2 > 0.d0) THEN

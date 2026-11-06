@@ -10,6 +10,7 @@
   !
   !----------------------------------------------------------------------
   MODULE supercond_aniso
+    USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------
   !!
   !! This module contains all the subroutines linked with superconductivity using
@@ -6166,7 +6167,7 @@
     CHARACTER(LEN = *), INTENT(IN) :: name
     CHARACTER(LEN = 16) :: v
     v = ' '
-    CALL GET_ENVIRONMENT_VARIABLE(name, v)
+    CALL qef_getenv(name, v)
     qef_opt = (TRIM(v) /= '0')
     END FUNCTION qef_opt
     !
@@ -6305,7 +6306,7 @@
     CHARACTER(LEN = 16) :: v
     qef_eliash_gpu = .FALSE.
 #if defined (__CUDA)
-    CALL GET_ENVIRONMENT_VARIABLE('QEF_EPW_ELIASH', v)
+    CALL qef_getenv('QEF_EPW_ELIASH', v)
     qef_eliash_gpu = (TRIM(v) /= '0') .AND. (.NOT. fbw) .AND. positive_matsu .AND. (gridsamp <= 1) &
                       .AND. (MAXVAL(nsiw(:)) <= 1024)
 #endif

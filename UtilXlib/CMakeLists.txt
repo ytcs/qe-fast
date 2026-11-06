@@ -22,6 +22,9 @@ set(src_util
 qe_enable_cuda_fortran("${src_util}")
 qe_add_library(qe_utilx ${src_util})
 
+# qe-fast switch table: no dependencies, so that the Wannier90 copy can link it too
+qe_add_library(qe_qefconfig ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/config/qef_config.f90)
+
 set(src_util_c
     cptimer.c
     copy.c
@@ -36,13 +39,14 @@ set(src_util_c
 add_library(qe_utilx_c ${src_util_c})
 target_link_libraries(qe_utilx
     PUBLIC
+        qe_qefconfig
         qe_utilx_c # cclock is exposed by the mytime module in clocks_handler
         qe_ext_prof_tool # to pass link options, PUBLIC is needed.
         qe_mpi_fortran
     PRIVATE
         qe_openmp_fortran)
 
-qe_install_targets(qe_utilx qe_utilx_c)
+qe_install_targets(qe_utilx qe_utilx_c qe_qefconfig)
 
 # Feature checks
 check_function_exists(mallinfo HAVE_MALLINFO)
