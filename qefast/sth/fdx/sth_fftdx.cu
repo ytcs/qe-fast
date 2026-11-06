@@ -1,6 +1,6 @@
 // qe-fast: pruned fused local operator on cuFFTDx (groups/compute/FFT-LOG.md). QEF_STH_FFTDX=1.
 //
-// Same mathematics and the same separable, pruned structure as qefast/sth/sth_pfft.f90 (pfft), with the 1D transforms
+// Separable and pruned, with the 1D transforms
 // replaced by size-specialised, register-resident cuFFTDx thread FFTs (one thread per line):
 //   K1 kz_inv  one thread per (z-stick, column): gather the stick's sphere coefficients (0 elsewhere), inverse z-FFT
 //              in registers, write the stick array S(stick + nst*z, j);
@@ -13,7 +13,7 @@
 // FP64 size 54 is not a native cuFFTDx size in MathDx 25.6: it is built as 2 x 27 (two native thread FFTs and one
 // radix-2 combine with __constant__ twiddles).
 //
-// Grid sizes are compile-time (FDX_GRIDS below); other grids return "unsupported" and the caller keeps pfft/cuFFT.
+// Grid sizes are compile-time (FDX_GRIDS below); other grids return "unsupported" and the caller keeps cuFFT.
 // Host entry points (extern "C", callable from Fortran BIND(C)):
 //   fdx_setup(nr, nrx, nksq, npwx, npwq, idxkq, chunk) -> 0 ok, > 0 unsupported
 //   fdx_local_d / fdx_local_s (device pointers, Fortran 1-based list/idx contents), fdx_free, fdx_info

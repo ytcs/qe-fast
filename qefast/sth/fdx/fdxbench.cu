@@ -2,11 +2,10 @@
 //   y = g2kin x + (1/N) FFT_fwd[ V(r) FFT_inv[ scatter(x) ] ](sphere) - e x   for nl columns, batched.
 // Variants, each FP64 and FP32 (the MP inner path):
 //   A  the engine's cuFFT path (k_scatter_full, cufftPlanMany 3D Z2Z/C2C batch 256, k_vmul, 3D, k_gather_h);
-//   P  pfft (qefast/sth/sth_pfft.f90 / sth_pfft_s.f90, via pfwrap.f90);
 //   D  fftdx (sth_fftdx.cu, cuFFTDx thread FFTs, pruned and fused).
 // Geometry exactly as the engine sees it: the k+q spheres |k+q+G|^2 (2 pi/a)^2 <= ecutwfc of the frozen cells
 // (B1 MgB2 hex, 60 Ry, 30x30x36; B2 Mg2IrH6 fcc, 80 Ry, 54^3) for nksq k-points drawn from the MP grid; the stick set
-// is the union over those k (as pfft_setup / fdx_setup build it).
+// is the union over those k (as fdx_setup builds it).
 //   ./fdxbench B1|B2 [nl=1024] [nslot=8] [nrep=20] [nksq: B1 666, B2 189]
 #include <cuda_runtime.h>
 #include <cufft.h>
@@ -29,12 +28,6 @@ int fdx_local_d(const void*, void*, const int*, int, int, int, int, int, int, co
                 const double*, const double*, double, cudaStream_t);
 int fdx_local_s(const void*, void*, const int*, int, int, int, int, int, int, const float*, const int*, const float*,
                 const double*, float, cudaStream_t);
-void pfw_setup(int, const int*, const int*, int, int, const int*, const int*, int, int*);
-void pfw_info(int*, int*, int*);
-void pfw_local_d(const void*, void*, const int*, int, int, int, int, int, int, const double*, const int*,
-                 const double*, const double*, double, cudaStream_t);
-void pfw_local_s(const void*, void*, const int*, int, int, int, int, int, int, const float*, const int*, const float*,
-                 const double*, float, cudaStream_t);
 }
 
 #ifdef FDX_EMU
@@ -159,22 +152,14 @@ static void fdx_local(const C2<float>* x, C2<float>* y, const int* l, int nl, in
                       const float* v, const int* npwq, const float* g2, const double* e, float sc, cudaStream_t st) {
   int r = fdx_local_s(x, y, l, nl, ns, np, npwx, nk, nb, v, npwq, g2, e, sc, st); if (r) { printf("fdx err %d\n", r); exit(1); }
 }
-static void pf_local(const C2<double>* x, C2<double>* y, const int* l, int nl, int ns, int np, int npwx, int nk, int nb,
-                     const double* v, const int* npwq, const double* g2, const double* e, double sc, cudaStream_t st) {
-  pfw_local_d(x, y, l, nl, ns, np, npwx, nk, nb, v, npwq, g2, e, sc, st);
-}
-static void pf_local(const C2<float>* x, C2<float>* y, const int* l, int nl, int ns, int np, int npwx, int nk, int nb,
-                     const float* v, const int* npwq, const float* g2, const double* e, float sc, cudaStream_t st) {
-  pfw_local_s(x, y, l, nl, ns, np, npwx, nk, nb, v, npwq, g2, e, sc, st);
-}
 
-struct Res { double us[3]; std::vector<C2<double>> y[3]; };
+struct Res { double us[2]; std::vector<C2<double>> y[2]; };
 
 // run the three variants in precision T on the same data; y returned in double for comparisons
 template <class T>
 static Res run_prec(const Geom& G, int nl, int nslot, int nrep, int nbnd, const std::vector<double>& hx,
                     const std::vector<double>& hv, const std::vector<double>& hg2, const std::vector<double>& het,
-                    const std::vector<int>& hlist, bool dopf, int nst_fdx) {
+                    const std::vector<int>& hlist, int nst_fdx) {
   Res R;
   const int npwx = G.npwx, nnr = G.nnr, nk = G.nksq;
   const size_t nx = (size_t)npwx * nl;
@@ -206,8 +191,7 @@ static Res run_prec(const Geom& G, int nl, int nslot, int nrep, int nbnd, const 
   cufftSetStream(plan, st);
   const T scale = (T)(1.0 / nnr);
   cudaEvent_t e0, e1; cudaEventCreate(&e0); cudaEventCreate(&e1);
-  for (int var = 0; var < 3; var++) {
-    if (var == 1 && !dopf) { R.us[1] = 0; continue; }
+  for (int var = 0; var < 2; var++) {
     cudaMemset(y, 0, sizeof(C2<T>) * nx);
     for (int rep = 0; rep <= nrep; rep++) {
       if (rep == 1) cudaEventRecord(e0, st);
@@ -221,8 +205,6 @@ static Res run_prec(const Geom& G, int nl, int nslot, int nrep, int nbnd, const 
           k_gather_h<T><<<dim3((npwx + 127) / 128, nb), 128, 0, st>>>(y, x, box, list, s0, nnr, npwx, nslot, 1, nbnd,
                                                                       npwq, idx, g2, et, scale);
         }
-      } else if (var == 1) {
-        pf_local(x, y, list, nl, nslot, 1, npwx, nk, nbnd, v, npwq, g2, et, scale, st);
       } else {
         fdx_local(x, y, list, nl, nslot, 1, npwx, nk, nbnd, v, npwq, g2, et, scale, st);
       }
@@ -258,7 +240,6 @@ int main(int argc, char** argv) {
   int nslot = argc > 3 ? atoi(argv[3]) : 8;
   int nrep = argc > 4 ? atoi(argv[4]) : 20;
   int nksq = argc > 5 ? atoi(argv[5]) : (!strcmp(sys, "B1") ? 666 : 189);
-  const bool dopf = !getenv("NOPF");
   Geom G = make_geom(sys, nksq, 12345);
   int nbnd = nslot;
   if ((nl + nslot - 1) / nslot > G.nksq) { printf("too many columns for nksq\n"); return 1; }
@@ -280,7 +261,7 @@ int main(int argc, char** argv) {
     std::fill(hg2.begin(), hg2.end(), 0.0); std::fill(het.begin(), het.end(), 0.0);
     printf("g2 = e = 0: y = (1/N) FFT[V FFT^-1 x] only\n");
   }
-  // geometry for pfft and fftdx
+  // geometry for fftdx
   int nst = 0, nxa = 0, pc = 0;
   int ier = fdx_setup(G.n, G.n, G.nksq, G.npwx, G.npwq.data(), G.idx.data(), 1024);
   if (ier) { printf("fdx_setup ierr %d\n", ier); return 1; }
@@ -294,12 +275,8 @@ int main(int argc, char** argv) {
          "  chunk %d  cols %d  GPU %s\n", sys, G.n[0], G.n[1], G.n[2], G.nksq, G.npwx, (double)nsph / G.nksq,
          G.box_frac_sphere, nst, G.n[0] * G.n[1], (double)nst / (G.n[0] * G.n[1]), nxa, G.n[0], pc, nl, prop.name);
   for (int prec : {8, 4}) {
-    if (dopf) {
-      pfw_setup(prec, G.n, G.n, G.nksq, G.npwx, G.npwq.data(), G.idx.data(), 1024, &ier);
-      if (ier) { printf("pfft setup ierr %d\n", ier); return 1; }
-    }
-    Res R = prec == 8 ? run_prec<double>(G, nl, nslot, nrep, nbnd, hx, hv, hg2, het, hlist, dopf, nst)
-                      : run_prec<float>(G, nl, nslot, nrep, nbnd, hx, hv, hg2, het, hlist, dopf, nst);
+    Res R = prec == 8 ? run_prec<double>(G, nl, nslot, nrep, nbnd, hx, hv, hg2, het, hlist, nst)
+                      : run_prec<float>(G, nl, nslot, nrep, nbnd, hx, hv, hg2, het, hlist, nst);
     static std::vector<C2<double>> ref;   // FP64 cuFFT chain
     if (prec == 8) ref = R.y[0];
     // modelled bytes per column (B per element = 16 FP64 / 8 FP32)
@@ -312,15 +289,14 @@ int main(int argc, char** argv) {
     fdx_occupancy(prec, occ);
     printf("\n%s  (us per column application; modelled bytes A %.2f MB, D %.2f MB)\n", prec == 8 ? "FP64" : "FP32",
            bytesA / 1e6, bytesD / 1e6);
-    const char* nm[3] = {"A cuFFT chain", "P pfft", "D fftdx"};
-    for (int v = 0; v < 3; v++) {
-      if (v == 1 && !dopf) continue;
+    const char* nm[2] = {"A cuFFT chain", "D fftdx"};
+    for (int v = 0; v < 2; v++) {
       double mx, l2, mxr, l2r;
       cmp(R.y[0], R.y[v], mx, l2);
       cmp(ref, R.y[v], mxr, l2r);
       double bw = (v == 0 ? bytesA : bytesD) / (R.us[v] * 1e-6) / 1e9;
       printf("  %-14s %8.2f us  x%5.2f vs A   %7.0f GB/s   vs A(same prec) max %.2e L2 %.2e   vs A64 max %.2e L2 %.2e\n",
-             nm[v], R.us[v], R.us[0] / R.us[v], v == 1 ? 0.0 : bw, mx, l2, mxr, l2r);
+             nm[v], R.us[v], R.us[0] / R.us[v], bw, mx, l2, mxr, l2r);
     }
     printf("  fftdx occupancy (warps/SM of %d, regs): kz_inv %d/%d  kxy %d/%d  kz_fwd %d/%d\n",
            prop.maxThreadsPerMultiProcessor / 32, occ[0], occ[1], occ[2], occ[3], occ[4], occ[5]);

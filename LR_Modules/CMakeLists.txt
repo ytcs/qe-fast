@@ -86,9 +86,7 @@ set(sources
     dfpt_kernels.f90)
 if(QE_ENABLE_CUDA)
     # qe-fast: batched Sternheimer engine (CUDA Fortran, cuFFT, cuBLAS); used by sth_batched.f90
-    list(PREPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/sth_pfft.f90
-                         ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/sth_pfft_s.f90
-                         ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/sth_engine.f90
+    list(PREPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/sth_engine.f90
                          ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/sth/nscf_engine.f90)
 endif()
 qe_enable_cuda_fortran("${sources}")

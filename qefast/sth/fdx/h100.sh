@@ -4,7 +4,7 @@
 #   curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/main/qefast/sth/fdx/h100.sh | bash
 # or pipe this file over ssh. Results go to /root/fdx-h100/ (and are printed). Does NOT save any cache archive.
 set -uo pipefail
-SHA=${SHA:-fftdx}; ARCH=${ARCH:-90}
+SHA=${SHA:-main}; ARCH=${ARCH:-90}
 OUT=${OUT:-/root/fdx-h100}; mkdir -p $OUT; cd $OUT
 exec > >(tee -a $OUT/h100.log) 2>&1
 echo "== $(date -u +%H:%M:%S) start, ref $SHA"
@@ -18,23 +18,23 @@ apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git 
 [ -d src ] || git clone -q --depth 1 -b $SHA https://github.com/ytcs/qe-fast.git src 2>/dev/null || {
   # fallback: only the files the harness needs
   mkdir -p src/qefast/sth/fdx
-  for f in qefast/sth/sth_pfft.f90 qefast/sth/sth_pfft_s.f90 qefast/sth/fdx/{sth_fftdx.cu,fdxbench.cu,pfwrap.f90,gemmbench.cu,build.sh,deps.sh}; do
+  for f in qefast/sth/fdx/{sth_fftdx.cu,fdxbench.cu,gemmbench.cu,build.sh,deps.sh}; do
     curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/$SHA/$f -o src/$f; done; chmod +x src/qefast/sth/fdx/*.sh; }
 (cd src && git log --oneline -1 2>/dev/null)
 eval "$(FDX_DEPS=/root/qefast/fdxdeps src/qefast/sth/fdx/deps.sh)"
 MDX=$MDX CUTLASS=$CUTLASS src/qefast/sth/fdx/build.sh $ARCH 2>&1 | grep -v Wno | tail -8
 BIN=src/qefast/sth/fdx/build
 echo "== ptxas (registers / spills, sm_$ARCH)"; grep -E "registers|spill" $BIN/ptxas.txt | paste - - | sed -E 's/ +/ /g' | cut -c1-200
-echo "== $(date -u +%H:%M:%S) fdxbench (A cuFFT chain, P pfft, D fftdx; FP64 then FP32; us per column application)"
+echo "== $(date -u +%H:%M:%S) fdxbench (A cuFFT chain, D fftdx; FP64 then FP32; us per column application)"
 for s in B1 B2; do $BIN/fdxbench $s 1024 8 20; done
 echo "== repeat (spread), B2 x3"
-for r in 1 2 3; do NOPF=1 $BIN/fdxbench B2 1024 8 20 | grep -E "A cuFFT|D fftdx"; done
+for r in 1 2 3; do $BIN/fdxbench B2 1024 8 20 | grep -E "A cuFFT|D fftdx"; done
 echo "== batch 4096 columns"
-for s in B1 B2; do NOPF=1 $BIN/fdxbench $s 4096 8 10 | grep -E "^B|FP|A cuFFT|D fftdx"; done
+for s in B1 B2; do $BIN/fdxbench $s 4096 8 10 | grep -E "^B|FP|A cuFFT|D fftdx"; done
 echo "== split-line plane kernel (FDX_SPLIT=1)"
-for s in B1 B2; do FDX_SPLIT=1 NOPF=1 $BIN/fdxbench $s 1024 8 20 | grep -E "FP|D fftdx|occupancy"; done
+for s in B1 B2; do FDX_SPLIT=1 $BIN/fdxbench $s 1024 8 20 | grep -E "FP|D fftdx|occupancy"; done
 echo "== per-kernel ablation (FDX_ONLY=1 kz_inv, 2 kxy, 3 kz_fwd)"
-for s in B1 B2; do for o in 1 2 3; do echo "-- $s kernel $o"; FDX_ONLY=$o NOPF=1 $BIN/fdxbench $s 1024 8 20 | grep "D fftdx"; done; done
+for s in B1 B2; do for o in 1 2 3; do echo "-- $s kernel $o"; FDX_ONLY=$o $BIN/fdxbench $s 1024 8 20 | grep "D fftdx"; done; done
 echo "== dense V(G-G') as a GEMM (item 7)"
 $BIN/gemmbench
 echo "== $(date -u +%H:%M:%S) phase 1 done"

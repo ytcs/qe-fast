@@ -27,8 +27,6 @@ MODULE sth_engine
   USE cufft
   USE cublas_v2
   USE cusolverDn
-  USE sth_pfft, ONLY : pfft_setup, pfft_free, pfft_local, pfft_ok, pfft_info
-  USE sth_pfft_s, ONLY : pfs_setup, pfs_free, pfs_local, pfs_ok
   USE iso_c_binding, ONLY : c_int, c_double, c_float
   IMPLICIT NONE
   PRIVATE
@@ -47,7 +45,7 @@ MODULE sth_engine
             sth_engine_set_dpsi, sth_engine_setup, sth_engine_solve, sth_engine_get_dpsi, &
             sth_engine_get_hdiag, sth_engine_set_hdiag, sth_engine_reset_dpsi, sth_engine_free, sth_engine_shutdown, &
             sth_weights, sth_engine_ready, sth_engine_irrep, sth_engine_irrep_commit, sth_engine_qready, &
-            sth_engine_becs, sth_mem_trim, sth_mem_sample, sth_mem_take_hw, sth_engine_xp_set, &
+            sth_engine_becs, sth_mem_trim, sth_mem_sample, sth_mem_take_hw, &
             sth_engine_set_nlk, sth_engine_build_dvb, sth_engine_dvb_check, &
             sth_engine_kqg_ready, sth_engine_set_kqg, sth_engine_set_wdev, sth_engine_wdev, sth_engine_cbsr_map, &
             sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op, &
@@ -68,7 +66,7 @@ MODULE sth_engine
   !
   ! cuFFTDx pruned fused local operator (qefast/sth/fdx/sth_fftdx.cu; groups/compute/FFT-LOG.md), QEF_STH_FFTDX=1.
   ! Built when CMake finds MathDx (QEF_MATHDX_INC, QEF_CUTLASS_INC); otherwise a stub whose fdx_setup returns
-  ! "unsupported" and the engine keeps pfft / cuFFT.
+  ! "unsupported" and the engine keeps cuFFT.
   INTERFACE
     INTEGER(c_int) FUNCTION fdx_setup(nr, nrx, nksq, npwx, npwq, idxkq, chunk) BIND(C, name='fdx_setup')
       IMPORT :: c_int
@@ -152,12 +150,6 @@ MODULE sth_engine
   REAL(dp), PUBLIC, SAVE :: sth_r0med = 0, sth_t_gemm = 0, sth_t_fft = 0
   LOGICAL, PUBLIC, SAVE :: sth_prof = .FALSE.      ! sync inside apply_op to time GEMMs vs FFTs
   !
-  ! qe-fast dpsi extrapolation across the SCF iterations of one irrep (QEF_STH_XP, SOLVE-LOG.md).
-  ! dpsi(dV_in) is affine in dV_in (one fixed operator per column), so when the adapter finds
-  ! dV_in(k) - dV_in(k-1) ~ sum_j c_j [dV_in(j) - dV_in(j-1)], the solution moves by about
-  ! sum_j c_j [dpsi(j) - dpsi(j-1)]. The call starts CG from dpsi(k-1) + that sum and solves to the
-  ! unchanged thresh, so only the starting point changes. History of dpsi increments: pinned host
-  ! memory (sth_xp_m slots); one extra device column array holds dpsi at the start of a call.
   ! relative stopping test for non-final SCF calls (QEF_STH_ETA, set per call by the adapter): a column
   ! also stops when its residual has fallen below sth_eta x its residual at the first test; 0 = off
   REAL(dp), PUBLIC, SAVE :: sth_eta = 0.0_dp
@@ -170,24 +162,14 @@ MODULE sth_engine
   INTEGER(8), SAVE :: trn_rechk = 0, trn_fail = 0
   REAL(dp), PUBLIC, SAVE :: sth_dfloor = 1.0e-4_dp
   REAL(dp), DEVICE, ALLOCATABLE :: d_etkq(:,:)
-  INTEGER, PUBLIC, SAVE :: sth_xp_m = 0            ! history slots; 0 = off (set before irrep commit)
-  INTEGER, SAVE :: xp_nc = 0, xp_rec = 0, xp_slot(16) = 0
-  COMPLEX(dp), SAVE :: xp_c(16) = (0.0_dp, 0.0_dp)
-  COMPLEX(dp), PINNED, ALLOCATABLE, SAVE :: h_xh(:,:,:)
-  COMPLEX(dp), DEVICE, ALLOCATABLE :: d_xp(:,:)
   INTEGER, PUBLIC, SAVE :: sth_bmax = 256          ! FFT chunk (largest batch); set before init
   INTEGER, PUBLIC, SAVE :: sth_debug_slot = 0      ! >0: print the CG history of this slot
   INTEGER, PUBLIC, SAVE :: sth_opvar = 0           ! testing: 1 = (g2 - e) x + Vx (same operator, other rounding)
   INTEGER, PUBLIC, SAVE :: sth_rb = 128            ! threads per column reduction (power of 2, <= 256)
-  ! pruned fused local operator (qefast/sth/sth_pfft.f90; KERNEL-LOG lever 1), set before setup (per q).
-  ! sth_pfft_check: at the first operator application of each q, run the cuFFT path too and print the
-  ! difference of the local part (diagnostic; costs one extra application).
-  LOGICAL, PUBLIC, SAVE :: sth_pfft_req = .FALSE., sth_pfft_check = .FALSE.
-  LOGICAL, SAVE :: pfft_checked = .FALSE.
-  ! cuFFTDx variant (takes precedence over pfft when both are requested and the grid is supported);
-  ! sth_fftdx_check: as sth_pfft_check, for fftdx against the cuFFT path
+  ! cuFFTDx variant, set before setup (per q). sth_fftdx_check: at the first operator application of each q, run the
+  ! cuFFT path too and print the difference of the local part (diagnostic; costs one extra application).
   LOGICAL, PUBLIC, SAVE :: sth_fftdx_req = .FALSE., sth_fftdx_check = .FALSE.
-  LOGICAL, SAVE :: fdx_on = .FALSE.
+  LOGICAL, SAVE :: fdx_on = .FALSE., fdx_checked = .FALSE.
   ! qe-fast (groups/compute/AMDAHL-LOG.md), set before setup (per q):
   ! sth_fdxdp_req (QEF_STH_FDXDP): apply_dpot, the DVB local part and incdrhoscf's inverse FFT on the pruned fftdx path
   !   (needs fdx_on); sth_fdxdp_check: at the first non-trivial call of each q, run the box path too and print the
@@ -279,25 +261,6 @@ MODULE sth_engine
   COMPLEX(sp), DEVICE, ALLOCATABLE :: s_W(:,:,:), s_dmat(:,:), s_box(:,:)
   COMPLEX(sp), DEVICE, ALLOCATABLE :: s_e(:,:), s_g(:,:), s_h(:,:), s_t(:,:), s_cf(:,:), s_cf2(:,:)
   !
-  ! qe-fast LIFT-F preconditioner (QEF_STH_LIFT = E_c' in Ry, 0 = off; groups/theory/returns/M3/1.md with the referee
-  ! corrections of referees/M3/1-A.md and 1-B.md; SOLVE-LOG.md "LIFT-F canary"). FP64 CG path only (not under MP).
-  ! Per k+q (fixed for the whole q): coarse set L = {G : |k+q+G|^2 < E_c'} (N' = |L|), H = the rest. All energies are
-  ! referred to V0 = the G = 0 component of vrs (gauge-free: A' = A~ - V0, e~_n = e_n - V0), A~ = H_kq + alpha_pv P_v.
-  !   Y_H = -T_H^-1 A~_HL ;  S0 = A'_LL - A~_LH T_H^-1 A~_HL + alpha Z Z^H, Z = Y_H^H Psi_v,H (the alpha P_v part of
-  !   the dropped remainder, kept exactly) ;  B0 = I + Y_H^H Y_H ;  S0 C = B0 C Lambda, C^H B0 C = I ;  Q = Y C.
-  ! M_n^-1 g = Q diag(1/max(Lambda - e~_n, delta)) Q^H g + D_n g, D_n = 1/max(T_G - e~_n, T_G/2) on H, 0 on L.
-  ! The stopping test stays sqrt(<g|h_diag|g>) < thresh; rho = <g|M^-1 g>. Q is stored in FP32 by chunks of k+q
-  ! (device-resident when they fit, else pinned host chunks streamed per application; QEF_STH_LIFT_KCHUNK forces it).
-  REAL(dp), PUBLIC, SAVE :: sth_lift = 0.0_dp, sth_lift_delta = 0.02_dp
-  INTEGER, PUBLIC, SAVE :: sth_lift_nmax = 1500, sth_lift_kchunk = 0
-  REAL(dp), PUBLIC, SAVE :: sth_t_lbuild = 0, sth_t_lapply = 0
-  INTEGER, PUBLIC, SAVE :: sth_lift_ncol = 0, sth_lift_nclamp = 0, sth_lift_nout = 0
-  ! LIFT-F v2 (QEF_STH_LIFT_FB=1; SOLVE-LOG.md "LIFT-F v2" pre-registration): per-column fallback to TPA (h_diag) where the
-  ! pencil's lowest value is unreliable: no computed empty band at k+q (a), g_n <= 0 (b), clamp (c), or
-  ! (Lambda_1 - e~_n)/g_n outside [1/3, 3] (d). lok(n, k) = 1: LIFT-F; 0: TPA. Fixed per q.
-  INTEGER, PUBLIC, SAVE :: sth_lift_fb = 0
-  INTEGER, PUBLIC, SAVE :: sth_lift_nfb(4) = 0
-  INTEGER, DEVICE, ALLOCATABLE :: d_lok(:,:)
   !
   ! qe-fast CBSR (QEF_STH_CBSR=1; SOLVE-LOG.md "CBSR canary" and session 4 "production"). Exact spectral solve of the engine's
   ! own system A~ = H_kq + alpha_pv P_v (nscf evq, energy zero V0): A~ - V0 = U Lambda U^H, and each SCF call replaces the
@@ -412,12 +375,6 @@ MODULE sth_engine
   INTEGER, ALLOCATABLE, SAVE :: h_kdop(:,:,:)       ! (12, 2, nksq): S (9), G0 (3)
   LOGICAL, SAVE :: kd_v2 = .FALSE.
   COMPLEX(dp), ALLOCATABLE, SAVE :: h_kdph(:,:,:)
-  LOGICAL, SAVE :: lift_q = .FALSE., lift_stream = .FALSE.
-  INTEGER, SAVE :: lift_nm = 0, lift_kc = 0
-  REAL(dp), SAVE :: lift_v0 = 0.0_dp
-  COMPLEX(sp), DEVICE, ALLOCATABLE :: d_lq(:,:,:), d_lg(:,:), d_lz(:,:), d_lc(:,:)
-  COMPLEX(sp), PINNED, ALLOCATABLE, SAVE :: h_lq(:,:,:)
-  REAL(dp), DEVICE, ALLOCATABLE :: d_llam(:,:), d_lt(:,:)
   !
 CONTAINS
   !
@@ -477,19 +434,6 @@ CONTAINS
       i = i + INT(blockDim%x, 8) * gridDim%x
     ENDDO
   END SUBROUTINE k_sub
-  !
-  ATTRIBUTES(GLOBAL) SUBROUTINE k_axpyc(y, x, a, n)
-    ! y = y + a x
-    INTEGER(8), VALUE :: n
-    COMPLEX(dp), VALUE :: a
-    COMPLEX(dp) :: y(n), x(n)
-    INTEGER(8) :: i
-    i = (blockIdx%x - 1) * blockDim%x + threadIdx%x
-    DO WHILE (i <= n)
-      y(i) = y(i) + a * x(i)
-      i = i + INT(blockDim%x, 8) * gridDim%x
-    ENDDO
-  END SUBROUTINE k_axpyc
   !
   ATTRIBUTES(GLOBAL) SUBROUTINE k_izero(a, n)
     INTEGER(8), VALUE :: n
@@ -874,119 +818,6 @@ CONTAINS
       ENDIF
     ENDDO
   END SUBROUTINE k_check_defl
-  !
-  ATTRIBUTES(GLOBAL) SUBROUTINE k_check_lift(list, nslot, npert, npwx, nksq, npwq, hd, g, h, rho, conv, &
-                                             cnt, ethr, first, eta, r0, nst, z, lt, etk, nbnd, v0, lok)
-    ! k_check with the LIFT-F preconditioner: z = Q W_n Q^H g (FP32, lift_apply), M^-1 g = z + D_n g.
-    ! Stopping test unchanged (sqrt(<g|h_diag|g>) < thresh); rho = <g|M^-1 g>; h = -M^-1 g + gam h_old.
-    INTEGER, VALUE :: nslot, npert, npwx, nksq, first, nbnd
-    REAL(dp), VALUE :: ethr, eta, v0
-    INTEGER :: list(*), npwq(nksq), conv(*), cnt(*), nst(*)
-    REAL(dp) :: hd(npwx, nslot, nksq), rho(*), r0(*), lt(npwx, nksq), etk(nbnd, nksq)
-    INTEGER :: lok(nslot, nksq)
-    COMPLEX(dp) :: g(npwx, *), h(npwx, *)
-    COMPLEX(sp) :: z(npwx, *)
-    REAL(dp), SHARED :: red(RB), red2(RB)
-    REAL(dp), SHARED :: gam
-    INTEGER, SHARED :: cvd
-    INTEGER :: s, k, n, ig, nq, tid, st, istat, ok
-    REAL(dp) :: acc, acc2, rn, en, t, dn
-    COMPLEX(dp) :: gv, mv
-    tid = threadIdx%x
-    s = list(blockIdx%x)
-    k = (s - 1) / (nslot * npert) + 1
-    n = MOD(s - 1, nslot) + 1
-    nq = npwq(k)
-    en = etk(n, k) - v0
-    ok = lok(n, k)
-    acc = 0.0_dp
-    acc2 = 0.0_dp
-    DO ig = tid, nq, blockDim%x
-      gv = g(ig, s)
-      acc = acc + hd(ig, n, k) * (REAL(gv, dp)**2 + AIMAG(gv)**2)
-      IF (ok == 1) THEN
-        t = lt(ig, k)
-        dn = 0.0_dp
-        IF (t > 0.0_dp) dn = 1.0_dp / MAX(t - en, 0.5_dp * t)
-        mv = CMPLX(z(ig, s), KIND=dp) + dn * gv
-      ELSE
-        mv = gv * hd(ig, n, k)
-      ENDIF
-      acc2 = acc2 + REAL(gv, dp) * REAL(mv, dp) + AIMAG(gv) * AIMAG(mv)
-    ENDDO
-    red(tid) = acc
-    red2(tid) = acc2
-    CALL syncthreads()
-    st = blockDim%x / 2
-    DO WHILE (st > 0)
-      IF (tid <= st) THEN
-        red(tid) = red(tid) + red(tid + st)
-        red2(tid) = red2(tid) + red2(tid + st)
-      ENDIF
-      CALL syncthreads()
-      st = st / 2
-    ENDDO
-    IF (tid == 1) THEN
-      rn = red(1)
-      istat = atomicadd(cnt((s - 1) / nslot + 1), 1)
-      IF (first == 1) r0(s) = SQRT(rn)
-      IF (first == 1) THEN
-        nst(s) = 1
-      ELSE
-        nst(s) = nst(s) + 1
-      ENDIF
-      IF (SQRT(rn) < MAX(ethr, eta * r0(s))) THEN
-        conv(s) = 1
-        cvd = 1
-      ELSE
-        cvd = 0
-        IF (first == 1) THEN
-          gam = 0.0_dp
-        ELSE
-          gam = red2(1) / rho(s)
-        ENDIF
-        rho(s) = red2(1)
-      ENDIF
-    ENDIF
-    CALL syncthreads()
-    IF (cvd == 1) RETURN
-    DO ig = tid, nq, blockDim%x
-      gv = g(ig, s)
-      IF (ok == 1) THEN
-        t = lt(ig, k)
-        dn = 0.0_dp
-        IF (t > 0.0_dp) dn = 1.0_dp / MAX(t - en, 0.5_dp * t)
-        mv = CMPLX(z(ig, s), KIND=dp) + dn * gv
-      ELSE
-        mv = gv * hd(ig, n, k)
-      ENDIF
-      IF (first == 1) THEN
-        h(ig, s) = -mv
-      ELSE
-        h(ig, s) = -mv + gam * h(ig, s)
-      ENDIF
-    ENDDO
-  END SUBROUTINE k_check_lift
-  !
-  ATTRIBUTES(GLOBAL) SUBROUTINE k_lift_scale(c, lam, etk, nm, nbnd, nslot, ncolk, k0, ntot, v0, delta)
-    ! c(j, sc) /= max(Lambda_j(k) - (e_n(k) - V0), delta) on the chunk's columns sc = k0*ncolk + 1 .. (k0+nk)*ncolk
-    INTEGER, VALUE :: nm, nbnd, nslot, ncolk, k0
-    INTEGER(8), VALUE :: ntot
-    REAL(dp), VALUE :: v0, delta
-    COMPLEX(sp) :: c(nm, *)
-    REAL(dp) :: lam(nm, *), etk(nbnd, *)
-    INTEGER(8) :: i
-    INTEGER :: j, sc, k, n
-    i = INT(blockIdx%x - 1, 8) * blockDim%x + threadIdx%x
-    DO WHILE (i <= ntot)
-      j = INT(MOD(i - 1, INT(nm, 8))) + 1
-      sc = INT((i - 1) / nm) + 1 + k0 * ncolk
-      k = (sc - 1) / ncolk + 1
-      n = MOD(sc - 1, nslot) + 1
-      c(j, sc) = c(j, sc) * REAL(1.0_dp / MAX(lam(j, k) - (etk(n, k) - v0), delta), sp)
-      i = i + INT(blockDim%x, 8) * gridDim%x
-    ENDDO
-  END SUBROUTINE k_lift_scale
   !
   ATTRIBUTES(GLOBAL) SUBROUTINE k_kd_rot(w, evc, rwf, rep, tr, ft, map, ph, npwq, npw, nock, npwx, nproj, nkb, nbnd, &
                                        nslot, ldr, nbr, nksq)
@@ -2181,7 +2012,7 @@ CONTAINS
     !! need (optional): the setup's own estimate (bytes), printed with psir_cached
     CHARACTER(LEN=*), INTENT(IN) :: tag
     INTEGER(8), INTENT(IN), OPTIONAL :: need
-    INTEGER(8) :: freeb, totb, bw, bev, bps, bbx, bhd, bix, binv, bkq, bg2, bnl, bcol, bcf, bpsx, bdv, bxp, bsp, bcb, bsum
+    INTEGER(8) :: freeb, totb, bw, bev, bps, bbx, bhd, bix, binv, bkq, bg2, bnl, bcol, bcf, bpsx, bdv, bsp, bcb, bsum
     INTEGER :: istat, ios
     CHARACTER(LEN=8) :: sv
     LOGICAL, SAVE :: first = .TRUE., on = .FALSE.
@@ -2194,7 +2025,7 @@ CONTAINS
     IF (.NOT. on) RETURN
     istat = cudaMemGetInfo(freeb, totb)
     bw = 0; bev = 0; bps = 0; bbx = 0; bhd = 0; bix = 0; binv = 0; bkq = 0; bg2 = 0; bnl = 0
-    bcol = 0; bcf = 0; bpsx = 0; bdv = 0; bxp = 0; bsp = 0; bcb = 0
+    bcol = 0; bcf = 0; bpsx = 0; bdv = 0; bsp = 0; bcb = 0
     IF (ALLOCATED(d_W)) bw = 16_8 * SIZE(d_W, KIND=8)
     IF (ALLOCATED(d_evc)) bev = 16_8 * SIZE(d_evc, KIND=8)
     IF (ALLOCATED(d_psir)) bps = 16_8 * SIZE(d_psir, KIND=8)
@@ -2212,7 +2043,6 @@ CONTAINS
     IF (ALLOCATED(d_cf)) bcf = 16_8 * (SIZE(d_cf, KIND=8) + SIZE(d_cf2, KIND=8))
     IF (ALLOCATED(d_ps)) bpsx = 16_8 * SIZE(d_ps, KIND=8)
     IF (ALLOCATED(d_dv)) bdv = 16_8 * (SIZE(d_dv, KIND=8) + SIZE(d_drho, KIND=8))
-    IF (ALLOCATED(d_xp)) bxp = 16_8 * SIZE(d_xp, KIND=8)
     IF (ALLOCATED(s_W)) bsp = 8_8 * (SIZE(s_W, KIND=8) + SIZE(s_box, KIND=8)) + 4_8 * (SIZE(s_hd, KIND=8) + SIZE(s_g2, KIND=8))
     IF (ALLOCATED(s_e)) bsp = bsp + 8_8 * (SIZE(s_e, KIND=8) + SIZE(s_g, KIND=8) + SIZE(s_h, KIND=8) + SIZE(s_t, KIND=8) &
                                            + SIZE(s_cf, KIND=8) + SIZE(s_cf2, KIND=8))
@@ -2226,18 +2056,18 @@ CONTAINS
         IF (ALLOCATED(cb_tmp(istat)%u32)) bcb = bcb + 8_8 * SIZE(cb_tmp(istat)%u32, KIND=8)
       ENDDO
     ENDIF
-    bsum = bw + bev + bps + bbx + bhd + bix + binv + bkq + bg2 + bnl + bcol + bcf + bpsx + bdv + bxp + bsp + bcb
+    bsum = bw + bev + bps + bbx + bhd + bix + binv + bkq + bg2 + bnl + bcol + bcf + bpsx + bdv + bsp + bcb
     WRITE(*, '(A,A,A,8I8,I10)') '     qef memlog ', tag, ' dims npwx nslot npert nksq nnr nproj nbnd bmax nbox:', &
          npwx, nslot, npert, nksq, nnr, nproj, nbnd, sth_bmax, nbox
     IF (PRESENT(need)) WRITE(*, '(A,A,A,F8.3,A,L2,A,F8.3)') '     qef memlog ', tag, ' need GiB', REAL(need, dp) / g, &
          ' psir_cached', psir_cached, ' free GiB', REAL(freeb, dp) / g
     WRITE(*, '(A,A,A,3F8.3)') '     qef memlog ', tag, ' GiB used hw engine_sum:', &
          REAL(totb - freeb, dp) / g, REAL(MAX(mem_hw, totb - freeb), dp) / g, REAL(bsum, dp) / g
-    WRITE(*, '(A,A,A,17F8.3)') '     qef memlog ', tag, &
-         ' GiB W evc psir box hd+wwg idx inv kqg g2 db+da cols6 cf+cf2 ps dv+drho xp fp32 cbsr:', &
+    WRITE(*, '(A,A,A,16F8.3)') '     qef memlog ', tag, &
+         ' GiB W evc psir box hd+wwg idx inv kqg g2 db+da cols6 cf+cf2 ps dv+drho fp32 cbsr:', &
          REAL(bw, dp) / g, REAL(bev, dp) / g, REAL(bps, dp) / g, REAL(bbx, dp) / g, REAL(bhd, dp) / g, REAL(bix, dp) / g, &
          REAL(binv, dp) / g, REAL(bkq, dp) / g, REAL(bg2, dp) / g, REAL(bnl, dp) / g, REAL(bcol, dp) / g, REAL(bcf, dp) / g, &
-         REAL(bpsx, dp) / g, REAL(bdv, dp) / g, REAL(bxp, dp) / g, REAL(bsp, dp) / g, REAL(bcb, dp) / g
+         REAL(bpsx, dp) / g, REAL(bdv, dp) / g, REAL(bsp, dp) / g, REAL(bcb, dp) / g
   END SUBROUTINE sth_mem_log
   !
   REAL(dp) FUNCTION wtime()
@@ -2430,11 +2260,6 @@ CONTAINS
     IF (fdx_on) THEN
       ip = fdx_local_s(x, y, list, nl, nslot, npert, npwx, nksq, nbnd, s_vrs, d_npwq, s_g2, d_etk, scale, strm)
       IF (ip /= 0) CALL errore_stop('fdx_local_s', ip)
-      CALL gemm_back_s(s_cf2, y)
-      RETURN
-    ENDIF
-    IF (pfs_ok()) THEN
-      CALL pfs_local(x, y, list, nl, nslot, npert, npwx, nksq, nbnd, s_vrs, d_npwq, s_g2, d_etk, scale, strm)
       CALL gemm_back_s(s_cf2, y)
       RETURN
     ENDIF
@@ -2886,343 +2711,6 @@ CONTAINS
     DEALLOCATE(d_r2, a, b)
   END SUBROUTINE dr_compare
   !
-  SUBROUTINE lift_free()
-    IF (ALLOCATED(d_lq)) DEALLOCATE(d_lq)
-    IF (ALLOCATED(h_lq)) DEALLOCATE(h_lq)
-    IF (ALLOCATED(d_llam)) DEALLOCATE(d_llam, d_lt)
-    IF (ALLOCATED(d_lg)) DEALLOCATE(d_lg, d_lz, d_lc)
-    IF (ALLOCATED(d_lok)) DEALLOCATE(d_lok)
-    lift_q = .FALSE.
-    lift_stream = .FALSE.
-  END SUBROUTINE lift_free
-  !
-  SUBROUTINE lift_build()
-    !! LIFT-F factor for every k+q of this q (host build from the staged h_W, h_g2, h_idxkq; see the header).
-    !! Runs inside sth_engine_setup, after make_plans and before h_W is released. On any problem it prints why
-    !! and leaves lift_q = .FALSE. (the TPA path is used).
-    INTEGER :: ik, nq, nl, nh, i, j, ig, jg, nocc, info, lwork, istat, a1, a2, a3, b1, b2, b3, kc
-    INTEGER :: nlmin, nlmax, ncap
-    INTEGER(8) :: freeb, totb, qbytes, work, avail
-    REAL(dp) :: t0, en, gn, r, lmin, rmin, rmax
-    REAL(dp), ALLOCATABLE :: lam(:), rwork(:), rr(:)
-    COMPLEX(dp), ALLOCATABLE :: vg(:), acol(:,:), x(:,:), yh(:,:), s0(:,:), b0(:,:), z(:,:), cw(:), pl(:,:), &
-                                psil(:,:), psih(:,:), qk(:,:)
-    INTEGER, ALLOCATABLE :: lidx(:), hidx(:), m3(:,:), nlk(:)
-    REAL(dp), ALLOCATABLE :: hlam(:,:), hlt(:,:)
-    INTEGER, ALLOCATABLE :: hlok(:,:)
-    INTEGER :: nr_rr, nlok
-    LOGICAL :: w_staged
-    EXTERNAL :: zgemm, zhegv
-    t0 = wtime()
-    CALL lift_free()
-    sth_lift_ncol = 0; sth_lift_nclamp = 0; sth_lift_nout = 0; sth_lift_nfb = 0
-    ! QCACHE stages W straight into d_W (no host h_W): copy it back to the host for the build
-    w_staged = .FALSE.
-    IF (.NOT. ALLOCATED(h_W)) THEN
-      ALLOCATE(h_W(npwx, nproj, nksq))
-      CALL tsync()
-      h_W = d_W
-      w_staged = .TRUE.
-    ENDIF
-    IF (ANY(nrx /= nr)) THEN
-      WRITE(*, '(A)') '     qef lift: padded FFT box (nrx /= nr) not supported; TPA kept'
-      IF (w_staged) DEALLOCATE(h_W)
-      RETURN
-    ENDIF
-    ! V(G) = (1/N) sum_r vrs(r) e^{-iGr} on the box (CUFFT_FORWARD), exactly the matrix elements of apply_op
-    CALL k_r2c<<<4096, TPB, 0, strm>>>(d_box, d_vrs, INT(nnr, 8))
-    CALL kerr('r2c (lift)')
-    CALL fft_exec(0, d_box, CUFFT_FORWARD)
-    ALLOCATE(vg(nnr))
-    CALL tsync()
-    vg = d_box(:, 1)
-    vg = vg / REAL(nr(1) * nr(2) * nr(3), dp)
-    CALL zero_c(d_box, INT(nnr, 8))
-    lift_v0 = REAL(vg(1), dp)
-    ! coarse sets
-    ALLOCATE(nlk(nksq))
-    ncap = 0
-    DO ik = 1, nksq
-      nlk(ik) = COUNT(h_g2(1:h_npwq(ik), ik) < sth_lift)
-      IF (nlk(ik) > sth_lift_nmax) THEN
-        nlk(ik) = sth_lift_nmax
-        ncap = ncap + 1
-      ENDIF
-    ENDDO
-    lift_nm = MAXVAL(nlk)
-    nlmin = MINVAL(nlk); nlmax = lift_nm
-    IF (nlmin < 1) THEN
-      WRITE(*, '(A)') '     qef lift: empty coarse set at some k+q; TPA kept'
-      DEALLOCATE(vg, nlk)
-      IF (w_staged) DEALLOCATE(h_W)
-      RETURN
-    ENDIF
-    ! storage by k chunks
-    istat = cudaMemGetInfo(freeb, totb)
-    qbytes = 8_8 * npwx * lift_nm * nksq
-    work = (16_8 * npwx + 8_8 * lift_nm) * nslot * MAXPERT * nksq + 16_8 * npwx * nslot * MAXPERT * nksq * 8
-    avail = freeb - 3_8 * 1024_8**3 / 2 - work
-    kc = sth_lift_kchunk
-    IF (kc <= 0) THEN
-      IF (qbytes <= avail) THEN
-        kc = nksq
-      ELSE
-        kc = INT(MAX(1_8, avail / (8_8 * npwx * lift_nm)))
-      ENDIF
-    ENDIF
-    lift_kc = MIN(kc, nksq)
-    lift_stream = lift_kc < nksq
-    IF (lift_stream) THEN
-      ALLOCATE(h_lq(npwx, lift_nm, nksq), d_lq(npwx, lift_nm, lift_kc))
-    ELSE
-      ALLOCATE(h_lq(npwx, lift_nm, nksq), d_lq(npwx, lift_nm, nksq))
-    ENDIF
-    h_lq = (0.0_sp, 0.0_sp)
-    ALLOCATE(hlam(lift_nm, nksq), hlt(npwx, nksq), rr(nslot * nksq), hlok(nslot, nksq))
-    hlok = 1
-    hlam = 1.0e30_dp
-    hlt = 0.0_dp
-    rr = 0.0_dp
-    nr_rr = 0
-    lmin = HUGE(1.0_dp)
-    ! Miller triplets of the box points
-    ALLOCATE(m3(3, nnr))
-    DO i = 1, nnr
-      m3(1, i) = MOD(i - 1, nr(1))
-      m3(2, i) = MOD((i - 1) / nr(1), nr(2))
-      m3(3, i) = (i - 1) / (nr(1) * nr(2))
-    ENDDO
-    DO ik = 1, nksq
-      nq = h_npwq(ik)
-      nl = nlk(ik)
-      nh = nq - nl
-      nocc = h_nockq(ik)
-      ALLOCATE(lidx(nl), hidx(MAX(nh, 1)))
-      j = 0; i = 0
-      DO ig = 1, nq
-        IF (h_g2(ig, ik) < sth_lift .AND. j < nl) THEN
-          j = j + 1
-          lidx(j) = ig
-        ELSE
-          i = i + 1
-          hidx(i) = ig
-          hlt(ig, ik) = h_g2(ig, ik)
-        ENDIF
-      ENDDO
-      ! A~(:, L): local V(G - G') + kinetic (- V0 on the diagonal) + nonlocal + alpha P_v
-      ALLOCATE(acol(nq, nl))
-      DO j = 1, nl
-        jg = lidx(j)
-        b1 = m3(1, h_idxkq(jg, ik)); b2 = m3(2, h_idxkq(jg, ik)); b3 = m3(3, h_idxkq(jg, ik))
-        DO ig = 1, nq
-          a1 = MODULO(m3(1, h_idxkq(ig, ik)) - b1, nr(1))
-          a2 = MODULO(m3(2, h_idxkq(ig, ik)) - b2, nr(2))
-          a3 = MODULO(m3(3, h_idxkq(ig, ik)) - b3, nr(3))
-          acol(ig, j) = vg(1 + a1 + nr(1) * (a2 + nr(2) * a3))
-        ENDDO
-        acol(jg, j) = acol(jg, j) + h_g2(jg, ik) - lift_v0
-      ENDDO
-      IF (nkb > 0) THEN
-        ALLOCATE(pl(nl, nkb), x(nkb, nl))
-        DO j = 1, nl
-          pl(j, :) = h_W(lidx(j), 1:nkb, ik)
-        ENDDO
-        BLOCK
-          COMPLEX(dp), ALLOCATABLE :: dm(:,:)
-          ALLOCATE(dm(nkb, nkb))
-          dm = d_dmat
-          CALL zgemm('N', 'C', nkb, nl, nkb, (1.0_dp, 0.0_dp), dm, nkb, pl, nl, (0.0_dp, 0.0_dp), x, nkb)
-          DEALLOCATE(dm)
-        END BLOCK
-        CALL zgemm('N', 'N', nq, nl, nkb, (1.0_dp, 0.0_dp), h_W(1, 1, ik), npwx, x, nkb, (1.0_dp, 0.0_dp), acol, nq)
-        DEALLOCATE(pl, x)
-      ENDIF
-      ALLOCATE(psil(nl, MAX(nocc, 1)), psih(MAX(nh, 1), MAX(nocc, 1)))
-      DO j = 1, nl
-        psil(j, 1:nocc) = h_W(lidx(j), nkb + 1:nkb + nocc, ik)
-      ENDDO
-      DO i = 1, nh
-        psih(i, 1:nocc) = h_W(hidx(i), nkb + 1:nkb + nocc, ik)
-      ENDDO
-      IF (nocc > 0) CALL zgemm('N', 'C', nq, nl, nocc, CMPLX(alpha_pv, 0.0_dp, KIND=dp), h_W(1, nkb + 1, ik), npwx, &
-                               psil, nl, (1.0_dp, 0.0_dp), acol, nq)
-      ! S0 = A'_LL + A~_HL^H Y_H + alpha Z Z^H ; B0 = I + Y_H^H Y_H
-      ALLOCATE(s0(nl, nl), b0(nl, nl), yh(MAX(nh, 1), nl), z(nl, MAX(nocc, 1)), lam(nl))
-      DO j = 1, nl
-        DO i = 1, nl
-          s0(i, j) = acol(lidx(i), j)
-        ENDDO
-        DO i = 1, nh
-          yh(i, j) = -acol(hidx(i), j) / h_g2(hidx(i), ik)
-        ENDDO
-      ENDDO
-      b0 = (0.0_dp, 0.0_dp)
-      IF (nh > 0) THEN
-        ! acol(H rows) is no longer needed apart from this product: reuse it compactly
-        BLOCK
-          COMPLEX(dp), ALLOCATABLE :: ahl(:,:)
-          ALLOCATE(ahl(nh, nl))
-          DO j = 1, nl
-            DO i = 1, nh
-              ahl(i, j) = acol(hidx(i), j)
-            ENDDO
-          ENDDO
-          CALL zgemm('C', 'N', nl, nl, nh, (1.0_dp, 0.0_dp), ahl, nh, yh, nh, (1.0_dp, 0.0_dp), s0, nl)
-          DEALLOCATE(ahl)
-        END BLOCK
-        IF (nocc > 0) THEN
-          CALL zgemm('C', 'N', nl, nocc, nh, (1.0_dp, 0.0_dp), yh, nh, psih, nh, (0.0_dp, 0.0_dp), z, nl)
-          CALL zgemm('N', 'C', nl, nl, nocc, CMPLX(alpha_pv, 0.0_dp, KIND=dp), z, nl, z, nl, (1.0_dp, 0.0_dp), s0, nl)
-        ENDIF
-        CALL zgemm('C', 'N', nl, nl, nh, (1.0_dp, 0.0_dp), yh, nh, yh, nh, (0.0_dp, 0.0_dp), b0, nl)
-      ENDIF
-      DO i = 1, nl
-        b0(i, i) = b0(i, i) + 1.0_dp
-      ENDDO
-      s0 = 0.5_dp * (s0 + TRANSPOSE(CONJG(s0)))
-      b0 = 0.5_dp * (b0 + TRANSPOSE(CONJG(b0)))
-      lwork = MAX(1, 4 * nl)
-      ALLOCATE(cw(lwork), rwork(MAX(1, 3 * nl - 2)))
-      CALL zhegv(1, 'V', 'U', nl, s0, nl, b0, nl, lam, cw, lwork, rwork, info)
-      DEALLOCATE(cw, rwork)
-      IF (info /= 0) THEN
-        WRITE(*, '(A,I6,A,I6,A)') '     qef lift: zhegv info ', info, ' at k+q ', ik, '; TPA kept'
-        DEALLOCATE(lidx, hidx, acol, psil, psih, s0, b0, yh, z, lam, vg, nlk, m3, hlam, hlt, rr, hlok)
-        IF (w_staged) DEALLOCATE(h_W)
-        CALL lift_free()
-        RETURN
-      ENDIF
-      ! Q = Y C: rows L = C, rows H = Y_H C
-      ALLOCATE(qk(MAX(nh, 1), nl))
-      IF (nh > 0) CALL zgemm('N', 'N', nh, nl, nl, (1.0_dp, 0.0_dp), yh, nh, s0, nl, (0.0_dp, 0.0_dp), qk, nh)
-      DO j = 1, nl
-        DO i = 1, nl
-          h_lq(lidx(i), j, ik) = CMPLX(s0(i, j), KIND=sp)
-        ENDDO
-        DO i = 1, nh
-          h_lq(hidx(i), j, ik) = CMPLX(qk(i, j), KIND=sp)
-        ENDDO
-      ENDDO
-      hlam(1:nl, ik) = lam(1:nl)
-      lmin = MIN(lmin, lam(1))
-      ! diagnostics per valid column (k, n <= nocc_k): clamp; lowest pencil gap against the true lowest gap
-      DO i = 1, h_nock(ik)
-        en = h_etk(i, ik) - lift_v0
-        sth_lift_ncol = sth_lift_ncol + 1
-        ! v2 criterion, in the pre-registered order: (a) no empty band, (b) g_n <= 0, (c) clamp, (d) ratio
-        IF (nocc >= nbnd) THEN
-          hlok(i, ik) = 0
-          sth_lift_nfb(1) = sth_lift_nfb(1) + 1
-        ELSE
-          gn = MIN(h_etkq(nocc + 1, ik), h_etkq(1, ik) + alpha_pv) - h_etk(i, ik)
-          IF (gn <= 0.0_dp) THEN
-            hlok(i, ik) = 0
-            sth_lift_nfb(2) = sth_lift_nfb(2) + 1
-          ELSEIF (lam(1) - en < sth_lift_delta) THEN
-            hlok(i, ik) = 0
-            sth_lift_nfb(3) = sth_lift_nfb(3) + 1
-          ELSE
-            r = (lam(1) - en) / gn
-            IF (ABS(LOG(r)) > LOG(3.0_dp)) THEN
-              hlok(i, ik) = 0
-              sth_lift_nfb(4) = sth_lift_nfb(4) + 1
-            ENDIF
-          ENDIF
-        ENDIF
-        IF (lam(1) - en < sth_lift_delta) THEN
-          sth_lift_nclamp = sth_lift_nclamp + 1
-          CYCLE
-        ENDIF
-        IF (nocc < nbnd) THEN
-          gn = MIN(h_etkq(nocc + 1, ik), h_etkq(1, ik) + alpha_pv) - h_etk(i, ik)
-          IF (gn > 0.0_dp) THEN
-            r = (lam(1) - en) / gn
-            nr_rr = nr_rr + 1
-            rr(nr_rr) = r
-            IF (ABS(LOG(r)) > LOG(3.0_dp)) sth_lift_nout = sth_lift_nout + 1
-          ENDIF
-        ENDIF
-      ENDDO
-      DEALLOCATE(lidx, hidx, acol, psil, psih, s0, b0, yh, z, lam, qk)
-    ENDDO
-    ALLOCATE(d_llam(lift_nm, nksq), d_lt(npwx, nksq), d_lok(nslot, nksq))
-    d_llam = hlam
-    d_lt = hlt
-    IF (sth_lift_fb == 0) hlok = 1
-    d_lok = hlok
-    nlok = SUM(sth_lift_nfb)
-    IF (w_staged) DEALLOCATE(h_W)
-    IF (.NOT. lift_stream) d_lq = h_lq
-    IF (.NOT. lift_stream) DEALLOCATE(h_lq)
-    rmin = 0; rmax = 0
-    IF (nr_rr > 0) THEN
-      CALL sort_r(rr, nr_rr)
-      rmin = rr(1); rmax = rr(nr_rr)
-    ENDIF
-    CALL tsync()
-    sth_t_lbuild = wtime() - t0
-    lift_q = .TRUE.
-    WRITE(*, '(A,F6.2,A,I5,A,I5,A,I3,A,F9.4,A,F9.4,A,F7.2,A)') '     qef lift: Ec'' ', sth_lift, ' Ry, N'' ', nlmin, &
-         ' ..', nlmax, ' (capped at', ncap, ' k+q), V0 ', lift_v0, ' Ry, min Lambda ', lmin, ' Ry, build ', &
-         sth_t_lbuild, ' s'
-    WRITE(*, '(A,I8,A,I6,A,I6,A,I6,A,3F8.3,A,I5,A,L1)') '     qef lift: columns ', sth_lift_ncol, ', clamped ', &
-         sth_lift_nclamp, ', outliers ', sth_lift_nout, ' (of ', nr_rr, ' with a known gap); (Lambda1-e)/gap min/med/max', &
-         rmin, rr(MAX(1, (nr_rr + 1) / 2)), rmax, '; k chunk ', lift_kc, ', streamed ', lift_stream
-    WRITE(*, '(A,I2,A,I8,A,I8,A,F7.3,A,4I7,A)') '     qef lift v2: fallback switch ', sth_lift_fb, ', columns ', &
-         sth_lift_ncol, ', unreliable ', nlok, ' (', 100.0 * REAL(nlok) / REAL(MAX(1, sth_lift_ncol)), &
-         ' %; a/b/c/d =', sth_lift_nfb, '), TPA on them only if the switch is 1'
-    DEALLOCATE(vg, nlk, m3, hlam, hlt, rr, hlok)
-  END SUBROUTINE lift_build
-  !
-  SUBROUTINE lift_apply()
-    !! d_lz(:, s) = Q_k diag(1/max(Lambda - e~_n, delta)) Q_k^H d_g(:, s) for every slot (FP32 batched GEMMs per k chunk)
-    INTEGER :: c0, nk, istat, ncolk
-    INTEGER(8) :: off
-    REAL(dp) :: ta
-    IF (sth_timing) THEN
-      CALL tsync(); ta = wtime()
-    ENDIF
-    ncolk = nslot * npert
-    IF (ALLOCATED(d_lg)) THEN
-      IF (SIZE(d_lg, 2) /= nsl) DEALLOCATE(d_lg, d_lz, d_lc)
-    ENDIF
-    IF (.NOT. ALLOCATED(d_lg)) ALLOCATE(d_lg(npwx, nsl), d_lz(npwx, nsl), d_lc(lift_nm, nsl))
-    CALL k_d2s_c<<<4096, TPB, 0, strm>>>(d_lg, d_g, INT(npwx, 8) * nsl)
-    CALL kerr('d2s (lift)')
-    DO c0 = 0, nksq - 1, lift_kc
-      nk = MIN(lift_kc, nksq - c0)
-      off = INT(c0, 8) * ncolk + 1
-      IF (lift_stream) THEN
-        istat = cudaMemcpyAsync(d_lq, h_lq(:, :, c0 + 1:c0 + nk), INT(npwx, 8) * lift_nm * nk, strm)
-        CALL chk(istat, 'cudaMemcpyAsync (lift chunk)')
-        istat = cublasCgemmStridedBatched(hblas, CUBLAS_OP_C, CUBLAS_OP_N, lift_nm, ncolk, npwx, (1.0_sp, 0.0_sp), &
-             d_lq, npwx, INT(npwx, 8) * lift_nm, d_lg(1, off), npwx, INT(npwx, 8) * ncolk, (0.0_sp, 0.0_sp), &
-             d_lc(1, off), lift_nm, INT(lift_nm, 8) * ncolk, nk)
-      ELSE
-        istat = cublasCgemmStridedBatched(hblas, CUBLAS_OP_C, CUBLAS_OP_N, lift_nm, ncolk, npwx, (1.0_sp, 0.0_sp), &
-             d_lq(1, 1, c0 + 1), npwx, INT(npwx, 8) * lift_nm, d_lg(1, off), npwx, INT(npwx, 8) * ncolk, &
-             (0.0_sp, 0.0_sp), d_lc(1, off), lift_nm, INT(lift_nm, 8) * ncolk, nk)
-      ENDIF
-      CALL chk(istat, 'cublasCgemmStridedBatched (lift QHg)')
-      CALL k_lift_scale<<<4096, TPB, 0, strm>>>(d_lc, d_llam, d_etk, lift_nm, nbnd, nslot, ncolk, c0, &
-           INT(lift_nm, 8) * ncolk * nk, lift_v0, sth_lift_delta)
-      CALL kerr('lift_scale')
-      IF (lift_stream) THEN
-        istat = cublasCgemmStridedBatched(hblas, CUBLAS_OP_N, CUBLAS_OP_N, npwx, ncolk, lift_nm, (1.0_sp, 0.0_sp), &
-             d_lq, npwx, INT(npwx, 8) * lift_nm, d_lc(1, off), lift_nm, INT(lift_nm, 8) * ncolk, (0.0_sp, 0.0_sp), &
-             d_lz(1, off), npwx, INT(npwx, 8) * ncolk, nk)
-      ELSE
-        istat = cublasCgemmStridedBatched(hblas, CUBLAS_OP_N, CUBLAS_OP_N, npwx, ncolk, lift_nm, (1.0_sp, 0.0_sp), &
-             d_lq(1, 1, c0 + 1), npwx, INT(npwx, 8) * lift_nm, d_lc(1, off), lift_nm, INT(lift_nm, 8) * ncolk, &
-             (0.0_sp, 0.0_sp), d_lz(1, off), npwx, INT(npwx, 8) * ncolk, nk)
-      ENDIF
-      CALL chk(istat, 'cublasCgemmStridedBatched (lift Qc)')
-    ENDDO
-    IF (sth_timing) THEN
-      CALL tsync(); sth_t_lapply = sth_t_lapply + wtime() - ta
-    ENDIF
-  END SUBROUTINE lift_apply
-  !
   INTEGER FUNCTION sth_engine_rwf_count()
     !! KDEV: SYMROT cache entries already on the device
     sth_engine_rwf_count = rwf_n
@@ -3613,7 +3101,7 @@ CONTAINS
     !! b2x (QEF_STH_CBSR_XCH): the exact CBSR solve never touches the CG arrays d_g / d_h (no CG, no rf, no dpsi history),
     !! so they are allocated with one element; the reserves count 5 column arrays instead of 8 (4 allocated + 1 spare;
     !! d_cf/d_cf2/d_ps add ~3 %). Memory only (class B). At H100 q5 (npmax 2) the spare is ~4.9 GiB of margin, not ~1.2 with 6.
-    cb_lean = cbsr_q .AND. cb_xch .AND. .NOT. cbsr_rf .AND. .NOT. mp_q .AND. .NOT. lift_q .AND. sth_xp_m == 0
+    cb_lean = cbsr_q .AND. cb_xch .AND. .NOT. cbsr_rf .AND. .NOT. mp_q
   END FUNCTION cb_lean
   !
   SUBROUTINE cb_decline_check()
@@ -3948,8 +3436,8 @@ CONTAINS
     IF (istat == 0 .AND. LEN_TRIM(sv) > 0) READ(sv, *, IOSTAT=istat) rgib
     ! b2x: the irrep arrays at the q's LARGEST irrep (sth_npmax, set by phqscf), not the first one's npert: with the bases
     ! filling the device, a later 2-dim irrep otherwise declines (seen at B2 frozen q2, A40)
-    reserve = INT(rgib * 1024.0_dp**3, 8) + MERGE(5_8, 8_8, cb_xch .AND. .NOT. cbsr_rf .AND. .NOT. mp_q .AND. &
-              .NOT. lift_q .AND. sth_xp_m == 0) * 16_8 * npwx * nslot * MAX(npert, sth_npmax) * nksq
+    reserve = INT(rgib * 1024.0_dp**3, 8) + MERGE(5_8, 8_8, cb_xch .AND. .NOT. cbsr_rf .AND. .NOT. mp_q) &
+              * 16_8 * npwx * nslot * MAX(npert, sth_npmax) * nksq
     ! rf: the chunk buffers (2 FP64 + 2 FP32 arrays of cb_cmax columns) and the build's FP64 staging copy
     IF (cbsr_rf) reserve = reserve + 48_8 * cb_n0 * cb_cmax + 16_8 * cb_n0 * cb_n0
     ! b2x: the exact chunk buffers (2 FP64 arrays of cb_cmax columns) and, with host staging, the staging slot
@@ -4869,7 +4357,7 @@ CONTAINS
     INTEGER :: s0, nb, ip, np
     REAL(dp) :: scale
     REAL(dp) :: ta, tb
-    LOGICAL :: use_p, use_f, chk
+    LOGICAL :: use_f, chk
     scale = 1.0_dp / REAL(nr(1) * nr(2) * nr(3), dp)
     IF (sth_prof) THEN
       CALL tsync(); ta = wtime()
@@ -4882,9 +4370,8 @@ CONTAINS
       CALL tsync(); tb = wtime(); sth_t_gemm = sth_t_gemm + tb - ta; ta = tb
     ENDIF
     use_f = fdx_on .AND. sth_opvar == 0
-    use_p = pfft_ok() .AND. sth_opvar == 0 .AND. .NOT. use_f
-    chk = .NOT. pfft_checked .AND. ((use_p .AND. sth_pfft_check) .OR. (use_f .AND. sth_fftdx_check))
-    IF (.NOT. (use_p .OR. use_f) .OR. chk) THEN
+    chk = use_f .AND. sth_fftdx_check .AND. .NOT. fdx_checked
+    IF (.NOT. use_f .OR. chk) THEN
       s0 = 0
       DO WHILE (s0 < nl)
         nb = MIN(sth_bmax, nl - s0)
@@ -4904,12 +4391,10 @@ CONTAINS
         s0 = s0 + nb
       ENDDO
     ENDIF
-    IF (chk) CALL pfft_compare(x, y, list, nl, scale, use_f)
+    IF (chk) CALL fdx_compare(x, y, list, nl, scale)
     IF (use_f) THEN
       np = fdx_local_d(x, y, list, nl, nslot, npert, npwx, nksq, nbnd, d_vrs, d_npwq, d_g2, d_etk, scale, strm)
       IF (np /= 0) CALL errore_stop('fdx_local_d', np)
-    ELSE IF (use_p) THEN
-      CALL pfft_local(x, y, list, nl, nslot, npert, npwx, nksq, nbnd, d_vrs, d_npwq, d_g2, d_etk, scale, strm)
     ENDIF
     IF (sth_prof) THEN
       CALL tsync(); tb = wtime(); sth_t_fft = sth_t_fft + tb - ta; ta = tb
@@ -4920,14 +4405,13 @@ CONTAINS
     ENDIF
   END SUBROUTINE apply_op
   !
-  SUBROUTINE pfft_compare(x, y, list, nl, scale, use_f)
-    ! diagnostic (QEF_STH_PFFT_CHECK=1): y holds the cuFFT local part on list(1:nl); compute the
+  SUBROUTINE fdx_compare(x, y, list, nl, scale)
+    ! diagnostic (QEF_STH_FFTDX_CHECK=1): y holds the cuFFT local part on list(1:nl); compute the
     ! pruned one into a scratch array and print the difference over those columns
     COMPLEX(dp), DEVICE :: x(npwx, *), y(npwx, *)
     INTEGER, DEVICE :: list(*)
     INTEGER, INTENT(IN) :: nl
     REAL(dp), INTENT(IN) :: scale
-    LOGICAL, INTENT(IN) :: use_f
     COMPLEX(dp), DEVICE, ALLOCATABLE :: yp(:,:)
     COMPLEX(dp), ALLOCATABLE :: a(:,:), b(:,:)
     INTEGER, ALLOCATABLE :: hl(:)
@@ -4935,11 +4419,7 @@ CONTAINS
     REAL(dp) :: dmax, ymax, d2, y2
     ALLOCATE(yp(npwx, nsl), a(npwx, nsl), b(npwx, nsl), hl(nl))
     CALL tsync()
-    IF (use_f) THEN
-      i = fdx_local_d(x, yp, list, nl, nslot, npert, npwx, nksq, nbnd, d_vrs, d_npwq, d_g2, d_etk, scale, strm)
-    ELSE
-      CALL pfft_local(x, yp, list, nl, nslot, npert, npwx, nksq, nbnd, d_vrs, d_npwq, d_g2, d_etk, scale, strm)
-    ENDIF
+    i = fdx_local_d(x, yp, list, nl, nslot, npert, npwx, nksq, nbnd, d_vrs, d_npwq, d_g2, d_etk, scale, strm)
     CALL tsync()
     a = y(:, 1:nsl)
     b = yp
@@ -4951,13 +4431,13 @@ CONTAINS
       d2 = d2 + SUM(ABS(a(:, c) - b(:, c))**2); y2 = y2 + SUM(ABS(a(:, c))**2)
     ENDDO
     IF (ymax > 0.0_dp) THEN
-      WRITE(*, '(A,A,A,I8,A,ES10.3,A,ES10.3)') '     qef ', MERGE('fftdx', 'pfft ', use_f), ' check: columns', nl, &
+      WRITE(*, '(A,I8,A,ES10.3,A,ES10.3)') '     qef fftdx check: columns', nl, &
            ', max|dy|/max|y| ', dmax / ymax, &
            ', rel L2 ', SQRT(d2 / y2)
-      pfft_checked = .TRUE.     ! (a zero input, e.g. dpsi = 0 at the first iteration, is not a test)
+      fdx_checked = .TRUE.     ! (a zero input, e.g. dpsi = 0 at the first iteration, is not a test)
     ENDIF
     DEALLOCATE(yp, a, b, hl)
-  END SUBROUTINE pfft_compare
+  END SUBROUTINE fdx_compare
   !
   !=================================================================================================
   ! public API
@@ -5347,7 +4827,7 @@ CONTAINS
       have_handles = .TRUE.
     ENDIF
     ! memory check (bytes): column arrays, psi(r) cache, FFT box, W
-    need = 16_8 * npwx * nsl * (7 + MIN(sth_xp_m, 1)) + 16_8 * nnr * nbox + 16_8 * nnr * sth_bmax * 3 &
+    need = 16_8 * npwx * nsl * 7 + 16_8 * nnr * nbox + 16_8 * nnr * sth_bmax * 3 &
            + 16_8 * npwx * nproj * nksq + 4_8 * nnr * nksq
     ! sth_mp: FP32 W, h_diag, g2kin, box (+ C2C plan work areas) and the irrep's FP32 column arrays
     IF (sth_mp) need = need + 8_8 * npwx * nproj * nksq + 4_8 * npwx * (nslot + 1) * nksq + 8_8 * nnr * sth_bmax * 3 &
@@ -5502,19 +4982,12 @@ CONTAINS
     ELSE
       psir_kc = 0
     ENDIF
-    ! LIFT-F factor (needs h_W; the box is free here)
-    IF (sth_lift > 0.0_dp .AND. .NOT. mp_q) THEN
-      CALL lift_build()
-    ELSE
-      CALL lift_free()
-      IF (sth_lift > 0.0_dp) WRITE(*, '(A)') '     qef lift: ignored under QEF_STH_MP (FP64 CG path only)'
-    ENDIF
-    ! CBSR canary (needs W; the box is free here); exclusive with LIFT-F and MP
-    IF (sth_cbsr .AND. .NOT. sth_cbsr_off .AND. .NOT. mp_q .AND. .NOT. lift_q) THEN
+    ! CBSR canary (needs W; the box is free here); exclusive with MP
+    IF (sth_cbsr .AND. .NOT. sth_cbsr_off .AND. .NOT. mp_q) THEN
       CALL cbsr_build()
     ELSE
       CALL cbsr_free()
-      IF (sth_cbsr .AND. .NOT. sth_cbsr_off) WRITE(*, '(A)') '     qef cbsr: ignored (QEF_STH_MP or LIFT-F on)'
+      IF (sth_cbsr .AND. .NOT. sth_cbsr_off) WRITE(*, '(A)') '     qef cbsr: ignored (QEF_STH_MP on)'
     ENDIF
     IF (psir_part) CALL psir_part_build()
     IF (ALLOCATED(h_evc)) DEALLOCATE(h_evc)
@@ -5525,7 +4998,7 @@ CONTAINS
     dvb_q = sth_dvb_req .AND. ALLOCATED(h_bp)
     IF (dvb_q .AND. nkb > 0) CALL nl_setup()
     IF (ALLOCATED(h_bp)) DEALLOCATE(h_bp, h_al)
-    pfft_checked = .FALSE.
+    fdx_checked = .FALSE.
     fdx_on = .FALSE.
     IF (sth_fftdx_req) THEN
       BLOCK
@@ -5539,7 +5012,7 @@ CONTAINS
           WRITE(*, '(A,I6,A,F6.3,A,I4,A,I5)') '     qef fftdx: on, sticks', ns_, ' (', &
                REAL(ns_) / REAL(nr(1) * nr(2)), ' of the z-columns), occupied x-columns', nx_, ', chunk', pc_
         ELSE
-          WRITE(*, '(A,I3,A)') '     qef fftdx: unsupported grid/box or not built (', ier, '), pfft/cuFFT path kept'
+          WRITE(*, '(A,I3,A)') '     qef fftdx: unsupported grid/box or not built (', ier, '), cuFFT path kept'
         ENDIF
         IF (sth_timing) WRITE(*, '(A,F8.3,A)') '     qef fftdx: fdx_setup ', sth_t_fdxsetup, ' s'
       END BLOCK
@@ -5547,9 +5020,9 @@ CONTAINS
     dp_on = fdx_on .AND. sth_fdxdp_req .AND. nnr == nr(1) * nr(2) * nr(3)
     IF (sth_fdxdp_req) THEN
       IF (ALLOCATED(d_inv)) DEALLOCATE(d_inv)
-      IF ((.NOT. dp_on .OR. sth_fdxdp_check .OR. sth_fftdx_check .OR. sth_pfft_check) .AND. qc_q) THEN
+      IF ((.NOT. dp_on .OR. sth_fdxdp_check .OR. sth_fftdx_check) .AND. qc_q) THEN
         CALL inv_build()
-      ELSE IF (.NOT. dp_on .OR. sth_fdxdp_check .OR. sth_fftdx_check .OR. sth_pfft_check) THEN
+      ELSE IF (.NOT. dp_on .OR. sth_fdxdp_check .OR. sth_fftdx_check) THEN
         BLOCK
           INTEGER, ALLOCATABLE :: hinv(:,:)
           INTEGER :: ig
@@ -5570,23 +5043,6 @@ CONTAINS
     dp_checked = .FALSE.
     dr_checked = .FALSE.
     IF (sth_fdxdp_req) WRITE(*, '(A,L2)') '     qef fdxdp: dpot/drho/DVB-local on the pruned path:', dp_on
-    IF (sth_pfft_req .AND. .NOT. fdx_on) THEN
-      BLOCK
-        INTEGER :: ier, ns_, nx_, pc_
-        CALL pfft_setup(nr, nrx, nksq, npwx, h_npwq, h_idxkq, 1024, ier)
-        IF (ier == 0) THEN
-          CALL pfft_info(ns_, nx_, pc_)
-          WRITE(*, '(A,I6,A,F6.3,A,I4,A,I5)') '     qef pfft: on, sticks', ns_, ' (', &
-               REAL(ns_) / REAL(nr(1) * nr(2)), ' of the z-columns), occupied x-columns', nx_, ', chunk', pc_
-        ELSE
-          WRITE(*, '(A,I3,A)') '     qef pfft: unsupported grid/box (', ier, '), cuFFT path kept'
-        ENDIF
-        IF (ier == 0 .AND. mp_q) THEN
-          CALL pfs_setup(nr, nrx, nksq, npwx, h_npwq, h_idxkq, 1024, ier)
-          IF (ier /= 0) WRITE(*, '(A,I3,A)') '     qef pfft: FP32 twin unsupported (', ier, '), C2C cuFFT kept'
-        ENDIF
-      END BLOCK
-    ENDIF
     istat = cudaDeviceSynchronize()
     CALL chk(istat, 'setup')
     tq(5) = wtime()
@@ -5609,7 +5065,6 @@ CONTAINS
   END SUBROUTINE inv_build
   !
   SUBROUTINE irrep_free()
-    IF (ALLOCATED(d_xp)) DEALLOCATE(d_xp)
     CALL irrep_free_stage()
     IF (ALLOCATED(h_dpsi)) DEALLOCATE(h_dpsi)
     IF (ALLOCATED(h_valid)) DEALLOCATE(h_valid)
@@ -5679,7 +5134,7 @@ CONTAINS
     ! QCACHE: same shape as the previous irrep of this q -> keep its device arrays (no free / trim / cudaMalloc)
     reuse = .FALSE.
     IF (qc_q .AND. ALLOCATED(d_dvb) .AND. ALLOCATED(d_valid) .AND. ALLOCATED(h_dpsi)) THEN
-      reuse = SIZE(d_dvb, 2) == nsl .AND. SIZE(d_dv, 2) == npert .AND. (ALLOCATED(d_xp) .EQV. (sth_xp_m > 0)) &
+      reuse = SIZE(d_dvb, 2) == nsl .AND. SIZE(d_dv, 2) == npert &
               .AND. ((SIZE(d_g) == 1) .EQV. cb_lean()) &
               .AND. (ALLOCATED(s_e) .EQV. mp_q)
     ENDIF
@@ -5690,8 +5145,7 @@ CONTAINS
     IF (ALLOCATED(h_valid)) DEALLOCATE(h_valid)
     IF (ALLOCATED(h_dpsi)) DEALLOCATE(h_dpsi)
     CALL irrep_free_mp()
-    IF (ALLOCATED(d_xp)) DEALLOCATE(d_xp)
-    need = 16_8 * npwx * nsl * (7 + MIN(sth_xp_m, 1))
+    need = 16_8 * npwx * nsl * 7
     IF (cb_lean()) need = need - 2_8 * 16_8 * npwx * nsl
     IF (mp_q) need = need + (8_8 * npwx * 4 + 16_8 * nproj + 12_8) * nsl
     CALL sth_mem_trim()
@@ -5720,15 +5174,6 @@ CONTAINS
       ENDIF
     ENDIF
     h_dpsi_valid = .FALSE.
-    xp_nc = 0
-    xp_rec = 0
-    IF (sth_xp_m > 0 .AND. .NOT. reuse) THEN
-      ALLOCATE(d_xp(npwx, nsl))
-      IF (ALLOCATED(h_xh)) THEN
-        IF (SIZE(h_xh, 1) /= npwx .OR. SIZE(h_xh, 2) /= nsl .OR. SIZE(h_xh, 3) /= sth_xp_m) DEALLOCATE(h_xh)
-      ENDIF
-      IF (.NOT. ALLOCATED(h_xh)) ALLOCATE(h_xh(npwx, nsl, sth_xp_m))
-    ENDIF
     IF (sth_timing) THEN
       istat = cudaDeviceSynchronize(); t1 = wtime(); sth_t_commit(2) = t1 - t0; t0 = t1
     ENDIF
@@ -5839,7 +5284,7 @@ CONTAINS
     scale = 1.0_dp / REAL(nr(1) * nr(2) * nr(3), dp)
     h_dpsi_valid = .FALSE.
     sth_nvalid = nvalid
-    sth_t_gemm = 0; sth_t_fft = 0; sth_t_lapply = 0
+    sth_t_gemm = 0; sth_t_fft = 0
     d_drho = drho
     IF (.NOT. first_iter) d_dv = dvscf
     istat = cudaDeviceSynchronize()
@@ -5924,18 +5369,6 @@ CONTAINS
     ENDIF
     ax_valid = .FALSE.
     IF (first_iter) CALL zero_c(d_dpsi, INT(npwx, 8) * nsl)
-    ! dpsi extrapolation (sth_engine_xp_set): keep the start dpsi(k-1), then add sum_j c_j delta_j
-    IF (ALLOCATED(d_xp) .AND. xp_rec > 0) THEN
-      CALL k_copy<<<4096, TPB, 0, strm>>>(d_xp, d_dpsi, INT(npwx, 8) * nsl)
-      CALL kerr('copy (xp)')
-    ENDIF
-    IF (ALLOCATED(d_xp)) THEN
-      DO i = 1, xp_nc
-        istat = cudaMemcpyAsync(d_g, h_xh(:, :, xp_slot(i)), INT(npwx, 8) * nsl, strm)
-        CALL k_axpyc<<<4096, TPB, 0, strm>>>(d_dpsi, d_g, xp_c(i), INT(npwx, 8) * nsl)
-        CALL kerr('axpy (xp)')
-      ENDDO
-    ENDIF
     d_conv = 0
     d_cnt = 0
     d_kter = 0.0_dp
@@ -5963,11 +5396,7 @@ CONTAINS
     DO iter = 1, maxter
       first = 0
       IF (iter == 1) first = 1
-      IF (lift_q) THEN
-        CALL lift_apply()
-        CALL k_check_lift<<<nact, sth_rb, 0, strm>>>(d_act, nslot, npert, npwx, nksq, d_npwq, d_hd, d_g, d_h, &
-             d_rho, d_conv, d_cnt, thresh, first, sth_eta, d_r0, d_nst, d_lz, d_lt, d_etk, nbnd, lift_v0, d_lok)
-      ELSEIF (sth_defl > 0) THEN
+      IF (sth_defl > 0) THEN
         CALL k_check_defl<<<nact, sth_rb, 0, strm>>>(d_act, nslot, npert, npwx, nksq, d_npwq, d_hd, d_g, d_h, &
              d_rho, d_conv, d_cnt, thresh, first, sth_eta, d_r0, d_nst, d_W, nproj, nkb, nbnd, d_nockq, d_etk, &
              d_etkq, sth_dfloor, MAX(sth_trn, 0))
@@ -6020,18 +5449,8 @@ CONTAINS
     IF (sth_timing) CALL band_profile(thresh)
     IF (sth_trn == 1 .AND. sth_timing) WRITE(*, '(A,I2,A,I12,A,I12)') '     qef trueres: rechecks this call', nres, &
          ', cumulative columns rechecked', trn_rechk, ', failing (restarted)', trn_fail
-    ! dpsi extrapolation: delta = dpsi(k) - dpsi(k-1) into history slot xp_rec (d_g is free after CG)
-    IF (ALLOCATED(d_xp) .AND. xp_rec > 0) THEN
-      CALL k_copy<<<4096, TPB, 0, strm>>>(d_g, d_dpsi, INT(npwx, 8) * nsl)
-      CALL k_sub<<<4096, TPB, 0, strm>>>(d_g, d_xp, INT(npwx, 8) * nsl)
-      CALL kerr('delta (xp)')
-      istat = cudaMemcpyAsync(h_xh(:, :, xp_rec), d_g, INT(npwx, 8) * nsl, strm)
-      CALL tsync()
-    ENDIF
     sth_n64 = sth_ncolapp; sth_n32 = 0; sth_nround = 0
     ENDIF
-    xp_nc = 0
-    xp_rec = 0
     IF (sth_cbsr .AND. ca_state == 0) THEN
       CALL tsync()
       ca_tcg = ca_tcg + wtime() - ca_t0
@@ -6041,7 +5460,6 @@ CONTAINS
     ENDIF
     IF (sth_timing) THEN
       CALL tsync(); t1 = wtime(); sth_t_cg = t1 - t0; t0 = t1
-      IF (lift_q) WRITE(*, '(A,F9.3,A,I10)') '     qef lift apply ', sth_t_lapply, ' s, colapp ', sth_ncolapp
     ENDIF
     !
     ! incdrhoscf
@@ -6124,20 +5542,6 @@ CONTAINS
       sth_t_total = sth_t_dpot + sth_t_ortho + sth_t_cg + sth_t_drho
     ENDIF
   END SUBROUTINE sth_engine_solve
-  !
-  SUBROUTINE sth_engine_xp_set(nc, slots, c, rec)
-    !! for the next sth_engine_solve only: start from dpsi + sum_i c(i) history(slots(i)); after the
-    !! solve store dpsi(end) - dpsi(start, before the extrapolation) in history slot rec (0 = do not)
-    INTEGER, INTENT(IN) :: nc, slots(*), rec
-    COMPLEX(dp), INTENT(IN) :: c(*)
-    xp_nc = 0
-    xp_rec = 0
-    IF (sth_xp_m <= 0 .OR. .NOT. ALLOCATED(h_xh)) RETURN
-    xp_nc = MIN(nc, sth_xp_m)
-    xp_slot(1:xp_nc) = slots(1:xp_nc)
-    xp_c(1:xp_nc) = c(1:xp_nc)
-    xp_rec = rec
-  END SUBROUTINE sth_engine_xp_set
   !
   SUBROUTINE sth_engine_becs(kqg, bec, alp)
     !! For drhodv, after the last solve of the irrep: bec(:, n, p, k) = vkb_kq^H dpsi_(k,p,n) and
@@ -6255,11 +5659,7 @@ CONTAINS
     IF (ALLOCATED(s_W)) DEALLOCATE(s_W, s_hd, s_g2, s_vrs, s_dmat, s_box)
     mp_q = .FALSE.
     IF (ALLOCATED(d_etkq)) DEALLOCATE(d_etkq)
-    IF (ALLOCATED(h_xh)) DEALLOCATE(h_xh)
-    CALL pfft_free()
-    CALL lift_free()
     CALL cbsr_free()
-    CALL pfs_free()
     IF (fdx_on) CALL fdx_free()
     fdx_on = .FALSE.
     IF (ALLOCATED(d_db)) DEALLOCATE(d_db, d_da)

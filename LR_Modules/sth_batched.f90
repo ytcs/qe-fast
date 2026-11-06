@@ -60,15 +60,6 @@ MODULE sth_batched
   REAL(DP), SAVE :: st_xq(3) = 1.d10        ! q of the per-q engine state
   INTEGER(8), SAVE :: tot64 = 0, tot32 = 0   ! column applications of this q (FP64 / FP32)
   !
-  ! QEF_STH_XP=m (m = 1..8 history slots; SOLVE-LOG.md): dpsi extrapolation across the SCF calls of
-  ! one irrep. Host side: the dV_in increments of the recorded calls, to fit the next increment.
-  INTEGER, SAVE :: xp_m = 0, xp_n = 0, xp_next = 0
-  INTEGER, SAVE :: xp_slot_of(8) = 0                 ! history position i -> engine slot
-  COMPLEX(DP), ALLOCATABLE, SAVE :: xp_dv(:,:)       ! (nnr*npert, m) dV_in increments, by engine slot
-  COMPLEX(DP), ALLOCATABLE, SAVE :: xp_prev(:)       ! dV_in of the previous call
-  REAL(DP), SAVE :: xp_rho = 0.d0                    ! last fit: |residual| / |increment|
-  COMPLEX(DP), SAVE :: xp_cprint(8) = (0.d0, 0.d0)
-  INTEGER, SAVE :: xp_ncprint = 0
   ! relative stopping factor for the next call (set by dfpt_kernel: QEF_STH_ETA on non-final iterations)
   REAL(DP), SAVE :: sth_call_eta = 0.d0
   REAL(DP), SAVE :: t_kqg = 0.d0                     ! QEF_STH_TIME: host k+q+G table of the last dvb_build
@@ -184,91 +175,6 @@ CONTAINS
     IF (ios == 0) sth_env_int = v
   END FUNCTION sth_env_int
   !
-#if defined(__CUDA)
-  !--------------------------------------------------------------------------------------------
-  SUBROUTINE xp_prepare(first_iter, reinit, npert, dvscfins)
-    !--------------------------------------------------------------------------------------------
-    !! QEF_STH_XP: before an engine call, fit this call's dV_in increment by the recorded ones
-    !! (least squares, complex coefficients) and hand the coefficients to the engine, which starts
-    !! CG from dpsi(k-1) + sum_j c_j [dpsi(j) - dpsi(j-1)]. Records this call's increment.
-    USE fft_base,         ONLY : dffts
-    USE noncollin_module, ONLY : nspin_mag
-    USE sth_engine,       ONLY : sth_engine_xp_set
-    LOGICAL, INTENT(IN) :: first_iter, reinit
-    INTEGER, INTENT(IN) :: npert
-    COMPLEX(DP), INTENT(IN) :: dvscfins(dffts%nnr, nspin_mag, npert)
-    COMPLEX(DP), ALLOCATABLE :: d(:)
-    COMPLEX(DP) :: g(8, 8), b(8), c(8)
-    INTEGER :: n, i, j, rec, nc, info, ipiv(8), slots(8)
-    REAL(DP) :: dn, rn, gmax
-    COMPLEX(DP), EXTERNAL :: zdotc
-    n = dffts%nnr * npert
-    xp_ncprint = 0
-    xp_rho = -1.d0
-    IF (first_iter .OR. reinit) THEN
-      ! dpsi of this call has no recorded predecessor with known dV_in (first iteration: dV_in = 0)
-      CALL sth_engine_xp_set(0, slots, c, 0)
-      RETURN
-    ENDIF
-    ALLOCATE(d(n))
-    d = RESHAPE(dvscfins(:, 1, :), (/ n /)) - xp_prev
-    nc = 0
-    IF (xp_n > 0) THEN
-      DO i = 1, xp_n
-        slots(i) = xp_slot_of(i)
-        DO j = i, xp_n
-          g(i, j) = zdotc(n, xp_dv(1, xp_slot_of(i)), 1, xp_dv(1, xp_slot_of(j)), 1)
-          g(j, i) = CONJG(g(i, j))
-        ENDDO
-        b(i) = zdotc(n, xp_dv(1, xp_slot_of(i)), 1, d, 1)
-      ENDDO
-      gmax = 0.d0
-      DO i = 1, xp_n
-        gmax = MAX(gmax, REAL(g(i, i), DP))
-      ENDDO
-      DO i = 1, xp_n
-        g(i, i) = g(i, i) + 1.d-12 * gmax
-      ENDDO
-      c(1:xp_n) = b(1:xp_n)
-      CALL zgesv(xp_n, 1, g, 8, ipiv, c, 8, info)
-      IF (info == 0) THEN
-        ! residual of the fit
-        dn = REAL(zdotc(n, d, 1, d, 1), DP)
-        BLOCK
-          COMPLEX(DP), ALLOCATABLE :: r(:)
-          ALLOCATE(r(n))
-          r = d
-          DO i = 1, xp_n
-            CALL zaxpy(n, -c(i), xp_dv(1, xp_slot_of(i)), 1, r, 1)
-          ENDDO
-          rn = REAL(zdotc(n, r, 1, r, 1), DP)
-          DEALLOCATE(r)
-        END BLOCK
-        xp_rho = SQRT(rn / MAX(dn, TINY(1.d0)))
-        ! use the extrapolation only if the fit explains a meaningful part of the increment
-        IF (xp_rho < 0.95d0) nc = xp_n
-      ENDIF
-    ENDIF
-    xp_ncprint = nc
-    IF (nc > 0) xp_cprint(1:nc) = c(1:nc)
-    ! record this call: ring of xp_m engine slots
-    rec = MOD(xp_next, xp_m) + 1
-    xp_next = xp_next + 1
-    CALL sth_engine_xp_set(nc, slots, c, rec)
-    xp_dv(:, rec) = d
-    xp_prev = RESHAPE(dvscfins(:, 1, :), (/ n /))
-    ! history positions: newest last
-    IF (xp_n < xp_m) THEN
-      xp_n = xp_n + 1
-      xp_slot_of(xp_n) = rec
-    ELSE
-      xp_slot_of(1:xp_m - 1) = xp_slot_of(2:xp_m)
-      xp_slot_of(xp_m) = rec
-    ENDIF
-    DEALLOCATE(d)
-  END SUBROUTINE xp_prepare
-#endif
-  !
   !--------------------------------------------------------------------------------------------
   SUBROUTINE sth_batched_kernel(first_iter, time_reversed, npert, lrdvpsi, iudvpsi, thresh, &
                                 dvscfins, all_conv, avg_iter, drhoout, done)
@@ -299,7 +205,7 @@ CONTAINS
 #if defined(__CUDA)
     USE sth_engine,       ONLY : sth_engine_solve, sth_engine_get_dpsi, sth_engine_ready, sth_engine_qready, &
                                  sth_n64, sth_n32, sth_nround, sth_t_cg64, &
-                                 sth_xp_m, sth_engine_xp_set, sth_eta, sth_defl, sth_timing, sth_prof, &
+                                 sth_eta, sth_defl, sth_timing, sth_prof, &
                                  sth_t_dpot, sth_t_ortho, sth_t_cg, sth_t_drho, &
                                  sth_nsteps, sth_ncolapp, sth_nvalid, sth_nact0, sth_r0hist, sth_r0med, &
                                  sth_t_gemm, sth_t_fft, sth_stband, sth_r0band, sth_gapst, sth_gapdec, sth_gapn
@@ -332,9 +238,6 @@ CONTAINS
     !
     ! engine state belongs to this irrep? (re-initialised at every first iteration; otherwise the
     ! dV_bare psi of (k=1, pert=1) identifies the irrep, e.g. after a restart)
-    xp_m = sth_env_int('QEF_STH_XP')
-    xp_m = MAX(0, MIN(8, xp_m))
-    sth_xp_m = xp_m
     IF (dvb_on) THEN
       key = CMPLX(REAL(dvb_tag, DP), REAL(npert, DP), KIND=DP)   ! no dV_bare buffer on this path
     ELSE
@@ -365,17 +268,7 @@ CONTAINS
       ENDIF
       have_state = .TRUE.
       st_npert = npert; st_iudvpsi = iudvpsi; st_nksq = nksq; st_key = key
-      ! new irrep: empty extrapolation history. In the first iteration dV_in = 0 (ignored by the solve).
-      xp_n = 0
-      xp_next = 0
-      IF (xp_m > 0) THEN
-        IF (ALLOCATED(xp_dv)) DEALLOCATE(xp_dv, xp_prev)
-        ALLOCATE(xp_dv(dffts%nnr * npert, xp_m), xp_prev(dffts%nnr * npert))
-        xp_prev = (0.d0, 0.d0)
-        IF (.NOT. first_iter) xp_prev = RESHAPE(dvscfins(:, 1, :), (/ dffts%nnr * npert /))
-      ENDIF
     ENDIF
-    IF (xp_m > 0) CALL xp_prepare(first_iter, reinit, npert, dvscfins)
     !
     ALLOCATE(dv(dffts%nnr, npert), dr(dffts%nnr, npert))
     dv(:, :) = dvscfins(:, 1, :)
@@ -405,8 +298,6 @@ CONTAINS
       WRITE(stdout, '(5x,"qef solve bands: log10(r0/thr) by nock-n = 0..5,6+:   ",7(1x,F6.2))') sth_r0band
       WRITE(stdout, '(5x,"qef solve gaps (<.02 .02-.1 .1-.5 >.5 none Ry): n",5(1x,I0)," tests",5(1x,F6.2), &
            &" dec",5(1x,F5.2))') NINT(sth_gapn), sth_gapst, sth_gapdec
-      IF (xp_m > 0) WRITE(stdout, '(5x,"qef xp: fit residual ",F7.4," coef",8(1x,F8.4))') xp_rho, &
-           (ABS(xp_cprint(i)), i = 1, xp_ncprint)
       WRITE(stdout, '(5x,"qef solve t: dpot ",F8.3," ortho ",F8.3," cg ",F8.3," drho ",F8.3, &
            &" gemm ",F8.3," fft ",F8.3)') sth_t_dpot, sth_t_ortho, sth_t_cg, sth_t_drho, sth_t_gemm, sth_t_fft
     ENDIF
@@ -643,11 +534,11 @@ CONTAINS
     USE eqv,              ONLY : dpsi, dvpsi, evq
     USE sth_engine,       ONLY : sth_engine_init, sth_engine_set_global, sth_engine_set_k, &
                                  sth_engine_set_dvbare, sth_engine_set_dpsi, sth_engine_setup, &
-                                 sth_mp, sth_mp_eta, sth_mp_safe, sth_pfft_req, sth_pfft_check, sth_dvb_req, &
+                                 sth_mp, sth_mp_eta, sth_mp_safe, sth_dvb_req, &
                                  sth_fftdx_req, sth_fftdx_check, &
                                  sth_fdxdp_req, sth_fdxdp_check, sth_obatch, sth_timing, &
                                  sth_engine_set_nlk, sth_qcache, sth_engine_wdev, sth_engine_set_wdev, &
-                                 sth_lift, sth_lift_kchunk, sth_lift_fb, sth_cbsr, sth_cbsr_skip, &
+                                 sth_cbsr, sth_cbsr_skip, &
                                  sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, &
                                  sth_engine_cbsr_plan, sth_cbsr_off, &
                                  sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op
@@ -679,8 +570,6 @@ CONTAINS
     tk = 0.d0
     ! mixed precision (per q; the FP32 copies are built by sth_engine_setup)
     sth_mp = sth_env_flag('QEF_STH_MP')
-    sth_pfft_req = sth_env_flag('QEF_STH_PFFT')
-    sth_pfft_check = sth_env_flag('QEF_STH_PFFT_CHECK')
     sth_fftdx_req = sth_env_flag('QEF_STH_FFTDX')
     sth_fftdx_check = sth_env_flag('QEF_STH_FFTDX_CHECK')
     sth_fdxdp_req = sth_env_flag('QEF_STH_FDXDP')          ! qe-fast (groups/compute/AMDAHL-LOG.md)
@@ -691,11 +580,6 @@ CONTAINS
     sth_dvb_req = dvb_on
     CALL env_real('QEF_MP_ETA', sth_mp_eta)
     CALL env_real('QEF_MP_SAFE', sth_mp_safe)
-    ! LIFT-F preconditioner (QEF_STH_LIFT = E_c' in Ry; FP64 CG path; SOLVE-LOG.md "LIFT-F canary")
-    sth_lift = 0.d0
-    CALL env_real('QEF_STH_LIFT', sth_lift)
-    sth_lift_kchunk = sth_env_int('QEF_STH_LIFT_KCHUNK')
-    sth_lift_fb = sth_env_int('QEF_STH_LIFT_FB')            ! LIFT-F v2 per-column TPA fallback (SOLVE-LOG "LIFT-F v2")
     ! CBSR: exact spectral solve (SOLVE-LOG "CBSR canary"); sth_cbsr_off = the automatic check chose CG for this run
     sth_cbsr = sth_env_flag('QEF_STH_CBSR') .AND. .NOT. sth_cbsr_off
     nslot = 0
