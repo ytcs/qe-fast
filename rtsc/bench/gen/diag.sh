@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# DIAGNOSTIC (labelled; GEN-LOG verdict rule): which lever moves the Wannier solution. Chains on one material, all-off plus one lever group.
+#  diag.sh <material>
+M=$1; G=/root/gen; Q=/root/rtsc/qe-rtsc; D=$G/diag/$M
+source /root/rtsc/env.sh
+one() { name=$1; shift
+  W=$D/$name; rm -rf $W; mkdir -p $W
+  ( source $G/env/alloff.env; for e in "$@"; do export "$e"; done; [ "$M" = G1 ] && export RTSC_RUN_NOEPW=1
+    flock /root/rtsc/TIMING.lock timeout -k 20 2700 bash $Q/rtsc/bench/run-fork.sh $G/in/$M /root/rtsc/bin-gen $W 8 8 > $W/run.log 2>&1 ); rc=$?
+  python3 - "$W" "$name" "$rc" <<'PY'
+import re, sys
+sys.path.insert(0, '/root/gen')
+import qe_f2 as qe
+W, n, rc = sys.argv[1:4]
+try:
+    v = re.findall(r"Sum of centres and spreads.*?([\d.]+)\s*$", open(f"{W}/x.wout").read(), re.M)[-1]
+    m = qe.a2f_metrics(f"{W}/x.a2f_proj")
+    print(f"{n:14s} rc {rc} spread {float(v):.6f} lambda {m['lam']:.5f} wlog {m['wlog']:.4f} Tc {m['tc_ad']:.4f}")
+except Exception as e:
+    print(n, "rc", rc, "no result", e)
+PY
+  rm -rf $W/_ph0 $W/x.epmatwp $W/*.epb* $W/*.ephmat*
+}
+one alloff2
+one alloff3
+one pwsymrot RTSC_PW_SYMROT=1
+one w90 RTSC_W90_NT=8 RTSC_W90_WNT=8 RTSC_W90_MMN=1 RTSC_W90_AMN=1 RTSC_W90_NOHR=1
+one w90nt RTSC_W90_NT=8
+one w90wnt RTSC_W90_WNT=8
+one w90mmn RTSC_W90_MMN=1
+one w90amn RTSC_W90_AMN=1
+one epw RTSC_EPW_FDX=1 RTSC_EPW_BEC=1 RTSC_EPW_STAR=1 RTSC_EPW_B2W=1 RTSC_EPW_IDLEWAIT=1 RTSC_EPW_NOVME=1
+one ph RTSC_STH_FFTDX=1 RTSC_STH_FDXDP=1 RTSC_STH_OBATCH=1 RTSC_STH_QCACHE=1 RTSC_NSCF_SYMROT=1 RTSC_PHQ_FUSE=1 RTSC_PHQ_VKB=1 RTSC_STH_DVB=1 RTSC_DVXC_GPU=1 RTSC_STH_KDEV=2 RTSC_STH_PSIR_PART=1 RTSC_STH_DRHO2=1
+echo DIAG_DONE $M
