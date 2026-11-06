@@ -28,7 +28,7 @@ CMake fetches the submodules, so GitHub's source archives will not build.
 Needs the NVIDIA HPC SDK. `qefast/pod/build-gpu.sh` is written for NVHPC 26.5 at its default install path in
 a Linux container; edit the `NV` line for another location. It is the only toolchain that has been tested.
 The argument is the CUDA compute capability (86 = A40, 90 = H100, the two GPUs the results below come from).
-`CPU=0` skips the script's additional CPU build, which fails at `ph.x` (see [CPU](#cpu)).
+`CPU=0` skips the script's additional CPU build.
 
     CPU=0 qefast/pod/build-gpu.sh . 90          # binaries in build-gpu/bin
 
@@ -46,12 +46,11 @@ Running `deps.sh` means accepting NVIDIA's licence for MathDx. The cmake output 
 
     sudo apt-get install gfortran gcc cmake ninja-build libopenblas-dev libfftw3-dev
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQE_ENABLE_MPI=OFF -DQE_FFTW_VENDOR=FFTW3
-    cmake --build build --target pw.x
+    cmake --build build --target pw.x ph.x epw.x
 
-**Only `pw.x` builds on CPU at present.** `ph.x`, and `epw.x` with it, do not compile without CUDA:
-`PHonon/PH/phqscf.f90` uses the `sth_engine` module without a `__CUDA` guard. The GPU engine is not compiled in
-a CPU build, so there is no speedup to expect either. The CI builds this configuration and runs a small `pw.x`
-test. No preset has been gated on a CPU build. For CPU-only work, use upstream QE.
+`pw.x`, `ph.x` and `epw.x` build on CPU, but the GPU engine isn't compiled in, so there is no speedup to expect.
+CI builds all three and runs a small `pw.x` test; `ph.x` and `epw.x` are compiled there, not run. No preset has been
+gated on a CPU build. For CPU-only work, use upstream QE.
 
 ## Quick start
 
@@ -170,7 +169,7 @@ End to end against `off`, median / worst over the seven held-out materials with 
 - **Evidence is limited**: two tuning systems and eight held-out materials, on A40 and H100 GPUs, with SG15
   pseudopotentials. Gate runs were GPU runs. The grids of the held-out runs were trimmed for cost.
 - One toolchain has been tested for GPU builds (NVHPC 26.5). `./configure` and `make` are not supported.
-- CPU builds stop at `pw.x`: `ph.x` and `epw.x` need a GPU build.
+- CPU builds of `ph.x` and `epw.x` compile but have not been run.
 - CI covers a CPU build and a small `pw.x` test. It does not run GPU code, so the GPU results above are not
   regression-tested on each commit.
 
