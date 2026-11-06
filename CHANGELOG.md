@@ -42,4 +42,5 @@ First public release, based on Quantum ESPRESSO 7.6 (tag `qe-7.6`), EPW included
   to an earlier qe-fast build and not to unmodified QE, and have not been repeated on this tree.
 - Binaries built with MathDx must not be distributed. See `NOTICE`.
 
+[0.1.1]: https://github.com/ytcs/qe-fast/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ytcs/qe-fast/releases/tag/v0.1.0
