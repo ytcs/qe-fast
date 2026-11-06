@@ -50,6 +50,6 @@ if [ "${RTSC_RUN_PREWARM:-0}" = 1 ]; then
   wait $EPWPID; trap - EXIT
 else
   stage nscf pw1 -in nscf.in > nscf.out
-  stage epw  runepw
+  [ "${RTSC_RUN_NOEPW:-0}" = 1 ] || stage epw  runepw   # insulators: no Fermi surface, no EPW stage (groups/compute/GEN-LOG.md)
 fi
 awk -v a="$T0" -v b="$(date +%s.%N)" 'BEGIN{printf "total\t%.2f\n", b-a}' | tee -a timings.tsv

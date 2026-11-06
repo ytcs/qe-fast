@@ -3775,7 +3775,7 @@ CONTAINS
       RETURN
     ENDIF
     CALL cb_auto_cost(tb, ntmp, tcg, tcb, tbl, tgm, tst, gain, ccol)
-    WRITE(why, '(A,F6.2,A,F5.2,A)') 'payoff ', gain, 'x vs the ', ca_mingain, 'x line'
+    WRITE(why, '(A,F6.2,A,F8.2,A)') 'payoff ', gain, 'x vs the ', ca_mingain, 'x line'
     IF (gain >= ca_mingain) THEN
       CALL cb_auto_line('CBSR', 'memory fits, ' // TRIM(why), tb, ntmp)
     ELSE IF (cb_strict) THEN
