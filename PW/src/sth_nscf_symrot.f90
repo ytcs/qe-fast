@@ -1,6 +1,5 @@
 !
-! qe-fast: exact symmetry rotation instead of the per-q nscf eigensolve (QEF_NSCF_SYMROT=1; off by default).
-! groups/compute/NSCFROT-LOG.md.
+! qe-fast: exact symmetry rotation instead of the per-q nscf eigensolve (QEF_NSCF_SYMROT=1).
 !
 ! ph.x runs an nscf for every q on the k list of the small group of q plus the k+q. On a commensurate grid
 ! every k of that list is an image, under the full crystal group (including fractional translations) and
@@ -31,7 +30,7 @@ MODULE sth_nscf_symrot
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: symrot_on, symrot_plan, symrot_after_solve, symrot_report, symrot_tight, symrot_check_on, symrot_resid
-  ! qe-fast (QEF_PW_SYMROT=1; groups/compute/EPW3-LOG.md): the same rotation in pw.x's nscf (c_bands_nscf), the
+  ! qe-fast (QEF_PW_SYMROT=1): the same rotation in pw.x's nscf (c_bands_nscf), the
   ! Wannier k grid read by EPW. The module lives in PW/src so that both pw.x and ph.x use it.
   PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
   PUBLIC :: symrot_pw_on, symrot_pw_tight, symrot_pw_check_on, symrot_note_notconv, symrot_rep_guard
@@ -709,7 +708,7 @@ CONTAINS
   !------------------------------------------------------------------------------------------
   SUBROUTINE symrot_kmap(ik, i0, ngs, tr, imap, ph, ok)
     !------------------------------------------------------------------------------------------
-    !! qe-fast CBSR (QEF_STH_CBSR; groups/compute/SOLVE-LOG.md session 4): for k-point ik of the current plan, the cache
+    !! qe-fast CBSR (QEF_STH_CBSR): for k-point ik of the current plan, the cache
     !! entry i0 whose eigenpairs it was rotated from (or which it is), and the G map of that rotation:
     !!   psi_ik(imap(ig)) = ph(ig) psi_i0(ig) (tr = 1),  conj(ph(ig) psi_i0(ig)) (tr = -1),  ig = 1..ngs (cache order).
     !! ok = .FALSE. if ik was diagonalized itself (no cache entry) or the plan does not describe the current k list.
@@ -776,7 +775,7 @@ CONTAINS
   !
   SUBROUTINE symrot_count(nqg, nqs, xqc, doq, norb, nkf, sumk, maxk, nq, lg)
     !------------------------------------------------------------------------------------------
-    !! qe-fast (QEF_STH_CBSR's automatic fallback; groups/compute/GEN-LOG.md): what the run will need, before any basis
+    !! qe-fast (QEF_STH_CBSR's automatic fallback): what the run will need, before any basis
     !! is built. Every k+q of a ph.x run lies on the grid of lcm(nk, nq) points per direction, and every orbit of that grid
     !! under the full group (with time reversal) is reached, so
     !!   norb = the number of orbits on it = the number of bases (one per orbit), -1 if the k-points are an explicit list;

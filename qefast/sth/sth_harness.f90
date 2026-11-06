@@ -1,5 +1,5 @@
 !
-! qe-fast: offline acceptance harness for the batched Sternheimer engine (STH-ENGINE.md).
+! qe-fast: offline acceptance harness for the batched Sternheimer engine.
 !
 !   sth_harness.x <dump dir> [nrep] [bmax]
 !

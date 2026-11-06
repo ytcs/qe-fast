@@ -1,4 +1,4 @@
-"""T1 (FUNNEL.md): MLIP relax (T1a) and MLIP phonons with soft-mode following (T1b).
+"""T1: MLIP relax (T1a) and MLIP phonons with soft-mode following (T1b).
 
     python t1.py relax  <model> <structs.json> <out.jsonl>        # model: mattersim | mace
     python t1.py phonon <model> <relaxed.jsonl> <ids|all> <out.jsonl>
@@ -12,7 +12,7 @@ the parent is displaced along that mode (0.15 A max), the supercell re-relaxed a
 primitive cell, and phonons recomputed: at most 2 rounds, the child replaces the parent. ZPE (T = 0
 phonopy free energy, 8^3 mesh) in eV per parent formula cell; zpe_gamma_eV: Gamma-point ZPE of the parent cell
 (sum hbar omega / 2 over the 3N - 3 non-acoustic Gamma modes, imaginary ones dropped and counted), the like-for-like
-partner of the DFT Gamma-ZPE (zpe.py) under the F0b ZPE-source rule (FUNNEL.md section 7).
+partner of the DFT Gamma-ZPE (zpe.py) under the F0b ZPE-source rule.
 """
 import json
 import os

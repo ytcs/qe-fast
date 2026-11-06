@@ -91,7 +91,7 @@ if(QE_ENABLE_CUDA)
 endif()
 qe_enable_cuda_fortran("${sources}")
 if(QE_ENABLE_CUDA)
-    # qe-fast: cuFFTDx local operator (qefast/sth/fdx/sth_fftdx.cu; groups/compute/FFT-LOG.md). The real kernels need the
+    # qe-fast: cuFFTDx local operator (qefast/sth/fdx/sth_fftdx.cu). The real kernels need the
     # MathDx and CUTLASS headers (qefast/sth/fdx/deps.sh); without them a stub whose fdx_setup reports "unsupported".
     set(QEF_MATHDX_INC "" CACHE PATH "MathDx include dir (cufftdx.hpp) for the fftdx engine path")
     set(QEF_CUTLASS_INC "" CACHE PATH "CUTLASS include dir for the fftdx engine path")

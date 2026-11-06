@@ -7,7 +7,7 @@ hdr = """! qe-fast: copy of external/wannier90/src/disentangle.F90 (wannier90 3.
 ! loops of each dis_extract iteration run with OpenMP over k when QEF_W90_NT > 1 (EPW runs wannier90 on
 ! its ionode only, while the other ranks wait). Every reduction over k is summed sequentially from
 ! per-k values afterwards and each k's BLAS/LAPACK calls are unchanged, so the result is bitwise
-! identical to the serial code (groups/compute/KERNEL-LOG.md).
+! identical to the serial code.
 """
 s = hdr + s
 def sub(blk, x, y, cnt=1):

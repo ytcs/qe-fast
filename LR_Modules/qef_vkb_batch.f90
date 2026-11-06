@@ -1,6 +1,6 @@
 !
-! qe-fast: vkb of many k-points in one set of kernels (moved verbatim from PHonon/PH/qef_phq_fuse.f90, NSCFROT-LOG
-! QEF_PHQ_VKB, so that the engine adapter's per-k loop can use it too: QEF_STH_KDEV, SOLVE-LOG.md session 4).
+! qe-fast: vkb of many k-points in one set of kernels (moved verbatim from
+! PHonon/PH/qef_phq_fuse.f90, QEF_PHQ_VKB, so that the engine adapter's per-k loop can use it too: QEF_STH_KDEV).
 !
 MODULE qef_vkb
   USE kinds, ONLY : DP

@@ -1,4 +1,4 @@
-"""P1 NLCC gate (FUNNEL-LOG F0c pre-registration; PSEUDO-SURVEY section 7(2) sub-test).
+"""P1 NLCC gate (PSEUDO-SURVEY section 7(2) sub-test).
 
     PSET=spms PSEUDO_DIR=<spms dir> python3 p1gate.py prep <structure json (plain dict)> <dir>
     python3 p1gate.py compare <engine run dir> <vanilla run dir> <out.json>

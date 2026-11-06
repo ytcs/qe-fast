@@ -1,4 +1,4 @@
-// fdxbench: per-application cost of the engine's local-operator FFT chain (groups/compute/FFT-LOG.md).
+// fdxbench: per-application cost of the engine's local-operator FFT chain.
 //   y = g2kin x + (1/N) FFT_fwd[ V(r) FFT_inv[ scatter(x) ] ](sphere) - e x   for nl columns, batched.
 // Variants, each FP64 and FP32 (the MP inner path):
 //   A  the engine's cuFFT path (k_scatter_full, cufftPlanMany 3D Z2Z/C2C batch 256, k_vmul, 3D, k_gather_h);

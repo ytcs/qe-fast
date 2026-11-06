@@ -11,7 +11,7 @@ MODULE dv_of_drho_lr
 PUBLIC :: dv_of_drho
 PUBLIC :: dv_of_drho_xc
 !
-! qe-fast QEF_DVXC_GPU=1 (groups/compute/SOLVE-LOG.md, wave 3B): the GGA part of dv_of_drho_xc on the device
+! qe-fast QEF_DVXC_GPU=1: the GGA part of dv_of_drho_xc on the device
 LOGICAL, SAVE :: qef_dvxc_init = .FALSE., qef_dvxc_gpu = .FALSE.
 
 CONTAINS

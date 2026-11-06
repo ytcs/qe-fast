@@ -3,7 +3,7 @@
     python analyze.py access <t1 ms.jsonl> <t1 mace.jsonl> <t1b ms.jsonl> <t2.jsonl> <out.json>
     python analyze.py hull   <all.json> <t1 ms.jsonl> <t1 mace.jsonl> <out.json>
 
-F0b (FUNNEL.md section 7, pre-registered before any F0b run):
+F0b (pre-registered before any F0b run):
     python analyze.py hull1  <t1 ms.jsonl> <t1 mace.jsonl> <id> <ref ids,comma> <out.json>
     python analyze.py t1b2   <t1b ms.jsonl> <t1b mace.jsonl> <out.json>
     python analyze.py access2 <t1 ms> <t1 mace> <t1b ms> <t1b mace> <t2.jsonl> <dft-zpe.jsonl> <P> <out.json>
@@ -204,7 +204,7 @@ def cmd_hull1(ms, mace, pid, refs, out):
 
 
 def t1b_rule(a, b):
-    """Two-model T1b rule (FUNNEL.md section 7). a, b: T1b records (MatterSim, MACE)."""
+    """Two-model T1b rule. a, b: T1b records (MatterSim, MACE)."""
     ua = not a.get("pass_T1b", False)
     ub = not b.get("pass_T1b", False)
     return dict(ms_wmin=a.get("wmin"), mace_wmin=b.get("wmin"), ms_status=a.get("status"), mace_status=b.get("status"),

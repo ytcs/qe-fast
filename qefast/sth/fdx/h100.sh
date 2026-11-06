@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# H100 measurement of the cuFFTDx local operator (groups/compute/FFT-LOG.md; pre-registered kill: FP64 FFT-chain gain < 2x).
+# H100 measurement of the cuFFTDx local operator (pre-registered kill: FP64 FFT-chain gain < 2x).
 # Budget <= 1 h. Phase 1 (~15 min) decides the kill; phase 2 (~35 min) is the in-situ ph.x A/B, run only if time is left.
 #   curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/main/qefast/sth/fdx/h100.sh | bash
 # or pipe this file over ssh. Results go to /root/fdx-h100/ (and are printed). Does NOT save any cache archive.
 set -uo pipefail
+export QEF_PRESET=off QEF_STRICT=1
 SHA=${SHA:-main}; ARCH=${ARCH:-90}
 OUT=${OUT:-/root/fdx-h100}; mkdir -p $OUT; cd $OUT
 exec > >(tee -a $OUT/h100.log) 2>&1
@@ -38,7 +39,7 @@ for s in B1 B2; do for o in 1 2 3; do echo "-- $s kernel $o"; FDX_ONLY=$o $BIN/f
 echo "== dense V(G-G') as a GEMM (item 7)"
 $BIN/gemmbench
 echo "== $(date -u +%H:%M:%S) phase 1 done"
-# CBSR Stage 0 (groups/theory/returns/M4/S.md): runs on the GPU while phase 2 compiles on the CPUs
+# CBSR Stage 0: runs on the GPU while phase 2 compiles on the CPUs
 CBP=
 if [ -f src/qefast/sth/fdx/cbsrbench.cu ]; then
   nvcc -O3 -arch=sm_$ARCH -I$NV/math_libs/13.2/include src/qefast/sth/fdx/cbsrbench.cu -o $BIN/cbsrbench \

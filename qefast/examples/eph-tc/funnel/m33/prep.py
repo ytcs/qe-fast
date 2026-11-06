@@ -1,4 +1,4 @@
-"""M3-3 Phase 0 inputs (M3-3-LOG pre-registration): B1 and B2 frozen cells/ecut/sigma (bench/mkbench.py), Si control.
+"""M3-3 Phase 0 inputs: B1 and B2 frozen cells/ecut/sigma (bench/mkbench.py), Si control.
 
     prep.py <system B1|B2|Si> <outdir> <pseudo dir>
 

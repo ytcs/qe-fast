@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""gencmp.py <run dir> [materials...]: the pre-registered gate and report of groups/compute/GEN-LOG.md. For every material and set against
-that material's all-off run: frequencies (Gamma acoustic excluded), lambda, omega_log, Allen-Dynes Tc (a2f_proj, funnel a2f_metrics), margin used,
+"""gencmp.py <run dir> [materials...]: the gate and report of the held-out check. For every material and preset against
+that material's `off` run: frequencies (Gamma acoustic excluded), lambda, omega_log, Allen-Dynes Tc (a2f_proj, funnel a2f_metrics), margin used,
 stage speedups, peak memory, decline lines, Wannier spread sum."""
 import filecmp, glob, json, os, re, statistics as st, sys
 import numpy as np
@@ -76,7 +76,7 @@ def lines(d):
 rows = []
 sp = {}
 for M in MATS:
-    A = f"{R}/{M}/alloff"
+    A = f"{R}/{M}/off"
     ra = open(f"{A}/status").read().strip() if os.path.exists(f"{A}/status") else "?"
     fa, ta, aa, sa = freqs(A), times(A), a2f(A), spread(A)
     print(f"\n## {M}: all-off rc {ra}, total {ta.get('total', 0):.1f} s, peak {open(A + '/peakmem').read().strip() if os.path.exists(A + '/peakmem') else '?'} MiB, nq {len(fa)}, "

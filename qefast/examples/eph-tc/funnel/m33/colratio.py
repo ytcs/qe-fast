@@ -1,4 +1,4 @@
-"""Column ratio R (M3-3-LOG): standard = nksq(q) x n_occ (ph.x at the production k; n_occ = mean count of bands with
+"""Column ratio R: standard = nksq(q) x n_occ (ph.x at the production k; n_occ = mean count of bands with
 eps < E_F + 5 sigma on the full N_f grid); factorised = N_c^3 (no coarse symmetry) x N_W.
 
     colratio.py <sysdir> [nksq override]

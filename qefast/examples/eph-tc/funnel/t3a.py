@@ -1,4 +1,4 @@
-"""T3a (FUNNEL.md): DFT vc-relax -> scf -> ph.x (engine, MP) -> nscf -> EPW alpha^2F -> lambda, omega_log, Tc^AD.
+"""T3a: DFT vc-relax -> scf -> ph.x (engine, MP) -> nscf -> EPW alpha^2F -> lambda, omega_log, Tc^AD.
 
     python3 t3a.py <jobs.json> <id> <workroot> [NT omp threads, default 8] [NE epw ranks, default 8]
 
@@ -6,7 +6,7 @@ jobs.json: {id: {structure: pymatgen dict, Ttarget: K, press_kbar?: float, g4_re
 Writes <workroot>/<id>/result.json (status ok | fail:<stage>), timings.tsv; restart-safe per stage marker.
 Environment: BIN (QE bin dir), PSEUDO_DIR. QEF_STH=1, QEF_STRICT=1, QEF_STH_MP=1 are set for ph.x.
 EPW computes alpha^2F only (eliashberg, no liso/laniso).
-Generator G1G2 (FUNNEL.md section 7): band exclusion by qe.n_semicore and Wannier coarse k = 2 q (qe.t3a_grids).
+Generator G1G2: band exclusion by qe.n_semicore and Wannier coarse k = 2 q (qe.t3a_grids).
 Generator G4 (proposed in WANNIER-LOG.md, study W1; not yet registered): (a) canonical cell (qe.canonical: fractional
 coordinates wrapped into [0,1), sites sorted by Z); (b) EPW use_ws = .true.; (c) per-setup gate = G3 spread rule + on-grid
 band check; (d) two setups, generic atomic projections and SCDM erfc (mu E_F, sigma 2 eV) WITH the frozen window; (e) if

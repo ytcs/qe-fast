@@ -64,7 +64,7 @@
     !-----------------------------------------------------------------------
     SUBROUTINE qef_gowait()
     !-----------------------------------------------------------------------
-    !! qe-fast (groups/compute/EPW4-LOG.md): QEF_EPW_GOFILE=<path>. A run script may start epw.x while the
+    !! qe-fast: QEF_EPW_GOFILE=<path>. A run script may start epw.x while the
     !! previous stage still runs: every rank has done MPI_Init and created its CUDA context (mp_startup); here
     !! the ranks wait (5 ms sleeps) until <path> exists, then meet at a barrier and EPW proceeds as usual.
     !! No arithmetic changes. Unset (default): returns at once.
@@ -186,7 +186,7 @@
       CALL check_ahc_bands(excluded_band)
     ENDIF
     !
-    CALL SYSTEM_CLOCK(rc0, rcr)   ! qe-fast: stage walls (groups/compute/AMDAHL-LOG.md)
+    CALL SYSTEM_CLOCK(rc0, rcr)   ! qe-fast: stage walls
     CALL ylm_expansion()
     IF (scdm_proj) THEN
       CALL compute_amn_with_scdm()
@@ -963,7 +963,7 @@
                        wann_spreads, spreads)                      ! output
     ENDIF
     !
-    ! qe-fast (QEF_EPW_IDLEWAIT=1; groups/compute/EPW3-LOG.md): the ranks that wait for wannier90 sleep
+    ! qe-fast (QEF_EPW_IDLEWAIT=1): the ranks that wait for wannier90 sleep
     ! instead of busy-polling in mp_bcast, so the wannier90 threads on the ionode get the cores
     IF (qef_idlewait()) CALL qef_sleepy_barrier(world_comm)
     CALL mp_bcast(u_mat,        meta_ionode_id, world_comm)
@@ -2131,7 +2131,7 @@
     COMPLEX(KIND = DP), ALLOCATABLE :: qgm(:)
     !! Local variables for uspp
     COMPLEX(KIND = DP), ALLOCATABLE :: qq_so(:, :, :, :)
-    ! qe-fast (QEF_W90_MMN=1; groups/compute/AMDAHL-LOG.md): the phase product e^{i G0 r} of vanilla
+    ! qe-fast (QEF_W90_MMN=1): the phase product e^{i G0 r} of vanilla
     ! (invfft, multiply, fwfft per band) is an exact cyclic shift of the FFT grid, so <u_mk|u_nk+b> is formed by
     ! an index map (k sphere -> k+q sphere shifted by G0) and one ZGEMM per (k, b). NC, collinear, serial FFT only.
     ! QEF_W90_MMN_CHECK=1 also runs the vanilla band loop and prints the largest difference.
@@ -3234,7 +3234,7 @@
     COMPLEX(KIND = DP) :: lphase
     !! (-i)^l
     COMPLEX(KIND = DP), ALLOCATABLE :: sk(:)
-    ! qe-fast (QEF_W90_AMN=1; groups/compute/AMDAHL-LOG.md): the radial integrals depend only on
+    ! qe-fast (QEF_W90_AMN=1): the radial integrals depend only on
     ! (alpha_w, r_w, l, |k+G|); compute them once per run of projectors with the same (alpha_w, r_w), and only
     ! for the l that one of them uses (csph /= 0). Same calls with the same inputs: bitwise identical.
     LOGICAL :: famn, lneed(0:3)

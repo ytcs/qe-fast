@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# DIAGNOSTIC (labelled; GEN-LOG verdict rule): shared gauge. EPW only, on all-off's nscf and all-off's Wannier output (wannierize = .false.), with each set's
-# ph.x data (save/). A control with all-off's own save/ must give all-off's numbers. So any change left comes from the phonon/DFPT data, not from Wannier.
+# DIAGNOSTIC: shared gauge. EPW only, on the off run's nscf and the off run's Wannier output (wannierize = .false.), with each set's
+# ph.x data (save/). A control with its own save/ must give the off run's numbers. So any change left comes from the phonon/DFPT data, not from Wannier.
 #  sg.sh <material> [sets...]
 M=$1; shift; G=/root/gen; R=$G/run/$M; D=$G/diag/$M
-source /root/qefast/env.sh; source $G/env/alloff.env
-for S in alloff "$@"; do
+source /root/qefast/env.sh; export QEF_PRESET=off
+for S in off "$@"; do
   W=$D/sg_$S; rm -rf $W; mkdir -p $W; cd $W
-  for f in $R/alloff/x.* $R/alloff/*.fmt $R/alloff/decay.*; do case "$f" in *.a2f*|*.dos|*.wout) ;; *) cp -r "$f" .;; esac; done
-  [ -e $R/alloff/x.xml ] && cp $R/alloff/x.xml .
+  for f in $R/off/x.* $R/off/*.fmt $R/off/decay.*; do case "$f" in *.a2f*|*.dos|*.wout) ;; *) cp -r "$f" .;; esac; done
+  [ -e $R/off/x.xml ] && cp $R/off/x.xml .
   cp -r $R/$S/save .
-  sed "s/wannierize = .true./wannierize = .false./" $R/alloff/epw.in > epw.in
+  sed "s/wannierize = .true./wannierize = .false./" $R/off/epw.in > epw.in
+  rm -f restart.fmt selecq.fmt; mkdir -p x.ephmat
   nvidia-cuda-mps-control -d 2>/dev/null
-  OMP_NUM_THREADS=1 mpirun --bind-to none -np 8 -x OMP_NUM_THREADS -x QEF_STH -x QEF_STRICT -x QEF_W90_NT /root/qefast/bin-gen/epw.x -npool 8 -in epw.in > epw.out 2>&1; rc=$?
+  OMP_NUM_THREADS=1 mpirun --bind-to none -np 8 -x OMP_NUM_THREADS -x QEF_PRESET /root/qefast/qe-fast/build-gpu/bin/epw.x -npool 8 -in epw.in > epw.out 2>&1; rc=$?
   echo quit | nvidia-cuda-mps-control 2>/dev/null
   python3 - "$W" "$S" "$rc" <<'PY'
 import sys

@@ -1,6 +1,6 @@
 # qe-fast
 
-The RTSC campaign's fork of Quantum ESPRESSO, branched from the `qe-7.6`
+A fork of Quantum ESPRESSO, branched from the `qe-7.6`
 release tag. EPW is included in this tree. Everything specific to the fork
 lives under `qefast/`:
 
@@ -14,12 +14,12 @@ in the campaign workspace.
 
 On a GPU pod:
 
-    git clone https://github.com/ytcs/qe-fast && cd qe-fast && git checkout rtsc
+    git clone https://github.com/ytcs/qe-fast && cd qe-fast
     qefast/pseudo.sh && qefast/pod/build-gpu.sh . 80      # 80 = A100, 90 = H100
 
 ## Branches and tags
 
-- `rtsc`: integration branch. Everything here passes the benchmark
+- `main`: integration branch. Everything here passes the benchmark
   accuracy gate.
 - `qe-7.6`: the vanilla baseline. Every speedup is measured against a build
   of this tag made with the same toolchain on the same node.

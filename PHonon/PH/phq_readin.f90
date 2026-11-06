@@ -412,7 +412,7 @@ SUBROUTINE phq_readin()
   ! ... Check all namelist variables
   !
   IF (tr2_ph <= 0.D0) CALL errore (' phq_readin', ' Wrong tr2_ph ', 1)
-  ! qe-fast (QEF_TR2_SCALE; groups/compute/SOLVE-LOG.md session 6): the DFPT self-consistency threshold tr2_ph scaled
+  ! qe-fast (QEF_TR2_SCALE): the DFPT self-consistency threshold tr2_ph scaled
   ! after input on every rank (a solver-convergence lever; the frozen ph.in stays as it is). Off unless set.
   BLOCK
     CHARACTER(LEN=32) :: sv_tr2

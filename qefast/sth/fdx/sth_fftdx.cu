@@ -1,4 +1,4 @@
-// qe-fast: pruned fused local operator on cuFFTDx (groups/compute/FFT-LOG.md). QEF_STH_FFTDX=1.
+// qe-fast: pruned fused local operator on cuFFTDx. QEF_STH_FFTDX=1.
 //
 // Separable and pruned, with the 1D transforms
 // replaced by size-specialised, register-resident cuFFTDx thread FFTs (one thread per line):
@@ -350,7 +350,7 @@ template <class T, int N1, int N2> constexpr int plane_bytes() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// apply_dpot / incdrhoscf on the pruned path (QEF_STH_FDXDP; groups/compute/AMDAHL-LOG.md), FP64.
+// apply_dpot / incdrhoscf on the pruned path (QEF_STH_FDXDP), FP64.
 //   dpot: kxy_fwd  one block per (z-plane, column): plane of psi_kn(r) * dv(r, p) (read once, coalesced), forward x
 //                  on every row, forward y on the occupied x-columns, write the k+q sticks;
 //         kz_fwd_add one thread per (stick, column): forward z, d(ig) += scale * v on the k+q sphere (k_gather_add).

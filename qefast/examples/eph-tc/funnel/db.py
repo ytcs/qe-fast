@@ -2,7 +2,7 @@
 
     python db.py <store dir> <subset.json> <refs.json>
 
-Subset (FUNNEL-LOG pre-registration): press = 0 GPa, <= 12 atoms, no f-electron elements, random 200
+Subset: press = 0 GPa, <= 12 atoms, no f-electron elements, random 200
 (seed 0). Positive: Tc >= 5 K; negative: Tc < 0.5 K.
 References: for every chemical (sub)system of the subset, the JARVIS dft_3d entry with the lowest
 ehull per reduced composition, kept if ehull <= 0.05 eV/atom and <= 24 atoms; the elements always.

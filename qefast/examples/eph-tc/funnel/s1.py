@@ -1,10 +1,10 @@
-"""S1 (FUNNEL.md section 8): T3a dynamic-stability rule, from the ph.x dyn files of the T3a run.
+"""S1: T3a dynamic-stability rule, from the ph.x dyn files of the T3a run.
 
 A candidate with any DFPT mode < -30 cm^-1 (Gamma acoustic excluded) does not pass T3a; it gets one re-relax along the
 unstable mode and a rerun; still unstable -> hold `unstable_dfpt`, disposition `sscha` if the mode is H-dominated
 (H participation > 0.5), else `reject`.
 
-Realisation (FUNNEL-LOG F0c pre-registration): frequencies and mass-weighted eigenvectors are recomputed from the
+Realisation: frequencies and mass-weighted eigenvectors are recomputed from the
 dynamical matrices in <prefix>.dyn<i> (first q of each star). Gamma acoustic = the 3 Gamma modes with the largest
 projection on rigid translations. The re-relax displacement is Re(e^{i q.R} e_a)/sqrt(m_a) of the most negative mode,
 in the diagonal supercell commensurate with q (the primitive cell at Gamma), scaled to a 0.10 A max displacement.

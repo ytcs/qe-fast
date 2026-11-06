@@ -1,4 +1,4 @@
-"""T2 (FUNNEL.md): pw.x SCF single point at the MLIP geometry, PBE (+ PBEsol for hydrides), N(E_F), magnetisation.
+"""T2: pw.x SCF single point at the MLIP geometry, PBE (+ PBEsol for hydrides), N(E_F), magnetisation.
 
     python3 t2.py <t1 relaxed.jsonl> <ids,comma|all> <workroot> <out.jsonl> [NT]
 

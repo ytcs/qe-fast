@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MathDx (cuFFTDx) and CUTLASS headers for the fftdx engine path (FFT-LOG.md). Prints the two include dirs.
+# MathDx (cuFFTDx) and CUTLASS headers for the fftdx engine path. Prints the two include dirs.
 #   eval "$(qefast/sth/fdx/deps.sh)"   -> MDX=..., CUTLASS=...
 set -euo pipefail
 D=${FDX_DEPS:-/root/qefast/fdxdeps}

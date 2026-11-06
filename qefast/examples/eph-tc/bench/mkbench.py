@@ -1,4 +1,4 @@
-"""Generate frozen benchmark inputs (MILESTONE-1.md).
+"""Generate frozen benchmark inputs.
 
     python mkbench.py B1 frozen   -> B1/frozen/
     python mkbench.py B1 smoke    -> B1/smoke/   (reduced grids, local profiling only)
@@ -59,7 +59,7 @@ SYSTEMS = {
 # Every temperature must sit below the T_c that the given grid produces: above T_c the
 # anisotropic solver's Broyden update goes singular and EPW stops (B2 smoke at 80 K with
 # McMillan T_c 28 K). The frozen sets therefore stay at 10-30 K and the accuracy gate
-# compares gaps there (MILESTONE-1.md, 2026-10-27 amendment).
+# compares gaps there (2026-10-27 amendment).
 
 
 def species_block(s):

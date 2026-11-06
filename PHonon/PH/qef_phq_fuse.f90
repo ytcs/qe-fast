@@ -1,6 +1,5 @@
 !
-! qe-fast: fused per-k projections for phq_init and dynmat_us (QEF_PHQ_FUSE=1; off by default).
-! groups/compute/NSCFROT-LOG.md.
+! qe-fast: fused per-k projections for phq_init and dynmat_us (QEF_PHQ_FUSE=1).
 !
 ! phq_init computes, per k, becp1 = <beta|psi> and alphap_i = <beta|d_i psi> (4 small device GEMMs, each with
 ! its own launch, sync and copy); dynmat_us then reads every psi_k again, rebuilds vkb on the host and runs 6 host

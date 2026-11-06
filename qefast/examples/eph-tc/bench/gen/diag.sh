@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# DIAGNOSTIC (labelled; GEN-LOG verdict rule): which lever moves the Wannier solution. Chains on one material, all-off plus one lever group.
+# DIAGNOSTIC: which lever moves the Wannier solution. Chains on one material, all-off plus one lever group.
 #  diag.sh <material>
 M=$1; G=/root/gen; Q=/root/qefast/qe-fast; D=$G/diag/$M
 source /root/qefast/env.sh
 one() { name=$1; shift
   W=$D/$name; rm -rf $W; mkdir -p $W
-  ( source $G/env/alloff.env; for e in "$@"; do export "$e"; done; [ "$M" = G1 ] && export QEF_RUN_NOEPW=1
-    flock /root/qefast/TIMING.lock timeout -k 20 2700 bash $Q/qefast/examples/eph-tc/bench/run-chain.sh $G/in/$M /root/qefast/bin-gen $W 8 8 > $W/run.log 2>&1 ); rc=$?
+  ( export QEF_PRESET=off; for e in "$@"; do export "$e"; done; [ "$M" = G1 ] && export QEF_RUN_NOEPW=1
+    flock /root/qefast/TIMING.lock timeout -k 20 2700 bash $Q/qefast/examples/eph-tc/bench/run-chain.sh $G/in/$M $Q/build-gpu/bin $W 8 8 > $W/run.log 2>&1 ); rc=$?
   python3 - "$W" "$name" "$rc" <<'PY'
 import re, sys
 sys.path.insert(0, '/root/gen')

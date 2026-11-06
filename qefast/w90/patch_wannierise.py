@@ -9,7 +9,7 @@ hdr = """! qe-fast: copy of external/wannier90/src/wannierise.F90 (wannier90 3.1
 ! while the other ranks wait). Each k writes only its own blocks with the same BLAS/LAPACK calls and no reduction
 ! over k is reordered; the threaded copies can still round differently in the last bit (compiler code generation
 ! of the outlined loop bodies). With QEF_W90_WNT unset the original serial loops run unchanged
-! (groups/compute/AMDAHL-LOG.md).
+!.
 """
 s = hdr + s
 

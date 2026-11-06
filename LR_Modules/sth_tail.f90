@@ -1,6 +1,6 @@
 !
-! qe-fast: GPU versions of host-side ph.x steps around the batched Sternheimer engine (the "CPU tail",
-! groups/compute/PH-DESIGN.md P4). Each routine is used only when QEF_STH=1 (sth_tail_on); with
+! qe-fast: GPU versions of host-side ph.x steps around the batched Sternheimer engine (the "CPU tail").
+! Each routine is used only when QEF_STH=1 (sth_tail_on); with
 ! QEF_STH unset or 0 the vanilla code runs unchanged.
 !
 !   symdvscf_acc   symdvscf (symmetrization of drho / dvscf of one irrep) as one OpenACC loop over

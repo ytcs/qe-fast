@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F0b queue (FUNNEL.md section 7, pre-registered 2026-10-29 before any F0b run).
+# F0b queue (pre-registered 2026-10-29 before any F0b run).
 #   f0b.sh <in dir: t1-structs.json, t3a-jobs.json> <work dir>
 # Mg2IrH6 end to end: T1a (both MLIPs; MLIP hull vs the Mg-Ir-H references) -> T1b (two-model rule)
 # -> T2 (PBE + PBEsol at the MatterSim geometry; ZPE-source rule; the access gate is recorded and, as for every
@@ -11,6 +11,7 @@ IN=$(realpath "$1"); mkdir -p "$2"; W=$(realpath "$2"); cd "$W"
 F=$(dirname "$(realpath "$0")")
 source /root/qefast/env.sh
 unset QEF_STH_MP
+export QEF_PRESET=${QEF_PRESET:-off}
 export BIN=${BIN:-/root/qefast/qe-fast/build-gpu/bin} PSEUDO_DIR=${PSEUDO_DIR:-/root/qefast/qe-fast/qefast/pseudo/sg15}
 MS=/root/venv-ms/bin/python; MACE=/root/venv-mace/bin/python
 mark() { echo "$1 $(date -u +%H:%M:%S)" | tee -a queue.log; }

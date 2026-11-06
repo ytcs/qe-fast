@@ -1,6 +1,6 @@
 !
 ! qe-fast: modified Broyden mixing of the DFPT induced potential with a Kerker preconditioner
-! (QEF_MIX_Q0 = q0 > 0, in bohr^-1; groups/compute/SOLVE-LOG.md).
+! (QEF_MIX_Q0 = q0 > 0, in bohr^-1).
 !
 ! Same algebra as mix_potential (LR_Modules/mix_pot.f90, in-memory branch: the residual differences
 ! df and input differences dv of the last n_iter iterations, Johnson's weights w0 = 0.01, w = 1),

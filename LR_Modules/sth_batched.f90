@@ -1,6 +1,6 @@
 !
-! qe-fast: QE-side adapter of the batched Sternheimer engine (qefast/sth/sth_engine.f90,
-! groups/compute/STH-ENGINE.md). sternheimer_kernel dispatches here when QEF_STH=1 and the
+! qe-fast: QE-side adapter of the batched Sternheimer engine (qefast/sth/sth_engine.f90).
+! sternheimer_kernel dispatches here when QEF_STH=1 and the
 ! case is supported; otherwise (or if the engine declines) the vanilla k x pert loop runs.
 !
 ! Supported: norm-conserving, collinear, nspin_mag = 1, no DFT+U, no time reversal, any q,
@@ -14,7 +14,7 @@
 ! back to iudwf, which drhodv, the restart files and the next irrep's consumers read.
 !
 ! QEF_STH_TIME=1 prints the wall time of every call (engine and vanilla paths).
-! QEF_STRICT=1 (scored runs, qefast/examples/eph-tc/bench/run-chain.sh): with QEF_STH=1, a call that does not run on
+! QEF_STRICT=1: with QEF_STH=1, a call that does not run on
 ! the engine (unsupported case or engine declined) stops ph.x instead of taking the vanilla loop.
 !
 ! QEF_STH_MP=1: the engine's CG runs in mixed precision (FP32 inner PCG, FP64 defect correction
@@ -22,7 +22,7 @@
 ! tolerance max(safe*thresh, eta*|r|) (defaults 1e-4, 0.5). With QEF_STH_TIME=1 each call also
 ! prints its rounds and FP64 / FP32 column applications.
 !
-! QEF_STH_QCACHE=1 (groups/compute/SETUP-LOG.md): less setup work for the same values. Per irrep: no host stage
+! QEF_STH_QCACHE=1: less setup work for the same values. Per irrep: no host stage
 ! of dV_bare psi / dpsi when nothing is staged, the device work arrays kept across irreps of one shape, the k+q+G
 ! table built once per q on the device (dvb_build, becs). Per q: vkb at k+q copied device-to-device into the
 ! engine (no update host), evq/evc uploaded per k (no host W stage), d_inv built on the device.
@@ -44,7 +44,7 @@ MODULE sth_batched
   PUBLIC :: sth_batched_kernel, sth_env_flag, sth_batched_flush, sth_batched_becs, sth_batched_flush_end, &
             sth_batched_end_q, sth_strict_check, sth_batched_dvb_ok, sth_batched_dvb_prepare, sth_batched_qplan
   !
-  ! dV_bare psi built in the engine (QEF_STH_DVB=1, KERNEL-LOG lever 4). solve_linter (PHonon) decides it
+  ! dV_bare psi built in the engine (QEF_STH_DVB=1). solve_linter (PHonon) decides it
   ! with sth_batched_dvb_ok() and, instead of the per-(k, pert) dvqpsi_us + save_buffer loop, hands over
   ! the irrep's dvloc, patterns and alphap with sth_batched_dvb_prepare (PHonon modules are not visible
   ! here). QEF_STH_DVB_CHECK=1: solve_linter runs its loop too and the engine's result is compared.
@@ -82,7 +82,7 @@ CONTAINS
   END FUNCTION sth_env_flag
   !
   LOGICAL FUNCTION sth_case_ok(time_reversed, npert)
-    !! the engine's supported case (STH-ENGINE.md, v1): sth_batched_kernel runs the engine only if true
+    !! the engine's supported case (v1): sth_batched_kernel runs the engine only if true
     USE fft_base,         ONLY : dffts
     USE mp_bands,         ONLY : nproc_bgrp, nbgrp
     USE klist,            ONLY : lgauss, ltetra
@@ -234,7 +234,7 @@ CONTAINS
     eng_last = .FALSE.
 #if defined(__CUDA)
     IF (.NOT. sth_env_flag('QEF_STH')) RETURN
-    ! supported case (STH-ENGINE.md, v1); the same test decides sth_batched_dvb_ok
+    ! supported case (v1); the same test decides sth_batched_dvb_ok
     IF (.NOT. sth_case_ok(time_reversed, npert)) RETURN
     !
     ! engine state belongs to this irrep? (re-initialised at every first iteration; otherwise the
@@ -290,7 +290,7 @@ CONTAINS
          &", column applies FP64 ",I0,", FP32 ",I0,"; s: dpot ",F6.3," ortho ",F6.3," cg ",F6.3," (FP64 ",F6.3, &
          &") drho ",F6.3)') thresh, sth_nround, sth_nsteps, sth_n64, sth_n32, sth_t_dpot, sth_t_ortho, sth_t_cg, &
          sth_t_cg64, sth_t_drho
-    ! qe-fast profile (SOLVE-LOG.md): one line per call
+    ! qe-fast profile: one line per call
     IF (sth_timing) THEN
       WRITE(stdout, '(5x,"qef solve: thr ",ES9.2," ncol ",I0," act0 ",I0," steps ",I0," colapp ",I0, &
            &" r0med ",ES9.2," r0hist ",12(1x,I0))') thresh, sth_nvalid, sth_nact0, sth_nsteps, sth_ncolapp, &
@@ -560,7 +560,7 @@ CONTAINS
     INTEGER(8) :: c0, c1, c2, crate, ca, cb
     REAL(DP) :: tk(6)      ! QEF_STH_TIME: per-k loop split (get_buffer, init_us_2, g2kin+weights, set_k, dvbare/dpsi, set_wdev)
     LOGICAL :: wdev
-    ! QEF_STH_KDEV (SOLVE-LOG.md session 4): vkb by vkb_batch in chunks; evc / evq of SYMROT-mapped k rotated on the device
+    ! QEF_STH_KDEV: vkb by vkb_batch in chunks; evc / evq of SYMROT-mapped k rotated on the device
     LOGICAL :: kdev, kmapped, okk, okq, fk, fq
     INTEGER :: i0k, i0q, ngsk, ngsq, trk, trq, ftk, ftq, nkd, ich, nch, j, kdv, sk(3, 3), sq(3, 3), g0k(3), g0q(3)
     INTEGER, ALLOCATABLE :: mapk(:), mapq(:), ikl(:), mil(:,:)
@@ -573,15 +573,15 @@ CONTAINS
     sth_mp = sth_env_flag('QEF_STH_MP')
     sth_fftdx_req = sth_env_flag('QEF_STH_FFTDX')
     sth_fftdx_check = sth_env_flag('QEF_STH_FFTDX_CHECK')
-    sth_fdxdp_req = sth_env_flag('QEF_STH_FDXDP')          ! qe-fast (groups/compute/AMDAHL-LOG.md)
+    sth_fdxdp_req = sth_env_flag('QEF_STH_FDXDP')          ! qe-fast
     sth_fdxdp_check = sth_env_flag('QEF_STH_FDXDP_CHECK')
     sth_obatch = sth_env_flag('QEF_STH_OBATCH')
     sth_timing = sth_env_flag('QEF_STH_TIME')
-    sth_qcache = sth_env_flag('QEF_STH_QCACHE')            ! qe-fast (groups/compute/SETUP-LOG.md)
+    sth_qcache = sth_env_flag('QEF_STH_QCACHE')            ! qe-fast
     sth_dvb_req = dvb_on
     CALL env_real('QEF_MP_ETA', sth_mp_eta)
     CALL env_real('QEF_MP_SAFE', sth_mp_safe)
-    ! CBSR: exact spectral solve (SOLVE-LOG "CBSR canary"); sth_cbsr_off = the automatic check chose CG for this run
+    ! CBSR: exact spectral solve; sth_cbsr_off = the automatic check chose CG for this run
     sth_cbsr = sth_env_flag('QEF_STH_CBSR') .AND. .NOT. sth_cbsr_off
     nslot = 0
     DO ik = 1, nksq

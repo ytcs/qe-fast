@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F0 T3b probe (FUNNEL.md section 5 step 4): mid-grid DFPT with MP + one anisotropic ME solve at 0.7 T_target.
+# F0 T3b probe: mid-grid DFPT with MP + one anisotropic ME solve at 0.7 T_target.
 #   t3b-probe.sh <workroot>
 # Mg2IrH6 (B2 inputs): scf k 8^3, q 3^3, Wannier coarse k 6^3, fine 12^3 / 6^3, T = 0.7 * 77 = 53.9 K.
 # MgB2 (B1 inputs):    scf k 16^3, q 4^3, Wannier coarse k 4^3, fine 24^3 / 12^3, T = 0.7 * 39 = 27.3 K.
@@ -7,7 +7,7 @@
 set -uo pipefail
 R=/root/qefast/qe-fast/qef; W=$(realpath -m "$1"); mkdir -p "$W"
 source /root/qefast/env.sh
-export QEF_STH_MP=1
+export QEF_PRESET=off QEF_STH_MP=1
 prep() {  # prep <B> <name> <kscf> <nq> <nk> <nkf> <nqf> <T>
   local B=$1 N=$2 K=$3 Q=$4 NK=$5 KF=$6 QF=$7 T=$8 D=$W/$2-in
   mkdir -p $D; cp $R/bench/$B/smoke/*.in $D/

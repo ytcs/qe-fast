@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Timed T_c pipeline (MILESTONE-1.md). Usage:
+# Timed T_c pipeline. Usage:
 #   run.sh <inputs dir> <bin dir> <workdir> [mpi ranks] [omp threads] [pool flags]
 # Writes <workdir>/timings.tsv: stage, seconds.
 # FROM=<stage> resumes at that stage (scf, ph, collect, nscf, epw) and appends to timings.tsv;

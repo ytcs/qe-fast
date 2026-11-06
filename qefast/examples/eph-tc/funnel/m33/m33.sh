@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# M3-3 Phase 0 queue (groups/compute/M3-3-LOG.md pre-registration). Waits for $WAIT_FOR's DONE marker.
+# M3-3 Phase 0 queue. Waits for $WAIT_FOR's DONE marker.
 #   m33.sh <work dir> <stages: A | AB> <systems, e.g. "Si B1 B2">
 set -uo pipefail
 mkdir -p "$1"; W=$(realpath "$1"); cd "$W"; STAGES=$2; SYSTEMS=$3
 M=$(dirname "$(realpath "$0")")
 source /root/qefast/env.sh; source /root/cupyenv.sh
+export QEF_PRESET=off
 BIN=/root/qefast/qe-fast/build-gpu/bin; PS=/root/qefast/qe-fast/qefast/pseudo/sg15
 PY=/root/venv-m33/bin/python
 export W90=/root/w90/src/wannier90.x P2W=$BIN/pw2wannier90.x MPIRUN="mpirun --bind-to none -np 1"

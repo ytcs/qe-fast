@@ -175,7 +175,7 @@
       IF (dis_win_max  <  9000) WRITE(iuwinfil, '("dis_win_max = ", f18.12)')  dis_win_max
       IF (dis_froz_min > -9000) WRITE(iuwinfil, '("dis_froz_min = ", f18.12)') dis_froz_min
       IF (dis_froz_max <  9000) WRITE(iuwinfil, '("dis_froz_max = ", f18.12)') dis_froz_max
-      ! qe-fast (groups/compute/EPW4-LOG.md): QEF_W90_NITER=n overrides num_iter (default: the input's num_iter)
+      ! qe-fast: QEF_W90_NITER=n overrides num_iter (default: the input's num_iter)
       qef_niter = num_iter
       CALL qef_getenv('QEF_W90_NITER', qef_ev)
       IF (LEN_TRIM(qef_ev) > 0) THEN
@@ -220,7 +220,7 @@
         IF (wdata(i) /= ' ') WRITE(iuwinfil, *) TRIM(wdata(i))
       ENDDO
       !
-      ! qe-fast (groups/compute/EPW4-LOG.md): QEF_W90_NOHR=1 does not add write_hr when the input does not set it,
+      ! qe-fast: QEF_W90_NOHR=1 does not add write_hr when the input does not set it,
       ! so wannier90 skips its plotting stage (H(R) and the _hr.dat, which EPW never reads). Default off.
       ! Without write_hr wannier90 also leaves the .bvec file empty, which vmebloch2wan reads: NOHR acts only
       ! together with QEF_EPW_NOVME (which skips vmebloch2wan), and is ignored otherwise.

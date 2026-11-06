@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the cuFFTDx microbenchmark (FFT-LOG.md): qefast/sth/fdx/build.sh [sm, e.g. 86 or 90] -> build/fdxbench
+# Build the cuFFTDx microbenchmark: qefast/sth/fdx/build.sh [sm, e.g. 86 or 90] -> build/fdxbench
 # Needs NVHPC 26.5 (nvfortran, nvcc), MathDx (pip nvidia-mathdx 25.6) and CUTLASS headers:
 #   MDX=<.../nvidia/mathdx/include> CUTLASS=<cutlass/include>
 set -euo pipefail

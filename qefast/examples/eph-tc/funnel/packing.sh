@@ -9,7 +9,7 @@ BIN=${BIN:-/root/qefast/qe-fast/build-gpu/bin}
 PSEUDO_DIR=${PSEUDO_DIR:-/root/qefast/qe-fast/qefast/pseudo/sg15}
 source /root/qefast/env.sh
 mkdir -p "$W"; W=$(realpath "$W")
-export QEF_STH=1 QEF_STRICT=1 QEF_STH_MP=1
+export QEF_PRESET=off QEF_STH=1 QEF_STRICT=1 QEF_STH_MP=1
 nvidia-cuda-mps-control -d 2>/dev/null || true
 job() {  # job <dir>
   local d=$1; mkdir -p "$d"; cd "$d"; cp "$IN"/*.in .; sed -i "s|@PSEUDO@|$PSEUDO_DIR|" *.in

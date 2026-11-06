@@ -12,6 +12,7 @@ IN=$(realpath "$1"); mkdir -p "$2"; W=$(realpath "$2"); cd "$W"
 F=$(dirname "$(realpath "$0")")
 source /root/qefast/env.sh
 unset QEF_STH_MP
+export QEF_PRESET=${QEF_PRESET:-off}
 export BIN=${BIN:-/root/qefast/qe-fast/build-gpu/bin} PSEUDO_DIR=${PSEUDO_DIR:-/root/qefast/qe-fast/qefast/pseudo/sg15}
 MS=/root/venv-ms/bin/python; MACE=/root/venv-mace/bin/python
 mark() { echo "$1 $(date -u +%H:%M:%S)" | tee -a queue.log; }

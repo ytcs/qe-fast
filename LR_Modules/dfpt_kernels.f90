@@ -188,7 +188,7 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    !
    REAL(DP) :: tcpu, get_clock
    !
-   ! qe-fast QEF_THRESH_L = L > 1 (SOLVE-LOG.md): non-final SCF iterations solve to L x the vanilla
+   ! qe-fast QEF_THRESH_L = L > 1: non-final SCF iterations solve to L x the vanilla
    ! thresh. The vanilla chain tv = min(0.1 sqrt(dr2), tv) is kept alongside; an iteration whose
    ! predicted |ddv|^2 (dr2 * min(1, dr2/dr2_prev)) is below QEF_THRESH_G (default 100) x tr2_ph uses
    ! tv. If the SCF converges on a loose iteration, one polish iteration re-solves with the same

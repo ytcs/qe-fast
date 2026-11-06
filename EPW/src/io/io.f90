@@ -37,7 +37,7 @@
     !------------------------------------------------------------
     LOGICAL FUNCTION qef_novme()
     !------------------------------------------------------------
-    !! qe-fast: QEF_EPW_NOVME=1 (groups/compute/EPW4-LOG.md). In an ephwrite + Eliashberg run whose fine
+    !! qe-fast: QEF_EPW_NOVME=1. In an ephwrite + Eliashberg run whose fine
     !! stage is the fused GPU path, nothing reads the Wannier velocity / dipole / position matrices, so the
     !! dipole matrix elements (compute_pmn_para), the formatted .mmn file, vmebloch2wan / dmebloch2wan and the
     !! vmedata / dmedata files are skipped. use_wannier stops (errore) if the fused path is not taken or a
@@ -334,7 +334,7 @@
       !
     ENDIF ! meta_ionode
     !
-    ! qe-fast (QEF_EPW_NOWRITE=1; groups/compute/EPW3-LOG.md): etf_mem = 0 keeps epmatwp in memory and this run
+    ! qe-fast (QEF_EPW_NOWRITE=1): etf_mem = 0 keeps epmatwp in memory and this run
     ! never reads the file back, so its write (~10 GB at frozen B2) is skipped
     IF (etf_mem == 0 .AND. .NOT. qef_nowrite()) THEN
       filint   = TRIM(tmp_dir) // TRIM(prefix)//'.epmatwp'

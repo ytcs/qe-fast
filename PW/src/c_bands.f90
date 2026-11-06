@@ -946,7 +946,7 @@ SUBROUTINE c_bands_nscf( )
   ! ... For each k point (except those already calculated if restarting)
   ! ... diagonalizes the hamiltonian
   !
-  ! qe-fast (QEF_PW_SYMROT=1, groups/compute/EPW3-LOG.md): one representative per orbit is diagonalized
+  ! qe-fast (QEF_PW_SYMROT=1): one representative per orbit is diagonalized
   ! (pass 1), every other k-point is an exact G-space rotation of it (symrot_after_solve); pass 2 diagonalizes
   ! any k-point whose rotation could not be done. Off: the vanilla single pass.
   symrot = .FALSE.

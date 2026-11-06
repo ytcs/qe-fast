@@ -1,7 +1,7 @@
 """M3-3 Phase 0 tool, part 2: standard metallic chi0 and the occupation-factorised coarse-k response (return M3/3 D1-D5 with
 referee A's F2), on the same Hamiltonian (pwtool), for one q and one local perturbation dV (periodic part on the dense box).
 
-Conventions (M3-3-LOG pre-registration): MP order-1 occupations at E_F (scf) with width sigma; the full N^3 Gamma-centred grid,
+Conventions: MP order-1 occupations at E_F (scf) with width sigma; the full N^3 Gamma-centred grid,
 no symmetry; densities are periodic parts, normalised as 2 (spin) x [2 (TR) x first-order pairs] / N^3 (the Omega factor is
 common to every density and omitted). Every quantity entering r is computed with the SAME H, so control (a) (N_c = N_f) is
 an algebraic identity up to the CG / eigen tolerances.

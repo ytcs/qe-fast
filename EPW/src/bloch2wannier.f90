@@ -23,7 +23,7 @@
     !--------------------------------------------------------------------------
     LOGICAL FUNCTION b2w_gemm()
     !--------------------------------------------------------------------------
-    !! qe-fast: QEF_EPW_B2W=1 (ephbloch2wane step 2 by ZGEMM; groups/compute/EPW3-LOG.md)
+    !! qe-fast: QEF_EPW_B2W=1 (ephbloch2wane step 2 by ZGEMM)
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
@@ -38,7 +38,7 @@
     LOGICAL FUNCTION b2w_gpu()
     !--------------------------------------------------------------------------
     !! qe-fast: QEF_EPW_B2WG=1 (with QEF_EPW_B2W=1): ephbloch2wane step 2's ZGEMMs on the device
-    !! (groups/compute/EPW4-LOG.md). Default off.
+    !!. Default off.
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. rd) THEN
@@ -1509,7 +1509,7 @@
     !
     CALL cryst_to_cart(nks, xk, at, -1)
     !
-    ! qe-fast (QEF_EPW_B2W=1; groups/compute/EPW3-LOG.md): the same sum as one ZGEMM per mode,
+    ! qe-fast (QEF_EPW_B2W=1): the same sum as one ZGEMM per mode,
     ! epmatw(:, :, :, imode) = epmats(:, :, :, imode) x cf(nks, nrr), and one reduction for all modes. Default off.
     IF (b2w_gemm()) THEN
       ALLOCATE(cf(nks, nrr), STAT = ierr)

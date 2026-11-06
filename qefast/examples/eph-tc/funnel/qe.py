@@ -4,10 +4,13 @@ Stdlib + numpy only (runs under the system python3 on the pod); structures are p
 {lattice: 3x3 A, species: [..], frac: [[..]..]}.
 """
 import math
+import os
 import re
 import xml.etree.ElementTree as ET
 
 import numpy as np
+
+os.environ.setdefault("QEF_PRESET", "off")   # the funnel's thresholds were set on this path; child runs inherit it
 
 HA = 27.211386245988
 RY = HA / 2
@@ -66,7 +69,7 @@ def kgrid(lat, dk):
     return [max(1, math.ceil(x / dk)) for x in recip_norms(lat)]
 
 
-# G5 (FUNNEL.md section 8, pre-registered 2026-10-30): ecutwfc = max over the elements present of the pseudopotential
+# G5 (pre-registered 2026-10-30): ecutwfc = max over the elements present of the pseudopotential
 # set's "normal" hint; ecutrho = 4 x ecutwfc (NC; pw.x default). Retires the F0 rule (80 Ry with H/B/C/N/O/F or a 3d
 # metal, else 60), which under-converged Nb (SG15 needs ~82 Ry).
 # SG15: PseudoDojo standard-table "normal" hints (github PseudoDojo/ONCVPSP-PBE-SR standard.djson; PSEUDO-SURVEY section 2).
@@ -240,7 +243,7 @@ def z_valence(e, pseudo):
 
 
 def n_shell(species, pseudo):
-    """G1 (FUNNEL.md section 7) realised by shell counting: bands of shells NOT covered by the projection set.
+    """G1 realised by shell counting: bands of shells NOT covered by the projection set.
     SG15 carries no PP_PSWFC, so the projected weight cannot be computed with projwfc.x; a semicore shell of an
     element is by construction not in its (valence-shell) projection set, and a valence shell always is. Hence an
     element's valence s band is never excluded when it carries an s projection (H3S: S 3s kept)."""
@@ -350,7 +353,7 @@ def t3a_grids(st, nq=None):
     nat = len(st["species"])
     k = kgrid(st["lattice"], 0.20 if nat <= 4 else 0.27)
     nq = nq or (4 if nat == 1 else (3 if nat <= 4 else 2))
-    nk = 2 * nq   # G2 (FUNNEL.md section 7): Wannier/EPW coarse k = 2 q for every cell size (F0: k = q for 3-4 atoms).
+    nk = 2 * nq   # G2: Wannier/EPW coarse k = 2 q for every cell size (F0: k = q for 3-4 atoms).
     # G4(e) (W1) refines to 3 q inside t3a.epw_stage when the two Wannier setups disagree; W1 found 2 q unconverged for
     # sigma-band MgB2 (lambda 1.34 / 0.85 at 2q / 3q) and for H3S under use_ws (2.09 / 2.94).
     nkf = max(kgrid(st["lattice"], 0.2))

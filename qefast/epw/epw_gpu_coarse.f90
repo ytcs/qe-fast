@@ -32,7 +32,7 @@ MODULE epw_gpu_coarse
   INTEGER, DEVICE, ALLOCATABLE :: d_ik(:), d_iq(:)
   INTEGER :: ldc = 0
   !
-  ! Nonlocal part on the GPU (groups/compute/KERNEL-LOG.md, lever 3). Vanilla (and ep_gpu_k before this):
+  ! Nonlocal part on the GPU. Vanilla (and ep_gpu_k before this):
   ! per k, host ZGEMMs becq_a = [vkb (k+q+G)_a]^H psi_k+q (a = 0: vkb itself), host loops for
   ! ps1 = D (sum_a u_a alphap_a), ps2_a = -i tpiba u_a D becp1, and g += becq_0^H ps1 + sum_a becq_a^H ps2_a.
   ! Here: D becp1 and D alphap_a by cuBLAS, then one contraction kernel for all perturbations, added to
@@ -45,7 +45,7 @@ MODULE epw_gpu_coarse
   !
   PUBLIC :: egc_init, egc_set_v, egc_local, egc_finalize, egc_ready, egc_nl_set, egc_local_nl
   !
-  ! qe-fast profile (QEF_EPW_PROF=1; groups/compute/AMDAHL-LOG.md): synchronising wall clocks per part of
+  ! qe-fast profile (QEF_EPW_PROF=1): synchronising wall clocks per part of
   ! egc_local_nl, cumulative; tp(1) uploads, (2) FFTs of psi_k / psi_k+q, (3) V*psi + ZGEMM, (4) nonlocal, (5) D2H,
   ! (6) host prep in ep_gpu_k (set by the caller through egc_prof_add)
   LOGICAL, SAVE :: prof = .FALSE., prof_read = .FALSE.
@@ -53,7 +53,7 @@ MODULE epw_gpu_coarse
   INTEGER, SAVE :: np_calls = 0
   PUBLIC :: egc_prof_on, egc_prof_add, egc_prof_print, egc_wall
   !
-  ! qe-fast (QEF_EPW_FDX=1; groups/compute/AMDAHL-LOG.md): the local part in G-space on the pruned cuFFTDx path
+  ! qe-fast (QEF_EPW_FDX=1): the local part in G-space on the pruned cuFFTDx path
   ! (qefast/sth/fdx/sth_fftdx.cu), i.e. vanilla's own form dvpsi = fwfft(psi_k(r) V(r)) on the k+q sphere, then
   ! g = psi_k+q^H dvpsi (one ZGEMM, K = npwq). Replaces the Parseval form, which materialises V psi for every band and
   ! mode in a full box (nnr x nbnd x nmodes) before an M = nbnd ZGEMM over nnr. Only psi_k needs an inverse FFT.

@@ -19,7 +19,7 @@
   USE kinds, ONLY : DP
   IMPLICIT NONE
   !
-  ! qe-fast (QEF_EPW_STAR=1; groups/compute/EPW3-LOG.md): star-of-q shortcut. The coarse g of the first q0 of a
+  ! qe-fast (QEF_EPW_STAR=1): star-of-q shortcut. The coarse g of the first q0 of a
   ! star (identity op) is kept for every k (star_g0, pattern basis, all modes). For another member S q0, EPW evaluates
   ! g = <R psi_{k+Sq0}| dV_q0 |R psi_k> with R psi_k at k~ = S k (and R psi_{k+Sq0} at k~ + q0); this is
   ! g = D_kq^H g0(k~) D_k with D_k = <psi_stored(k~)| R psi_k> (kept bands), exact when D is unitary. A k whose D

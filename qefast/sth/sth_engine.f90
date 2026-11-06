@@ -1,5 +1,5 @@
 !
-! qe-fast: batched Sternheimer engine (groups/compute/STH-ENGINE.md, spec v1).
+! qe-fast: batched Sternheimer engine (spec v1).
 !
 ! Replaces one call of sternheimer_kernel (LR_Modules/response_kernels.f90) for the
 ! norm-conserving, collinear, nspin=1, lgauss, q /= 0 case: every column c = (k, pert, band
@@ -65,7 +65,7 @@ MODULE sth_engine
     END SUBROUTINE acc_clear_freelists
   END INTERFACE
   !
-  ! cuFFTDx pruned fused local operator (qefast/sth/fdx/sth_fftdx.cu; groups/compute/FFT-LOG.md), QEF_STH_FFTDX=1.
+  ! cuFFTDx pruned fused local operator (qefast/sth/fdx/sth_fftdx.cu), QEF_STH_FFTDX=1.
   ! Built when CMake finds MathDx (QEF_MATHDX_INC, QEF_CUTLASS_INC); otherwise a stub whose fdx_setup returns
   ! "unsupported" and the engine keeps cuFFT.
   INTERFACE
@@ -101,7 +101,7 @@ MODULE sth_engine
       REAL(c_float), VALUE :: scale
       INTEGER(cuda_stream_kind), VALUE :: strm
     END FUNCTION fdx_local_s
-    ! QEF_STH_FDXDP (groups/compute/AMDAHL-LOG.md): apply_dpot and the inverse transform of incdrhoscf on the
+    ! QEF_STH_FDXDP: apply_dpot and the inverse transform of incdrhoscf on the
     ! pruned path (FP64)
     INTEGER(c_int) FUNCTION fdx_dpot_d(d, psir, dv, list, s0, nb, nslot, npert, npwx, nnr, pj, scale, strm) &
                                        BIND(C, name='fdx_dpot_d')
@@ -171,21 +171,21 @@ MODULE sth_engine
   ! cuFFT path too and print the difference of the local part (diagnostic; costs one extra application).
   LOGICAL, PUBLIC, SAVE :: sth_fftdx_req = .FALSE., sth_fftdx_check = .FALSE.
   LOGICAL, SAVE :: fdx_on = .FALSE., fdx_checked = .FALSE.
-  ! qe-fast (groups/compute/AMDAHL-LOG.md), set before setup (per q):
+  ! qe-fast, set before setup (per q):
   ! sth_fdxdp_req (QEF_STH_FDXDP): apply_dpot, the DVB local part and incdrhoscf's inverse FFT on the pruned fftdx path
   !   (needs fdx_on); sth_fdxdp_check: at the first non-trivial call of each q, run the box path too and print the
   !   differences; sth_obatch (QEF_STH_OBATCH): orthogonalize with two strided-batched ZGEMMs (ortho_batched) in FP64
   LOGICAL, PUBLIC, SAVE :: sth_fdxdp_req = .FALSE., sth_fdxdp_check = .FALSE., sth_obatch = .FALSE.
   LOGICAL, SAVE :: dp_on = .FALSE., dp_checked = .FALSE., dr_checked = .FALSE.
   REAL(dp), PUBLIC, SAVE :: sth_t_fdxsetup = 0
-  ! dV_bare psi built in the engine (KERNEL-LOG lever 4; QEF_STH_DVB=1), set before init (per q):
+  ! dV_bare psi built in the engine (QEF_STH_DVB=1), set before init (per q):
   ! becp1 / alphap of every k (staged by sth_engine_set_nlk), D becp1 and D alphap on the device
   LOGICAL, PUBLIC, SAVE :: sth_dvb_req = .FALSE.
   LOGICAL, SAVE :: dvb_q = .FALSE.
   COMPLEX(dp), ALLOCATABLE, SAVE :: h_bp(:,:,:), h_al(:,:,:,:)
   COMPLEX(dp), DEVICE, ALLOCATABLE :: d_db(:,:,:), d_da(:,:,:,:)
   !
-  ! qe-fast (groups/compute/SETUP-LOG.md; QEF_STH_QCACHE=1, set before init, per q). Same values, less setup work:
+  ! qe-fast (QEF_STH_QCACHE=1, set before init, per q). Same values, less setup work:
   ! - host stages h_dvb / h_dpsi0 allocated only when written (DVB on and a first iteration write neither: the device
   !   arrays are zeroed instead of uploading zeros);
   ! - the irrep work arrays kept across the irreps of one q when their shape (npert) is unchanged;
@@ -236,7 +236,7 @@ MODULE sth_engine
   COMPLEX(dp), DEVICE, ALLOCATABLE :: d_box2(:,:)
   INTEGER, PINNED, ALLOCATABLE, SAVE :: h_nact(:)
   !
-  ! Mixed precision (sth_mp, QEF_STH_MP=1; groups/compute/MIXED-LOG.md). Defect correction per
+  ! Mixed precision (sth_mp, QEF_STH_MP=1). Defect correction per
   ! column on A = H_kq - e_n + alpha_pv P_v, which is fixed for all SCF calls of one irrep:
   !   FP64 state  x = dpsi, b = dvpsi (dV psi + orthogonalize, FP64 as before), Ax (kept across calls)
   !   round:      r = Ax - b (FP64); converged if sqrt(<h_diag r, r>) < thresh (the cgsolve_all test,
@@ -263,7 +263,7 @@ MODULE sth_engine
   COMPLEX(sp), DEVICE, ALLOCATABLE :: s_e(:,:), s_g(:,:), s_h(:,:), s_t(:,:), s_cf(:,:), s_cf2(:,:)
   !
   !
-  ! qe-fast CBSR (QEF_STH_CBSR=1; SOLVE-LOG.md "CBSR canary" and session 4 "production"). Exact spectral solve of the engine's
+  ! qe-fast CBSR (QEF_STH_CBSR=1). Exact spectral solve of the engine's
   ! own system A~ = H_kq + alpha_pv P_v (nscf evq, energy zero V0): A~ - V0 = U Lambda U^H, and each SCF call replaces the
   ! CG by dpsi_n = U diag(1/(Lambda - e~_n)) U^H b_n on the engine's orthogonalised right-hand side (QE's system solved
   ! exactly; referee B's theta-weighted closed form with the nscf psi as the single psi source).
@@ -309,8 +309,7 @@ MODULE sth_engine
   LOGICAL, SAVE :: have_solv = .FALSE.
   INTEGER, SAVE :: cb_lwork = 0
   !
-  ! qe-fast: CBSR in refinement form (QEF_STH_CBSR_RF=1 with QEF_STH_CBSR=1; SOLVE-LOG.md session 5, theory M6-A with the
-  ! referees' fixes). Each SYMROT entry's basis is stored compressed: its lowest cb_m0 eigenvectors (tier 0: the energy
+  ! qe-fast: CBSR in refinement form (QEF_STH_CBSR_RF=1 with QEF_STH_CBSR=1). Each SYMROT entry's basis is stored compressed: its lowest cb_m0 eigenvectors (tier 0: the energy
   ! window around the occupied energies, both the alpha_pv-shifted occupied and the empty states) in FP64 (u), the rest
   ! in FP32 (u32). Both projectors stay those of the engine's own FP64 operator: A~ is assembled from the engine's evq and
   ! the residual is the engine's apply_op. R~ = U0 D0 U0^H + U1 D1 U1^H is a solver step under QE's own FP64 test:
@@ -328,16 +327,16 @@ MODULE sth_engine
   REAL(dp), SAVE :: sth_t_crf = 0, sth_t_crfg = 0
   INTEGER(8), SAVE :: rf_conv(0:8) = 0, rf_gcols = 0
   !
-  ! qe-fast (SOLVE-LOG.md session 6), exact FP64 CBSR at B2 scale (both off by default):
+  ! qe-fast, exact FP64 CBSR at B2 scale (both off by default):
   ! - QEF_STH_CBSR_XCH=1: the exact solve chunked like rf (whole bases, <= cb_cmax gathered columns per chunk) instead of
   !   one full-width gather buffer per irrep (q5 npert 2: 2 x 3.9 GiB). Same per-column GEMMs (U^H b, 1/(Lambda - e~), U c).
   ! - QEF_STH_CBSR_HOST=1 (implies XCH; exact form only): bases that do not fit on the device next to the q's arrays are
   !   kept in pinned host memory (h_cbh) and copied into a device staging slot (d_cstg) before each of their two GEMMs.
   !   Where a basis is stored does not change its numbers (an A40 device for the B2 gate; a safety net on the H100).
-  ! - Under QEF_STRICT=1, a CBSR decline ("CG kept") at q /= Gamma stops ph.x (the pre-flight rule of MILESTONE-2).
+  ! - Under QEF_STRICT=1, a CBSR decline ("CG kept") at q /= Gamma stops ph.x.
   LOGICAL, SAVE :: cb_xch = .FALSE., cb_host = .FALSE., cb_strict = .FALSE.
   !
-  ! qe-fast (groups/compute/GEN-LOG.md): the automatic check of QEF_STH_CBSR (QEF_STH_CBSR_AUTO=0 turns it off), decided
+  ! qe-fast: the automatic check of QEF_STH_CBSR (QEF_STH_CBSR_AUTO=0 turns it off), decided
   ! once at the first q /= Gamma and printed as one line "qef cbsr auto:".
   ! - memory: one basis per orbit of the k+q grid (symrot_count), n = npwx, 16 n^2 bytes each, against the device memory
   !   left after the engine's arrays at the largest q of the run (plus pinned host memory under QEF_STH_CBSR_HOST).
@@ -364,7 +363,7 @@ MODULE sth_engine
   REAL(dp), SAVE :: pc_resmax_o = 0, pc_resmax_e = 0, pc_win = HUGE(1.0_dp)
   INTEGER(8), SAVE :: pc_res(0:7) = 0, pc_dun(0:6) = 0, pc_doc(0:6) = 0, pc_dla(0:6) = 0
   !
-  ! qe-fast KDEV (QEF_STH_KDEV=1, with QCACHE; SOLVE-LOG.md session 4): the adapter's per-k loop on the GPU. evq / evc of every k
+  ! qe-fast KDEV (QEF_STH_KDEV=1, with QCACHE): the adapter's per-k loop on the GPU. evq / evc of every k
   ! whose k and k+q are QEF_NSCF_SYMROT images are built here by the same coefficient rotation SYMROT applies on the host,
   ! from a device copy of the SYMROT cache (d_rwf, kept across q); vkb comes from vkb_batch (sth_engine_set_wdev_n).
   COMPLEX(dp), DEVICE, ALLOCATABLE :: d_rwf(:,:,:)
@@ -3142,7 +3141,7 @@ CONTAINS
   !
   REAL(dp) FUNCTION cb_host_avail()
     !! the ceiling for pinned bases: half of what this process can still get. /proc/meminfo reports the node, so a container's
-    !! cgroup limit caps it (a 50 GB pod on a 503 GB node: EPW was OOM-killed there, groups/compute/GEN-LOG.md)
+    !! cgroup limit caps it (a 50 GB pod on a 503 GB node: EPW was OOM-killed there)
     INTEGER :: u, ios
     CHARACTER(LEN=64) :: l
     INTEGER(8) :: kb

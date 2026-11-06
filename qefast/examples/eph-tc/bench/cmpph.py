@@ -4,7 +4,7 @@
 Per q: max |delta omega| (cm-1) over the modes of <prefix>.dyn<i> (all "freq" lines), the largest
 relative deviation max(|d|/|w|) among modes above 1 cm-1, and the dvscf relative L2
 |dv_test - dv_ref| / |dv_ref| (whole _ph0/<prefix>.dvscf1 or _ph0/<prefix>.q_<i>/<prefix>.dvscf1
-file read as complex128). Gate (MILESTONE-1, class N): every mode within max(0.5 %, 1 cm-1);
+file read as complex128). Gate (class N): every mode within max(0.5 %, 1 cm-1);
 the target is 0.2 cm-1; dvscf <= 5e-6.
 """
 import glob

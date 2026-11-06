@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Warm start for a dev pod (RULES.md: default until the campaign closes).
-# Expects the global volume qefast-build-cache mounted at $CACHE (default /cache).
+# Warm start for a dev pod.
+# Expects the build-cache volume mounted at $CACHE (default /cache).
 #   curl -sSfL https://raw.githubusercontent.com/ytcs/qe-fast/main/qefast/pod/warm.sh | bash
 # Cache hit: restore source + build-gpu (NVTX on) + pseudo + shim, git pull, incremental rebuild.
 # Cache miss: full setup + build, then save to the cache.
@@ -26,6 +26,7 @@ else
   qe-fast/qefast/pseudo.sh
 fi
 source env.sh
-NVTX=1 CPU=0 J=$J qe-fast/qefast/pod/build-gpu.sh qe-fast $CC
+eval "$(FDX_DEPS=/root/qefast/fdxdeps qe-fast/qefast/sth/fdx/deps.sh)"   # without these the FFTDX path is the stub
+NVTX=1 CPU=0 J=$J MDX=$MDX CUTLASS=$CUTLASS qe-fast/qefast/pod/build-gpu.sh qe-fast $CC
 [ -f "$ARC" ] || CC=$CC qe-fast/qefast/pod/save.sh
 echo WARM_OK

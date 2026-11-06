@@ -91,7 +91,7 @@ SUBROUTINE c_bands_nscf_ph( )
   symrot = symrot_on() .AND. ik_ == 0 .AND. TRIM(starting_wfc) /= 'file'
   ethr_save = ethr
   IF (symrot) THEN
-     ! the representatives are diagonalized at a tighter threshold (NSCFROT-LOG.md)
+     ! the representatives are diagonalized at a tighter threshold
      ethr = ethr * symrot_tight()
      CALL symrot_plan(kdone, kskip)
   ENDIF

@@ -1,5 +1,5 @@
 ! fftbench: per-column cost of the engine's local-potential chain (scatter, FFT^-1, xV, FFT, gather)
-! for cuFFT plan variants (groups/compute/KERNEL-LOG.md, Step 2 probe). Standalone:
+! for cuFFT plan variants (Step 2 probe). Standalone:
 !   nvfortran -O3 -cuda -gpu=cc86 -cudalib=cufft fftbench.f90 -o fftbench ; ./fftbench n1 n2 n3 [B]
 ! Variant A: current engine (full-box scatter, 3D Z2Z inverse, xV, 3D Z2Z forward, gather).
 ! Variant P: pruned z (scatter to the PW sticks, 1D z-FFT on sticks only, expand to planes, batched 2D

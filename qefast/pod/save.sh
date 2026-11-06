@@ -4,5 +4,5 @@
 set -euo pipefail
 CACHE=${CACHE:-/cache}; CC=${CC:-80}; ARC=$CACHE/qefast-sm$CC.tar.zst
 cd /root/qefast
-tar -I 'zstd -3 -T0' -cf "$ARC.tmp" --exclude='qe-fast/build-cpu' qe-fast nvtxshim
+tar -I 'zstd -3 -T0' -cf "$ARC.tmp" --exclude='qe-fast/build-cpu' qe-fast nvtxshim fdxdeps env.sh
 mv "$ARC.tmp" "$ARC" && echo "saved $(du -h "$ARC" | cut -f1) to $ARC"

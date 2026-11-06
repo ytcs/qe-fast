@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Held-out generalisation check (groups/compute/GEN-LOG.md): scf/nscf/ph inputs of G1-G8 and D1-D3.
+"""Held-out generalisation check: scf/nscf/ph inputs of G1-G8 and D1-D3.
   mkinputs.py <out dir> <archive dir (F0c cells)> [B13C2 relaxed scf.in]
 epw.in needs E_F and the bands: mkepw.py writes it after the preparation nscf."""
 import json, math, os, re, sys

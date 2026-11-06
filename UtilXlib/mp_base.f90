@@ -380,7 +380,7 @@ SUBROUTINE reduce_base_real( dim, ps, comm, root )
   CALL mp_synchronize( comm )
 #endif
   !
-  ! qe-fast (groups/compute/EPW4-LOG.md): QEF_MP_INPLACE=1 makes an all-reduce one in-place MPI_Allreduce
+  ! qe-fast: QEF_MP_INPLACE=1 makes an all-reduce one in-place MPI_Allreduce
   ! over the whole array instead of dim/maxb chunked calls through a buffer (as QE_ENABLE_MPI_INPLACE builds do).
   ! Only multi-rank communicators reach this point (nproc <= 1 returned above). Default off.
   IF (.NOT. qef_rd) THEN

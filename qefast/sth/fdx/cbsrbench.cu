@@ -1,4 +1,4 @@
-// cbsrbench: CBSR Stage 0 (groups/theory/returns/M4/S.md; FFT-LOG.md "CBSR Stage 0").
+// cbsrbench: CBSR Stage 0 (groups/theory/returns/M4/S.md).
 //   zheevd (cuSOLVER, FP64 complex Hermitian) wall time and device memory, values only (jobz=N) and with vectors (jobz=V);
 //   cublasZgemm FP64 throughput for C(n x N) = A(n x n) B(n x N); pinned H2D streaming of a 1.16 GB block.
 //   ./cbsrbench [n ...]   (default 1535 6000 8500)
