@@ -1,0 +1,78 @@
+# Copyright (C) 2026 The qe-fast authors
+# SPDX-License-Identifier: GPL-2.0-or-later
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Shell syntax
+        run: git ls-files 'qefast/*.sh' | xargs -n1 bash -n
+      - name: Python syntax
+        run: git ls-files 'qefast/*.py' | xargs python3 -m py_compile
+      - name: The old project name stays out
+        run: |
+          # The name is split so that this file does not match itself; "Bertsch" is a vendored copyright line.
+          if git grep -nIi 'rt''sc' | grep -v 'Bertsch'; then
+            echo "::error::old project name found"
+            exit 1
+          fi
+      - name: Sources carry a licence tag
+        run: |
+          missing=$(git ls-files 'qefast/*.sh' 'qefast/*.py' 'qefast/*.f90' 'qefast/*.cu' 'qefast/*.c' \
+            | xargs grep -L 'SPDX-License-Identifier' || true)
+          if [ -n "$missing" ]; then echo "$missing"; echo "::error::missing SPDX tag"; exit 1; fi
+
+  cpu-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends gfortran ninja-build libopenblas-dev libfftw3-dev
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQE_ENABLE_MPI=OFF -DQE_ENABLE_TEST=OFF \
+            -DQE_FFTW_VENDOR=FFTW3
+      - name: Build
+        # All three main executables build without CUDA.
+        run: cmake --build build -j 4 --target pw.x ph.x epw.x
+      - name: Small pw.x test
+        env:
+          ESPRESSO_PSEUDO: ${{ github.workspace }}/EPW/examples/sic/pp   # holds Si.pz-vbc.UPF, so no download
+          OMP_NUM_THREADS: 1
+        run: |
+          pw="$PWD/build/bin/pw.x"
+          ref=$(awk '/^!    total energy/ {print $5}' test-suite/pw_scf/benchmark.out.git.inp=scf.in)
+          mkdir ci-run && cd ci-run
+          cp ../test-suite/pw_scf/scf.in .
+          for preset in "" off; do
+            ESPRESSO_TMPDIR=tmp QEF_PRESET=$preset "$pw" -in scf.in > "scf-$preset.out" \
+              || { tail -n 20 "scf-$preset.out"; exit 1; }
+            grep -q 'JOB DONE' "scf-$preset.out"
+            grep 'qe-fast preset:' "scf-$preset.out"
+            e=$(awk '/^!    total energy/ {print $5}' "scf-$preset.out")
+            echo "preset '$preset': $e Ry, reference $ref Ry"
+            awk -v a="$e" -v b="$ref" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(d < 1e-5) }'
+          done
+          if QEF_PRESET=bogus "$pw" -in scf.in > bogus.out 2>&1; then
+            echo "::error::an invalid QEF_PRESET did not stop the run"
+            exit 1
+          fi

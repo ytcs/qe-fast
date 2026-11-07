@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2002-2025 Quantum ESPRESSO Foundation
 ! This file is distributed under the terms of the
@@ -25,6 +26,7 @@ MODULE environment
   USE fox_init_module, ONLY: fox_init
   USE command_line_options, ONLY : nmany_
   USE clib_wrappers, ONLY : get_mem_avail
+  USE qef_config, ONLY : qef_report
 #if defined(__HDF5)
   USE qeh5_base_module,   ONLY: initialize_hdf5, finalize_hdf5
 #endif
@@ -117,6 +119,7 @@ CONTAINS
     END IF
     !
     CALL opening_message( code_version )
+    IF ( meta_ionode ) CALL qef_report( stdout )
 #if defined(__MPI)
     CALL parallel_info ( )
 #else

@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001-2013 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -28,7 +29,7 @@ SUBROUTINE do_phonon(auxdyn)
   !! it can calculate also the electro-optic and the raman tensors.
   !
 
-  USE disp,            ONLY : nqs
+  USE disp,            ONLY : nqs, nq1, nq2, nq3, x_q, comp_iq
   USE control_flags,   ONLY : use_gpu
   USE control_lr,      ONLY : rec_code, where_rec, reduce_io
   USE control_ph,      ONLY : epsil, trans, qplot, only_init, only_wfc, lmultipole
@@ -48,7 +49,7 @@ SUBROUTINE do_phonon(auxdyn)
   USE buffers,        ONLY : close_buffer
   USE control_flags,  ONLY : use_gpu
   USE environment,   ONLY : print_cuda_info
-  USE sth_batched,   ONLY : sth_batched_end_q
+  USE sth_batched,   ONLY : sth_batched_end_q, sth_batched_qplan
   
   IMPLICIT NONE
   !
@@ -58,6 +59,9 @@ SUBROUTINE do_phonon(auxdyn)
   LOGICAL,EXTERNAL :: check_gpu_support
   !
   qind = 0
+  !
+  ! qe-fast: the q of this run, for the automatic CBSR check (no effect unless QEF_STH_CBSR=1)
+  IF (ALLOCATED(x_q) .AND. ALLOCATED(comp_iq)) CALL sth_batched_qplan((/ nq1, nq2, nq3 /), nqs, x_q, comp_iq)
   !
   DO iq = 1, nqs
      !
@@ -168,7 +172,7 @@ SUBROUTINE do_phonon(auxdyn)
      ! ... cleanup of the variables for the next q point
      !
 100  CALL clean_pw_ph(iq)
-     ! rtsc (RTSC_STH=1): release the engine's per-q state and the runtime-cached device blocks;
+     ! qe-fast (QEF_STH=1): release the engine's per-q state and the runtime-cached device blocks;
      ! one line with this q's device-memory high-water
      CALL sth_batched_end_q(iq)
      !

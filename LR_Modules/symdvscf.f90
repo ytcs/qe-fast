@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001 PWSCF group
 ! This file is distributed under the terms of the
@@ -52,7 +53,7 @@ subroutine symdvscf (dvtosym, dfft)
   ! If there is no symmetry other than identity, return.
   IF (nsymq == 1 .AND. (.NOT.minus_q) ) RETURN
 #if defined(__CUDA)
-  ! rtsc: GPU symmetrization when the fork's engine is on (RTSC_STH=1)
+  ! qe-fast: GPU symmetrization when the fork's engine is on (QEF_STH=1)
   IF (sth_tail_on()) THEN
      CALL symdvscf_acc(dvtosym, dfft)
      RETURN

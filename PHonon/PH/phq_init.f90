@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001-2018 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -61,7 +62,7 @@ SUBROUTINE phq_init()
   USE control_lr,           ONLY : nbnd_occ, lgamma
   USE ldaU,                 ONLY : lda_plus_u
   USE uspp_init,            ONLY : init_us_2
-  USE rtsc_phq_fuse,        ONLY : phq_fuse_on, phq_fuse_begin, phq_fuse_k, phq_fuse_end, phq_vkb_on, phq_fuse_all
+  USE qef_phq_fuse,        ONLY : phq_fuse_on, phq_fuse_begin, phq_fuse_k, phq_fuse_end, phq_vkb_on, phq_fuse_all
   !
   IMPLICIT NONE
   !
@@ -141,12 +142,12 @@ SUBROUTINE phq_init()
           !$acc enter data create(tevc(1:npwx*npol,1:nbnd))
   ENDIF
   !
-  ! rtsc: RTSC_PHQ_FUSE=1, one device GEMM per k for becp1, alphap and dynmat_us's gamma terms
+  ! qe-fast: QEF_PHQ_FUSE=1, one device GEMM per k for becp1, alphap and dynmat_us's gamma terms
   fuse = phq_fuse_on()
   IF (fuse) CALL phq_fuse_begin()
   !
   !$acc data copyin(xk) create(aux1( 1:npwx*npol, 1:nbnd )) 
-  ! rtsc: RTSC_PHQ_VKB=1 (with FUSE), the whole k loop in chunks (rtsc_phq_fuse.f90)
+  ! qe-fast: QEF_PHQ_VKB=1 (with FUSE), the whole k loop in chunks (qef_phq_fuse.f90)
   IF (fuse .AND. phq_vkb_on()) THEN
      CALL phq_fuse_all()
      GOTO 60

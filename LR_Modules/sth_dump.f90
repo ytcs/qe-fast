@@ -1,10 +1,12 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
-! rtsc: offline dump of one sternheimer_kernel call (inputs and outputs), for developing and
+! qe-fast: offline dump of one sternheimer_kernel call (inputs and outputs), for developing and
 ! testing the batched Sternheimer engine without ph.x in the loop.
 !
 ! Enabled by environment variables (off by default; no effect on normal runs):
-!   RTSC_STH_DUMP=<dir>        directory to write into (must exist)
-!   RTSC_STH_DUMP_CALL=<n>     which sternheimer_kernel call to dump (default 2: not first_iter)
+!   QEF_STH_DUMP=<dir>        directory to write into (must exist)
+!   QEF_STH_DUMP_CALL=<n>     which sternheimer_kernel call to dump (default 2: not first_iter)
 ! Only the serial, collinear, norm-conserving case with one pool is dumped; anything else is skipped
 ! with a message. Layout: <dir>/meta.txt (key value), and raw stream-unformatted arrays:
 !   global: vrs.bin dmat.bin dvscf.bin drho_in.bin drho_out.bin
@@ -13,6 +15,7 @@
 ! igk_* hold FFT linear indices dffts%nl(igk_k(:,ik)), 1-based, length npw / npwq.
 !
 MODULE sth_dump
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -99,18 +102,18 @@ CONTAINS
     !
     ncall = ncall + 1
     active = .FALSE.
-    CALL get_environment_variable('RTSC_STH_DUMP', dir, STATUS=ios)
+    CALL qef_getenv('QEF_STH_DUMP', dir, STATUS=ios)
     IF (ios /= 0 .OR. LEN_TRIM(dir) == 0) RETURN
     want = 2
-    CALL get_environment_variable('RTSC_STH_DUMP_CALL', s, STATUS=ios)
+    CALL qef_getenv('QEF_STH_DUMP_CALL', s, STATUS=ios)
     IF (ios == 0) READ(s, *) want
     IF (ncall /= want) RETURN
     IF (noncolin .OR. lsda .OR. okvan .OR. npool > 1 .OR. nproc_bgrp > 1 .OR. nspin_mag /= 1) THEN
-      WRITE(stdout, '(5x,"rtsc sth_dump: unsupported case (needs serial, collinear, NC); skipped")')
+      WRITE(stdout, '(5x,"qef sth_dump: unsupported case (needs serial, collinear, NC); skipped")')
       RETURN
     ENDIF
     active = .TRUE.
-    WRITE(stdout, '(5x,"rtsc sth_dump: dumping call ",I4," to ",A)') ncall, TRIM(dir)
+    WRITE(stdout, '(5x,"qef sth_dump: dumping call ",I4," to ",A)') ncall, TRIM(dir)
     !
     OPEN(NEWUNIT=u, FILE=TRIM(dir)//'/meta.txt', STATUS='replace')
     WRITE(u,*) 'nksq ', nksq

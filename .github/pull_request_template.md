@@ -1,5 +1,12 @@
-**You are submitting a Pull Request on [Github](https://github.com/QEF/q-e) which is a mirror of [Gitlab](https://gitlab.com/QEF/q-e).**
+## What and why
 
-**Please stop and instead submit a [Merge Request](https://gitlab.com/QEF/q-e/-/merge_requests) at Gitlab.**
+## Class and evidence
 
-Some guide about [contributing to Quantum ESPRESSO using Gitlab](https://gitlab.com/QEF/q-e/-/wikis/Developers/Contributing-to-Quantum-Espresso-using-Gitlab)
+Class (B bitwise, E rounding-level, N changes the numbers, or none) and, if it can touch results, the gate evidence: GPU,
+materials, and the comparison against `off`.
+
+## Checklist
+
+- [ ] New or changed switches are in `qefast/SWITCHES.md`
+- [ ] New source files have the SPDX header; newly changed upstream files are in `NOTICE`
+- [ ] `CHANGELOG.md` is updated

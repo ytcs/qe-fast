@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2002-2008 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -336,6 +337,7 @@ END SUBROUTINE reduce_base_real
 !
 !----------------------------------------------------------------------------
 SUBROUTINE reduce_base_real( dim, ps, comm, root )
+  USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------------
   !
   ! ... sums a distributed variable ps(dim) over the processors.
@@ -357,8 +359,8 @@ SUBROUTINE reduce_base_real( dim, ps, comm, root )
   !
   INTEGER            :: info, n, nbuf, nproc, myid
   INTEGER, PARAMETER :: maxb = __MSGSIZ_MAX
-  LOGICAL, SAVE      :: rtsc_rd = .FALSE., rtsc_inplace = .FALSE.
-  CHARACTER(LEN = 8) :: rtsc_ev
+  LOGICAL, SAVE      :: qef_rd = .FALSE., qef_inplace = .FALSE.
+  CHARACTER(LEN = 8) :: qef_ev
   !
   !
 #if defined __TRACE
@@ -379,15 +381,15 @@ SUBROUTINE reduce_base_real( dim, ps, comm, root )
   CALL mp_synchronize( comm )
 #endif
   !
-  ! rtsc epw4 (groups/compute/EPW4-LOG.md): RTSC_MP_INPLACE=1 makes an all-reduce one in-place MPI_Allreduce
+  ! qe-fast: QEF_MP_INPLACE=1 makes an all-reduce one in-place MPI_Allreduce
   ! over the whole array instead of dim/maxb chunked calls through a buffer (as QE_ENABLE_MPI_INPLACE builds do).
   ! Only multi-rank communicators reach this point (nproc <= 1 returned above). Default off.
-  IF (.NOT. rtsc_rd) THEN
-     CALL GET_ENVIRONMENT_VARIABLE('RTSC_MP_INPLACE', rtsc_ev)
-     rtsc_inplace = TRIM(rtsc_ev) == '1'
-     rtsc_rd = .TRUE.
+  IF (.NOT. qef_rd) THEN
+     CALL qef_getenv('QEF_MP_INPLACE', qef_ev)
+     qef_inplace = TRIM(qef_ev) == '1'
+     qef_rd = .TRUE.
   ENDIF
-  IF (rtsc_inplace .AND. root < 0) THEN
+  IF (qef_inplace .AND. root < 0) THEN
      CALL MPI_ALLREDUCE( MPI_IN_PLACE, ps, dim, MPI_DOUBLE_PRECISION, MPI_SUM, comm, info )
      IF( info /= 0 ) CALL errore( 'reduce_base_real', 'error in mpi_allreduce (in place)', info )
      GO TO 1

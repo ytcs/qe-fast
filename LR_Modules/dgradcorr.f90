@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001-2016 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -241,7 +242,7 @@ end subroutine dgradcorr
 subroutine dgradcorr_acc (dfft, nl, rho, grho, dvxc_rr, dvxc_sr, dvxc_ss, &
      dvxc_s, xq, drho, g, dvxc)
   !--------------------------------------------------------------------
-  !! rtsc (RTSC_DVXC_GPU=1; groups/compute/SOLVE-LOG.md, wave 3B): dgradcorr on the device (OpenACC) for
+  !! qe-fast (QEF_DVXC_GPU=1): dgradcorr on the device (OpenACC) for
   !! nspin = 1, collinear, not gamma-tricks. Same arithmetic as dgradcorr's nspin = 1 branch with
   !! fft_qgradient / fft_qgraddot inlined: drho and dvxc must be present on the device; the per-q GGA
   !! arrays are copied in. FFTs through fwfft/invfft on device data (cuFFT).

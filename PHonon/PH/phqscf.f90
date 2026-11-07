@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001-2018 Quantum_ESPRESSO group
 ! This file is distributed under the terms of the
@@ -40,7 +41,9 @@ SUBROUTINE phqscf
   USE control_flags,    ONLY : iverbosity
   USE control_lr,       ONLY : convt, rec_code
   USE dfpt_type,        ONLY : dfpt_data_type, allocate_dfpt_data, deallocate_dfpt_data
-  USE sth_engine,       ONLY : sth_engine_set_npmax   ! rtsc b2r: the q's largest irrep (partial psi(r) cache reserve)
+#if defined(__CUDA)
+  USE sth_engine,       ONLY : sth_engine_set_npmax   ! qe-fast: the q's largest irrep (partial psi(r) cache reserve)
+#endif
   USE write_hub
 
   IMPLICIT NONE
@@ -59,7 +62,9 @@ SUBROUTINE phqscf
   ! the change of density due to perturbations
 
   CALL start_clock ('phqscf')
+#if defined(__CUDA)
   IF (nirr > 0) CALL sth_engine_set_npmax(MAXVAL(npert(1:nirr)))
+#endif
   !
   ! DFPT+U
   !

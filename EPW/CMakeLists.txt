@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
 set(sources
     src/input.f90
     src/ep_constants.f90
@@ -68,10 +69,10 @@ set(sources
     src/onemkl_wrappers.f90
     )
 if(QE_ENABLE_CUDA)
-    # rtsc: GPU kernels for EPW (CUDA Fortran, cuFFT, cuBLAS)
-    list(PREPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/epw/epw_gpu_coarse.f90
-                         ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/epw/epw_gpu_eliash.f90
-                         ${CMAKE_CURRENT_SOURCE_DIR}/../rtsc/epw/epw_gpu_fine.f90)
+    # qe-fast: GPU kernels for EPW (CUDA Fortran, cuFFT, cuBLAS)
+    list(PREPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/epw/epw_gpu_coarse.f90
+                         ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/epw/epw_gpu_eliash.f90
+                         ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/epw/epw_gpu_fine.f90)
 endif()
 qe_enable_cuda_fortran("${sources}")
 

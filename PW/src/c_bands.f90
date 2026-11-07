@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001-2024 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -329,7 +330,7 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
      WRITE( stdout, '(5X,"c_bands: ",I2, " eigenvalues not converged")' ) notconv
      !
   ENDIF
-  CALL symrot_note_notconv( notconv )   ! rtsc epw3: stored for RTSC_PW_SYMROT's guard only
+  CALL symrot_note_notconv( notconv )   ! qe-fast: stored for QEF_PW_SYMROT's guard only
   !
   RETURN
   !
@@ -908,7 +909,7 @@ SUBROUTINE c_bands_nscf( )
   ! ik_: k-point already done in a previous run
   ! ik : counter on k points
   LOGICAL :: exst
-  ! rtsc epw3: RTSC_PW_SYMROT (k-points rotated from an orbit representative instead of diagonalized)
+  ! qe-fast: QEF_PW_SYMROT (k-points rotated from an orbit representative instead of diagonalized)
   LOGICAL :: symrot
   LOGICAL, ALLOCATABLE :: kdone(:), kskip(:)
   INTEGER :: ipass
@@ -946,7 +947,7 @@ SUBROUTINE c_bands_nscf( )
   ! ... For each k point (except those already calculated if restarting)
   ! ... diagonalizes the hamiltonian
   !
-  ! rtsc epw3 (RTSC_PW_SYMROT=1, groups/compute/EPW3-LOG.md): one representative per orbit is diagonalized
+  ! qe-fast (QEF_PW_SYMROT=1): one representative per orbit is diagonalized
   ! (pass 1), every other k-point is an exact G-space rotation of it (symrot_after_solve); pass 2 diagonalizes
   ! any k-point whose rotation could not be done. Off: the vanilla single pass.
   symrot = .FALSE.

@@ -1,8 +1,9 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-27 to 2026-11-06; see NOTICE.
 ###########################################################
 # DeviceXlib
 ###########################################################
 if(QE_DEVICEXLIB_INTERNAL)
-    # rtsc: devxlib is vendored at a6b89ef (gitlab.com is unreachable from our build pods).
+    # qe-fast: devxlib is vendored at a6b89ef (gitlab.com is unreachable from our build pods).
     message(STATUS "Installing DeviceXlib from vendored source")
 
     set(src_devxlib

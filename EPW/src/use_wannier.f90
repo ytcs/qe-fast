@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -11,6 +12,7 @@
   !----------------------------------------------------------------------
   SUBROUTINE use_wannier(dims, dims2, nrr_k, irvec_k, ndegen_k, wslen_k, nrr_q, &
                          irvec_q, ndegen_q, wslen_q, nrr_g, irvec_g, ndegen_g, wslen_g)
+    USE qef_config, ONLY : qef_getenv
   !---------------------------------------------------------------------
   !!
   !! Wannier interpolation of electron-phonon vertex
@@ -66,8 +68,8 @@
                                pir_all, gammai_all, fermi_energies_t, wkf_irr,     &
                                s_bztoibz, spin_fac
   USE global_setups,    ONLY : use_wannier_setup, lsda_setup
-  USE wannier2bloch,    ONLY : rtsc_ephwan2blochp_batch
-  USE io,               ONLY : rtsc_novme
+  USE wannier2bloch,    ONLY : qef_ephwan2blochp_batch
+  USE io,               ONLY : qef_novme
 #if defined(__CUDA)
   USE epw_gpu_fine,     ONLY : ef_free
 #endif
@@ -136,8 +138,8 @@
     USE epw_onemkl
 #endif
   !
-  USE input,            ONLY : rtsc_lpolar => lpolar
-  USE global_var,       ONLY : rtsc_qrpl => qrpl
+  USE input,            ONLY : qef_lpolar => lpolar
+  USE global_var,       ONLY : qef_qrpl => qrpl
   IMPLICIT NONE
   !
   INTEGER, INTENT(in) :: dims
@@ -175,32 +177,32 @@
   CHARACTER(LEN = 256) :: fnm
   !! Buffer file name
   LOGICAL :: already_skipped
-  LOGICAL :: rtsc_need_vme
-  !! rtsc: .FALSE. when no consumer of the electron velocities vmef is active
-  INTEGER :: rtsc_ir
-  !! rtsc: counter for the host-side Fourier factors
-  LOGICAL :: rtsc_batchp
-  !! rtsc: ephwan2blochp batched over q (GPU build, etf_mem = 0)
-  INTEGER :: rtsc_qb, rtsc_nqb, rtsc_q0, rtsc_j, rtsc_iq
-  !! rtsc: batch size, current batch length, first iqq of the batch, counters
-  REAL(KIND = DP), ALLOCATABLE :: rtsc_xxqb(:, :)
-  COMPLEX(KIND = DP), ALLOCATABLE :: rtsc_epmatfb(:, :)
-  !! rtsc: counter for the host-side Fourier factors
-  !! rtsc: .FALSE. when no consumer of the electron velocities vmef is active
-  CHARACTER(LEN = 16) :: rtsc_env
-  !! rtsc: environment switch
-  LOGICAL :: rtsc_fused
-  !! rtsc: fused GPU fine path for ephwrite runs (epw_gpu_fine)
-  LOGICAL :: rtsc_fset
-  !! rtsc: fused path set up
-  INTEGER :: rtsc_fq0, rtsc_fnqb, rtsc_fqbmax, rtsc_nkw
-  !! rtsc: first iqq and length of the current fused batch, max batch, pool's Fermi-shell k
-  INTEGER, ALLOCATABLE :: rtsc_goff(:), rtsc_gcnt(:), rtsc_kwof(:)
-  !! rtsc: offsets / counts of each q's g^2 list in rtsc_g2; Fermi-shell index of each pool k
-  REAL(KIND = DP), ALLOCATABLE :: rtsc_g2(:), rtsc_ekc(:, :), rtsc_egc(:, :)
-  !! rtsc: g^2 of the batch; eigenvalues at the pool's k and on the full fine grid
-  COMPLEX(KIND = DP), ALLOCATABLE :: rtsc_cufkc(:, :, :), rtsc_cufgc(:, :, :)
-  !! rtsc: eigenvectors (cuf convention) at the pool's k and on the full fine grid
+  LOGICAL :: qef_need_vme
+  !! qe-fast: .FALSE. when no consumer of the electron velocities vmef is active
+  INTEGER :: qef_ir
+  !! qe-fast: counter for the host-side Fourier factors
+  LOGICAL :: qef_batchp
+  !! qe-fast: ephwan2blochp batched over q (GPU build, etf_mem = 0)
+  INTEGER :: qef_qb, qef_nqb, qef_q0, qef_j, qef_iq
+  !! qe-fast: batch size, current batch length, first iqq of the batch, counters
+  REAL(KIND = DP), ALLOCATABLE :: qef_xxqb(:, :)
+  COMPLEX(KIND = DP), ALLOCATABLE :: qef_epmatfb(:, :)
+  !! qe-fast: counter for the host-side Fourier factors
+  !! qe-fast: .FALSE. when no consumer of the electron velocities vmef is active
+  CHARACTER(LEN = 16) :: qef_env
+  !! qe-fast: environment switch
+  LOGICAL :: qef_fused
+  !! qe-fast: fused GPU fine path for ephwrite runs (epw_gpu_fine)
+  LOGICAL :: qef_fset
+  !! qe-fast: fused path set up
+  INTEGER :: qef_fq0, qef_fnqb, qef_fqbmax, qef_nkw
+  !! qe-fast: first iqq and length of the current fused batch, max batch, pool's Fermi-shell k
+  INTEGER, ALLOCATABLE :: qef_goff(:), qef_gcnt(:), qef_kwof(:)
+  !! qe-fast: offsets / counts of each q's g^2 list in qef_g2; Fermi-shell index of each pool k
+  REAL(KIND = DP), ALLOCATABLE :: qef_g2(:), qef_ekc(:, :), qef_egc(:, :)
+  !! qe-fast: g^2 of the batch; eigenvalues at the pool's k and on the full fine grid
+  COMPLEX(KIND = DP), ALLOCATABLE :: qef_cufkc(:, :, :), qef_cufgc(:, :, :)
+  !! qe-fast: eigenvectors (cuf convention) at the pool's k and on the full fine grid
   !! Skipping band during the Wannierization
   LOGICAL :: exst
   !! If the file exist
@@ -1095,40 +1097,40 @@
           ! Do not enter if no quasidegenerate state
         ENDIF
         !------------------------------------------------------------------------------!
-        ! rtsc: vmef (Wannier velocities) is read only by transport, self-energy, spectral,
+        ! qe-fast: vmef (Wannier velocities) is read only by transport, self-energy, spectral,
         ! absorption, polaron, nesting, adaptive-smearing and printing code; an Eliashberg /
-        ! ephwrite run never reads it, so skip vmewan2bloch_batch then. RTSC_EPW_VME=1 forces it.
-        CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_VME', rtsc_env)
-        rtsc_need_vme = (TRIM(rtsc_env) == '1') .OR. (.NOT. ephwrite) .OR. elecselfen .OR. phonselfen &
+        ! ephwrite run never reads it, so skip vmewan2bloch_batch then. QEF_EPW_VME=1 forces it.
+        CALL qef_getenv('QEF_EPW_VME', qef_env)
+        qef_need_vme = (TRIM(qef_env) == '1') .OR. (.NOT. ephwrite) .OR. elecselfen .OR. phonselfen &
           .OR. plselfen .OR. specfun_el .OR. specfun_ph .OR. specfun_pl .OR. scattering &
           .OR. iterative_bte .OR. lindabs .OR. loptabs .OR. adapt_smearing .OR. prtvkk .OR. nest_fn &
           .OR. lwfpt .OR. plrn .OR. explrn .OR. ii_g .OR. lscreen .OR. scatread .OR. int_mob .OR. carrier
-        ! rtsc: ephwan2blochp for a batch of q at once (one ZGEMM + one mp_sum per batch);
-        ! RTSC_EPW_QBATCH=0 restores the per-q call
-        rtsc_batchp = .FALSE.
+        ! qe-fast: ephwan2blochp for a batch of q at once (one ZGEMM + one mp_sum per batch);
+        ! QEF_EPW_QBATCH=0 restores the per-q call
+        qef_batchp = .FALSE.
 #if defined(__CUDA)
-        CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_QBATCH', rtsc_env)
-        rtsc_batchp = (TRIM(rtsc_env) /= '0') .AND. (etf_mem == 0) .AND. (.NOT. lfast_kmesh) &
+        CALL qef_getenv('QEF_EPW_QBATCH', qef_env)
+        qef_batchp = (TRIM(qef_env) /= '0') .AND. (etf_mem == 0) .AND. (.NOT. lfast_kmesh) &
                       .AND. (.NOT. lopt_w2b) .AND. (.NOT. longrange_only)
 #endif
-        IF (rtsc_batchp) THEN
+        IF (qef_batchp) THEN
           ! at most 64 q and at most ~256 MB per batch
-          rtsc_qb = MAX(1, MIN(64, INT(268435456_8 / (16_8 * nbndsub * nbndsub * nrr_k * nmodes))))
-          IF (ALLOCATED(rtsc_xxqb)) DEALLOCATE(rtsc_xxqb, rtsc_epmatfb)
-          ALLOCATE(rtsc_xxqb(3, rtsc_qb), rtsc_epmatfb(nbndsub * nbndsub * nrr_k * nmodes, rtsc_qb), &
+          qef_qb = MAX(1, MIN(64, INT(268435456_8 / (16_8 * nbndsub * nbndsub * nrr_k * nmodes))))
+          IF (ALLOCATED(qef_xxqb)) DEALLOCATE(qef_xxqb, qef_epmatfb)
+          ALLOCATE(qef_xxqb(3, qef_qb), qef_epmatfb(nbndsub * nbndsub * nrr_k * nmodes, qef_qb), &
                    STAT = ierr)
-          IF (ierr /= 0) CALL errore('use_wannier', 'Error allocating rtsc q batch', 1)
-          rtsc_q0 = iq_restart
-          rtsc_nqb = 0
+          IF (ierr /= 0) CALL errore('use_wannier', 'Error allocating qef q batch', 1)
+          qef_q0 = iq_restart
+          qef_nqb = 0
         ENDIF
-        rtsc_fused = rtsc_fine_ok()
-        ! rtsc epw4: RTSC_EPW_NOVME left the velocity / dipole matrices at zero; only the fused path without any
+        qef_fused = qef_fine_ok()
+        ! qe-fast: QEF_EPW_NOVME left the velocity / dipole matrices at zero; only the fused path without any
         ! velocity consumer may run on them
-        IF (rtsc_novme() .AND. (rtsc_need_vme .OR. .NOT. rtsc_fused)) &
-          CALL errore('use_wannier', 'RTSC_EPW_NOVME=1 needs the fused fine path and no velocity consumer', 1)
-        rtsc_fset = .FALSE.
-        rtsc_fq0 = iq_restart
-        rtsc_fnqb = 0
+        IF (qef_novme() .AND. (qef_need_vme .OR. .NOT. qef_fused)) &
+          CALL errore('use_wannier', 'QEF_EPW_NOVME=1 needs the fused fine path and no velocity consumer', 1)
+        qef_fset = .FALSE.
+        qef_fq0 = iq_restart
+        qef_fnqb = 0
         DO iqq = iq_restart, totq
           CALL start_clock ('ep-interp')
           !
@@ -1144,16 +1146,16 @@
           !
           qind = iq
           !
-          ! rtsc: fused GPU path (k-first Fourier sums, cached eigenpairs, g^2 on the GPU)
-          IF (rtsc_fused) THEN
+          ! qe-fast: fused GPU path (k-first Fourier sums, cached eigenpairs, g^2 on the GPU)
+          IF (qef_fused) THEN
             IF (MOD(iqq, restart_step) == 0) THEN
               WRITE(stdout, '(5x, a, i10, a, i10)' ) 'Progression iq (fine) = ', iqq, '/', totq
             ENDIF
-            IF (iqq > rtsc_fq0 + rtsc_fnqb - 1) CALL rtsc_fine_batch(iqq)
-            rtsc_j = iqq - rtsc_fq0 + 1
+            IF (iqq > qef_fq0 + qef_fnqb - 1) CALL qef_fine_batch(iqq)
+            qef_j = iqq - qef_fq0 + 1
             CALL start_clock('write_ephmat')
             CALL write_ephmat(iqq, iq, lrepmatw2_restart, first_cycle, &
-                              rtsc_g2(rtsc_goff(rtsc_j) + 1:rtsc_goff(rtsc_j) + rtsc_gcnt(rtsc_j)))
+                              qef_g2(qef_goff(qef_j) + 1:qef_goff(qef_j) + qef_gcnt(qef_j)))
             CALL stop_clock('write_ephmat')
             first_cycle = .FALSE.
             CALL stop_clock('ep-interp')
@@ -1230,23 +1232,23 @@
           ! --------------------------------------------------------------
           !
           IF (.NOT. longrange_only) THEN
-            IF (rtsc_batchp) THEN
-              IF (iqq > rtsc_q0 + rtsc_nqb - 1) THEN
+            IF (qef_batchp) THEN
+              IF (iqq > qef_q0 + qef_nqb - 1) THEN
                 ! refill: q-points iqq .. iqq + nqb - 1 (all pools reach this at the same iqq)
-                rtsc_q0 = iqq
-                rtsc_nqb = MIN(rtsc_qb, totq - iqq + 1)
-                DO rtsc_j = 1, rtsc_nqb
-                  rtsc_iq = image_array(iqq + rtsc_j - 1)
-                  IF (rtsc_iq > 0) THEN
-                    rtsc_xxqb(:, rtsc_j) = xqf(:, rtsc_iq)
+                qef_q0 = iqq
+                qef_nqb = MIN(qef_qb, totq - iqq + 1)
+                DO qef_j = 1, qef_nqb
+                  qef_iq = image_array(iqq + qef_j - 1)
+                  IF (qef_iq > 0) THEN
+                    qef_xxqb(:, qef_j) = xqf(:, qef_iq)
                   ELSE
-                    rtsc_xxqb(:, rtsc_j) = 0.d0
+                    qef_xxqb(:, qef_j) = 0.d0
                   ENDIF
                 ENDDO
-                CALL rtsc_ephwan2blochp_batch(nmodes, rtsc_nqb, rtsc_xxqb, irvec_g, nrr_g, &
-                                              rtsc_epmatfb, nbndsub, nrr_k)
+                CALL qef_ephwan2blochp_batch(nmodes, qef_nqb, qef_xxqb, irvec_g, nrr_g, &
+                                              qef_epmatfb, nbndsub, nrr_k)
               ENDIF
-              epmatwef = RESHAPE(rtsc_epmatfb(:, iqq - rtsc_q0 + 1), SHAPE(epmatwef))
+              epmatwef = RESHAPE(qef_epmatfb(:, iqq - qef_q0 + 1), SHAPE(epmatwef))
             ELSE
               CALL ephwan2blochp(nmodes, xxq, irvec_g, ndegen_g, nrr_g, epmatwef, nbndsub, nrr_k, dims, dims2)
             ENDIF
@@ -1327,7 +1329,7 @@
           ENDDO
 #if defined(__CUDA)
           !$acc end parallel
-          ! rtsc: no copy of cfac_batch to the host (2*nkf*nrr_k per q); the k loop below builds
+          ! qe-fast: no copy of cfac_batch to the host (2*nkf*nrr_k per q); the k loop below builds
           ! cfac/cfacq on the host only for the (k, k+q) pairs inside the Fermi window
 #else
           !$omp end target teams distribute parallel do
@@ -1362,7 +1364,7 @@
           ! electron velocity: Wannier -> Bloch
           ! -------------------------------------------------------------
           !
-          IF (vme == 'wannier' .AND. rtsc_need_vme) THEN
+          IF (vme == 'wannier' .AND. qef_need_vme) THEN
             IF (.NOT. eig_read) THEN
               CALL vmewan2bloch_batch(nbndsub, nrr_k, irvec_k, nkf, &
                 cuf_batch, vmef, etf, etf_ks, chw, cfac_batch, vmef_tmp, chf_a)
@@ -1374,9 +1376,9 @@
           ! -------------------------------------------------------------
           !
           CALL start_clock('epq_rrf')
-          ! rtsc: rrf (Berry connection) only enters the polar / quadrupole long-range term of
+          ! qe-fast: rrf (Berry connection) only enters the polar / quadrupole long-range term of
           ! ephwan2bloch; skip it (and its per-q host/device copies) otherwise
-          IF (rtsc_lpolar .OR. rtsc_qrpl) CALL rrwan2bloch_batch(nbndsub, nrr_k, nkf, cfac_batch, rrf_batch)
+          IF (qef_lpolar .OR. qef_qrpl) CALL rrwan2bloch_batch(nbndsub, nrr_k, nkf, cfac_batch, rrf_batch)
           CALL stop_clock('epq_rrf')
           CALL start_clock('epq_kloop')
           !
@@ -1411,11 +1413,11 @@
                 cufkq = cuf_batch(:, :, ikq)
                 !
 #if defined(__CUDA)
-                DO rtsc_ir = 1, nrr_k
-                  cfac(rtsc_ir) = EXP(ci * twopi * (irvec_r(1, rtsc_ir) * xkq_batch(1, ikk) + &
-                    irvec_r(2, rtsc_ir) * xkq_batch(2, ikk) + irvec_r(3, rtsc_ir) * xkq_batch(3, ikk)))
-                  cfacq(rtsc_ir) = EXP(ci * twopi * (irvec_r(1, rtsc_ir) * xkq_batch(1, ikq) + &
-                    irvec_r(2, rtsc_ir) * xkq_batch(2, ikq) + irvec_r(3, rtsc_ir) * xkq_batch(3, ikq)))
+                DO qef_ir = 1, nrr_k
+                  cfac(qef_ir) = EXP(ci * twopi * (irvec_r(1, qef_ir) * xkq_batch(1, ikk) + &
+                    irvec_r(2, qef_ir) * xkq_batch(2, ikk) + irvec_r(3, qef_ir) * xkq_batch(3, ikk)))
+                  cfacq(qef_ir) = EXP(ci * twopi * (irvec_r(1, qef_ir) * xkq_batch(1, ikq) + &
+                    irvec_r(2, qef_ir) * xkq_batch(2, ikq) + irvec_r(3, qef_ir) * xkq_batch(3, ikq)))
                 ENDDO
 #else
                 cfac = cfac_batch(:, ikk)
@@ -1740,11 +1742,11 @@
       ENDDO  ! cycle loop QDPT
     ENDDO  ! loop over QDPT mesh
 #if defined(__CUDA)
-    ! rtsc: release the fused path's device and host caches before the solver
-    IF (ALLOCATED(rtsc_cufgc)) THEN
+    ! qe-fast: release the fused path's device and host caches before the solver
+    IF (ALLOCATED(qef_cufgc)) THEN
       CALL ef_free()
-      DEALLOCATE(rtsc_ekc, rtsc_cufkc, rtsc_egc, rtsc_cufgc, rtsc_kwof, rtsc_goff, rtsc_gcnt)
-      IF (ALLOCATED(rtsc_g2)) DEALLOCATE(rtsc_g2)
+      DEALLOCATE(qef_ekc, qef_cufkc, qef_egc, qef_cufgc, qef_kwof, qef_goff, qef_gcnt)
+      IF (ALLOCATED(qef_g2)) DEALLOCATE(qef_g2)
     ENDIF
 #endif
     !---------------------------------------------------------------------------------!
@@ -1960,9 +1962,9 @@
 CONTAINS
   !
   !--------------------------------------------------------------------------
-  LOGICAL FUNCTION rtsc_fine_ok()
+  LOGICAL FUNCTION qef_fine_ok()
   !--------------------------------------------------------------------------
-  !! rtsc: .TRUE. when the fused GPU fine path applies (ephwrite run without any feature that
+  !! qe-fast: .TRUE. when the fused GPU fine path applies (ephwrite run without any feature that
   !! needs more than the Fermi-shell g^2); prints the reason otherwise
   USE input,      ONLY : lpolar, use_ws, a2f, prtgkk, nest_fn, plselfen, specfun_pl, &
                          lwfpt, shortrange, nkf1, nkf2, nkf3, rand_q, filqf
@@ -1972,11 +1974,11 @@ CONTAINS
 #endif
   CHARACTER(LEN = 16) :: v
   CHARACTER(LEN = 80) :: why
-  rtsc_fine_ok = .FALSE.
+  qef_fine_ok = .FALSE.
   why = ' '
 #if defined(__CUDA)
   v = ' '
-  CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_FINE', v)
+  CALL qef_getenv('QEF_EPW_FINE', v)
   IF (TRIM(v) == '0') RETURN
   IF (.NOT. ephwrite) RETURN
   IF (etf_mem /= 0) why = 'etf_mem /= 0'
@@ -1991,16 +1993,16 @@ CONTAINS
   IF (rand_q .OR. LEN_TRIM(filqf) > 0) why = 'q points from a file or random'
   IF (MOD(nkf1, nqf1) /= 0 .OR. MOD(nkf2, nqf2) /= 0 .OR. MOD(nkf3, nqf3) /= 0) why = 'k and q grids not commensurate'
   IF (ef_shmem(nbndsub, nmodes, nbndfst) > 48 * 1024) why = 'too many bands in the window for the pair kernel'
-  rtsc_fine_ok = (LEN_TRIM(why) == 0)
-  IF (.NOT. rtsc_fine_ok) WRITE(stdout, '(5x, a, a)') 'rtsc: fused GPU fine path off: ', TRIM(why)
-  IF (rtsc_fine_ok) WRITE(stdout, '(5x, a)') 'rtsc: fused GPU fine path (k-first Fourier sums, cached eigenpairs)'
+  qef_fine_ok = (LEN_TRIM(why) == 0)
+  IF (.NOT. qef_fine_ok) WRITE(stdout, '(5x, a, a)') 'qef: fused GPU fine path off: ', TRIM(why)
+  IF (qef_fine_ok) WRITE(stdout, '(5x, a)') 'qef: fused GPU fine path (k-first Fourier sums, cached eigenpairs)'
 #endif
-  END FUNCTION rtsc_fine_ok
+  END FUNCTION qef_fine_ok
   !
   !--------------------------------------------------------------------------
-  SUBROUTINE rtsc_fine_eig(npt, xpt, ecache, ucache)
+  SUBROUTINE qef_fine_eig(npt, xpt, ecache, ucache)
   !--------------------------------------------------------------------------
-  !! rtsc: eigenpairs at npt crystal points with hamwan2bloch_batch itself (same solver and
+  !! qe-fast: eigenpairs at npt crystal points with hamwan2bloch_batch itself (same solver and
   !! gauge), in chunks of nkf points, each point duplicated as its own "k+q" so that the gauge
   !! step runs for every point with a band in the window. Uses etf / cuf_batch as scratch.
   INTEGER, INTENT(IN) :: npt
@@ -2034,12 +2036,13 @@ CONTAINS
       ucache(:, :, p0 - 1 + i) = cuf_batch(:, :, 2 * i - 1)
     ENDDO
   ENDDO
-  END SUBROUTINE rtsc_fine_eig
+  END SUBROUTINE qef_fine_eig
   !
+#if defined(__CUDA)
   !--------------------------------------------------------------------------
-  SUBROUTINE rtsc_fine_setup(iq1)
+  SUBROUTINE qef_fine_setup(iq1)
   !--------------------------------------------------------------------------
-  !! rtsc: eigen caches, ephmat bookkeeping (as at the first write_ephmat), the Fermi-shell k
+  !! qe-fast: eigen caches, ephmat bookkeeping (as at the first write_ephmat), the Fermi-shell k
   !! list, H(k; Rp) via the pools' Rp slices and one MPI_Alltoallv, and the device upload.
   USE input,            ONLY : use_ws, nkf1, nkf2, nkf3, mp_mesh_k
   USE global_var,       ONLY : epmatwp, irg_start, nirg_loc, ibndmin
@@ -2058,16 +2061,16 @@ CONTAINS
   REAL(KIND = DP), ALLOCATABLE :: ekw(:, :)
   INTEGER(8) :: nmn
   !
-  CALL start_clock('rtsc_fsetup')
+  CALL start_clock('qef_fsetup')
   ! eigenpairs at the pool's k (q-independent) and on the full fine grid (kpmq_map order)
-  ALLOCATE(rtsc_ekc(nbndsub, nkf), rtsc_cufkc(nbndsub, nbndsub, nkf), xg(3, MAX(nkf, 1)))
+  ALLOCATE(qef_ekc(nbndsub, nkf), qef_cufkc(nbndsub, nbndsub, nkf), xg(3, MAX(nkf, 1)))
   DO ik = 1, nkf
     xg(:, ik) = xkf(:, 2 * ik - 1)
   ENDDO
-  CALL rtsc_fine_eig(nkf, xg, rtsc_ekc, rtsc_cufkc)
+  CALL qef_fine_eig(nkf, xg, qef_ekc, qef_cufkc)
   DEALLOCATE(xg)
   ngrid = nkf1 * nkf2 * nkf3
-  ALLOCATE(xg(3, ngrid), rtsc_egc(nbndsub, ngrid), rtsc_cufgc(nbndsub, nbndsub, ngrid))
+  ALLOCATE(xg(3, ngrid), qef_egc(nbndsub, ngrid), qef_cufgc(nbndsub, nbndsub, ngrid))
   DO i1 = 0, nkf1 - 1
     DO i2 = 0, nkf2 - 1
       DO i3 = 0, nkf3 - 1
@@ -2076,13 +2079,13 @@ CONTAINS
       ENDDO
     ENDDO
   ENDDO
-  CALL rtsc_fine_eig(ngrid, xg, rtsc_egc, rtsc_cufgc)
+  CALL qef_fine_eig(ngrid, xg, qef_egc, qef_cufgc)
   DEALLOCATE(xg)
   ! etf as the vanilla loop leaves it at the first q (k from the k cache, k+q from the grid)
   DO ik = 1, nkf
-    etf(:, 2 * ik - 1) = rtsc_ekc(:, ik)
+    etf(:, 2 * ik - 1) = qef_ekc(:, ik)
     CALL kpmq_map(xkf(:, 2 * ik - 1), xqf(:, iq1), +1, ip)
-    etf(:, 2 * ik) = rtsc_egc(:, ip)
+    etf(:, 2 * ik) = qef_egc(:, ip)
   ENDDO
   ! ephmat bookkeeping of the first write_ephmat call
   CALL kmesh_fine
@@ -2090,16 +2093,16 @@ CONTAINS
   CALL count_kpoints
   CALL file_open_ephmat(lrepmatw2_restart)
   ! Fermi-shell k of this pool: written (ixkf > 0) or inside the loop's window test
-  ALLOCATE(rtsc_kwof(nkf))
-  rtsc_kwof(:) = 0
-  rtsc_nkw = 0
+  ALLOCATE(qef_kwof(nkf))
+  qef_kwof(:) = 0
+  qef_nkw = 0
   DO ik = 1, nkf
-    IF (ixkf(lower_bnd + ik - 1) > 0 .OR. MINVAL(ABS(rtsc_ekc(:, ik) - ef)) < fsthick) THEN
-      rtsc_nkw = rtsc_nkw + 1
-      rtsc_kwof(ik) = rtsc_nkw
+    IF (ixkf(lower_bnd + ik - 1) > 0 .OR. MINVAL(ABS(qef_ekc(:, ik) - ef)) < fsthick) THEN
+      qef_nkw = qef_nkw + 1
+      qef_kwof(ik) = qef_nkw
     ENDIF
   ENDDO
-  CALL MPI_ALLGATHER(rtsc_nkw, 1, MPI_INTEGER, nkwp, 1, MPI_INTEGER, inter_pool_comm, ierr2)
+  CALL MPI_ALLGATHER(qef_nkw, 1, MPI_INTEGER, nkwp, 1, MPI_INTEGER, inter_pool_comm, ierr2)
   CALL MPI_ALLGATHER(irg_start, 1, MPI_INTEGER, irgs, 1, MPI_INTEGER, inter_pool_comm, ierr2)
   CALL MPI_ALLGATHER(nirg_loc, 1, MPI_INTEGER, nirgp, 1, MPI_INTEGER, inter_pool_comm, ierr2)
   kwoff(1) = 0
@@ -2107,19 +2110,19 @@ CONTAINS
     kwoff(ipool) = kwoff(ipool - 1) + nkwp(ipool - 1)
   ENDDO
   nkwg = SUM(nkwp)
-  ALLOCATE(xkw(3, MAX(rtsc_nkw, 1)), xkwg(3, MAX(nkwg, 1)), ukw(nbndsub, nbndsub, MAX(rtsc_nkw, 1)), &
-           ekw(nbndsub, MAX(rtsc_nkw, 1)))
+  ALLOCATE(xkw(3, MAX(qef_nkw, 1)), xkwg(3, MAX(nkwg, 1)), ukw(nbndsub, nbndsub, MAX(qef_nkw, 1)), &
+           ekw(nbndsub, MAX(qef_nkw, 1)))
   DO ik = 1, nkf
-    kw = rtsc_kwof(ik)
+    kw = qef_kwof(ik)
     IF (kw > 0) THEN
       xkw(:, kw) = xkf(:, 2 * ik - 1)
-      ukw(:, :, kw) = rtsc_cufkc(:, :, ik)
-      ekw(:, kw) = rtsc_ekc(:, ik)
+      ukw(:, :, kw) = qef_cufkc(:, :, ik)
+      ekw(:, kw) = qef_ekc(:, ik)
     ENDIF
   ENDDO
   scnt(:) = 3 * nkwp(:)
   sdsp(:) = 3 * kwoff(:)
-  CALL MPI_ALLGATHERV(xkw, 3 * rtsc_nkw, MPI_DOUBLE_PRECISION, xkwg, scnt, sdsp, MPI_DOUBLE_PRECISION, &
+  CALL MPI_ALLGATHERV(xkw, 3 * qef_nkw, MPI_DOUBLE_PRECISION, xkwg, scnt, sdsp, MPI_DOUBLE_PRECISION, &
                       inter_pool_comm, ierr2)
   ! e^{ik.Re} for all Fermi-shell k (the loop's host formula)
   ALLOCATE(cfk(nrr_k, MAX(nkwg, 1)))
@@ -2140,7 +2143,7 @@ CONTAINS
   DO ipool = 1, npool
     scnt(ipool) = INT(nmn) * nirg_loc * nkwp(ipool)
     sdsp(ipool) = INT(nmn) * nirg_loc * kwoff(ipool)
-    rcnt(ipool) = INT(nmn) * nirgp(ipool) * rtsc_nkw
+    rcnt(ipool) = INT(nmn) * nirgp(ipool) * qef_nkw
   ENDDO
   rdsp(1) = 0
   DO ipool = 2, npool
@@ -2150,10 +2153,10 @@ CONTAINS
   CALL MPI_ALLTOALLV(hp, scnt, sdsp, MPI_DOUBLE_COMPLEX, hr, rcnt, rdsp, MPI_DOUBLE_COMPLEX, &
                      inter_pool_comm, ierr2)
   DEALLOCATE(hp)
-  ALLOCATE(hown(nmn, nrr_g, 1, MAX(rtsc_nkw, 1)))
+  ALLOCATE(hown(nmn, nrr_g, 1, MAX(qef_nkw, 1)))
   hown(:, :, :, :) = czero
   DO ipool = 1, npool
-    DO kw = 1, rtsc_nkw
+    DO kw = 1, qef_nkw
       DO ip2 = 1, nirgp(ipool)
         k = rdsp(ipool) + INT(nmn) * ((kw - 1) * nirgp(ipool) + ip2 - 1)
         ! pools split (Rp, mode) pairs, so a boundary Rp is shared (the other modes are zero
@@ -2176,21 +2179,21 @@ CONTAINS
       IF (ABS(ekfs(ib, k) - ef0w) < fsthick) win(ib + nbndfst * (k - 1)) = 1
     ENDDO
   ENDDO
-  CALL ef_setup(nbndsub, nmodes, nbndfst, ibndmin, nrr_g, rtsc_nkw, ngrid, nkfs, ukw, ekw, &
-                rtsc_cufgc, rtsc_egc, win)
+  CALL ef_setup(nbndsub, nmodes, nbndfst, ibndmin, nrr_g, qef_nkw, ngrid, nkfs, ukw, ekw, &
+                qef_cufgc, qef_egc, win)
   CALL ef_set_h(hown)
   DEALLOCATE(hown, win, xkw, xkwg, ukw, ekw)
   ! batch length: X(nb^2 nmodes, nqb, nkw) at most ~256 MB, at most 64 q
-  rtsc_fqbmax = INT(MAX(1_8, MIN(64_8, 268435456_8 / (16_8 * nmn * MAX(rtsc_nkw, 1)))))
-  ALLOCATE(rtsc_goff(rtsc_fqbmax), rtsc_gcnt(rtsc_fqbmax))
-  rtsc_fset = .TRUE.
-  CALL stop_clock('rtsc_fsetup')
-  END SUBROUTINE rtsc_fine_setup
+  qef_fqbmax = INT(MAX(1_8, MIN(64_8, 268435456_8 / (16_8 * nmn * MAX(qef_nkw, 1)))))
+  ALLOCATE(qef_goff(qef_fqbmax), qef_gcnt(qef_fqbmax))
+  qef_fset = .TRUE.
+  CALL stop_clock('qef_fsetup')
+  END SUBROUTINE qef_fine_setup
   !
   !--------------------------------------------------------------------------
-  SUBROUTINE rtsc_fine_batch(iqq0)
+  SUBROUTINE qef_fine_batch(iqq0)
   !--------------------------------------------------------------------------
-  !! rtsc: phonons, pair list and g^2 for the q of the batch starting at iqq0
+  !! qe-fast: phonons, pair list and g^2 for the q of the batch starting at iqq0
   USE input,            ONLY : mp_mesh_k
   USE supercond_common, ONLY : ixkf, xkfs
   USE global_var,       ONLY : bztoibz, ibndmin
@@ -2203,15 +2206,15 @@ CONTAINS
   REAL(KIND = DP), ALLOCATABLE :: wfb(:, :)
   COMPLEX(KIND = DP), ALLOCATABLE :: cq(:, :), ufb(:, :, :)
   !
-  CALL start_clock('rtsc_fbatch')
-  IF (.NOT. rtsc_fset) CALL rtsc_fine_setup(image_array(iqq0))
-  rtsc_fq0 = iqq0
-  rtsc_fnqb = MIN(rtsc_fqbmax, totq - iqq0 + 1)
-  ALLOCATE(cq(nrr_g, rtsc_fnqb), ufb(nmodes, nmodes, rtsc_fnqb), wfb(nmodes, rtsc_fnqb))
-  ALLOCATE(pair(7, MAX(1, rtsc_fnqb * rtsc_nkw)))
+  CALL start_clock('qef_fbatch')
+  IF (.NOT. qef_fset) CALL qef_fine_setup(image_array(iqq0))
+  qef_fq0 = iqq0
+  qef_fnqb = MIN(qef_fqbmax, totq - iqq0 + 1)
+  ALLOCATE(cq(nrr_g, qef_fnqb), ufb(nmodes, nmodes, qef_fnqb), wfb(nmodes, qef_fnqb))
+  ALLOCATE(pair(7, MAX(1, qef_fnqb * qef_nkw)))
   npair = 0
   nout = 0
-  DO j = 1, rtsc_fnqb
+  DO j = 1, qef_fnqb
     iqj = image_array(iqq0 + j - 1)
     xq = xqf(:, iqj)
     ! phonons, as in the loop
@@ -2234,7 +2237,7 @@ CONTAINS
       cq(ir, j) = EXP(ci * twopi * DOT_PRODUCT(xq, DBLE(irvec_g(:, ir))))
     ENDDO
     ! pairs in write_ephmat's order
-    rtsc_goff(j) = nout
+    qef_goff(j) = nout
     DO ik = 1, nkf
       ikfs = ixkf(lower_bnd + ik - 1)
       IF (ikfs <= 0) CYCLE
@@ -2245,10 +2248,10 @@ CONTAINS
         ikqfs = ixkf(nkq)
       ENDIF
       IF (ikqfs <= 0) CYCLE
-      kw = rtsc_kwof(ik)
+      kw = qef_kwof(ik)
       CALL kpmq_map(xkf(:, 2 * ik - 1), xq, +1, gkq)
       flag = 0
-      IF (MINVAL(ABS(rtsc_ekc(:, ik) - ef)) < fsthick .AND. MINVAL(ABS(rtsc_egc(:, gkq) - ef)) < fsthick) flag = 1
+      IF (MINVAL(ABS(qef_ekc(:, ik) - ef)) < fsthick .AND. MINVAL(ABS(qef_egc(:, gkq) - ef)) < fsthick) flag = 1
       nwi = 0
       nwj = 0
       DO ib = 1, nbndfst
@@ -2259,21 +2262,30 @@ CONTAINS
       pair(:, npair) = (/ kw, j, gkq, ikfs, ikqfs, flag, nout /)
       nout = nout + nmodes * nwi * nwj
     ENDDO
-    rtsc_gcnt(j) = nout - rtsc_goff(j)
+    qef_gcnt(j) = nout - qef_goff(j)
   ENDDO
-  IF (ALLOCATED(rtsc_g2)) THEN
-    IF (SIZE(rtsc_g2) < MAX(nout, 1)) DEALLOCATE(rtsc_g2)
+  IF (ALLOCATED(qef_g2)) THEN
+    IF (SIZE(qef_g2) < MAX(nout, 1)) DEALLOCATE(qef_g2)
   ENDIF
-  IF (.NOT. ALLOCATED(rtsc_g2)) ALLOCATE(rtsc_g2(MAX(nout, 1)))
-  CALL ef_batch(rtsc_fnqb, cq, ufb, wfb, npair, pair, nout, rtsc_g2)
+  IF (.NOT. ALLOCATED(qef_g2)) ALLOCATE(qef_g2(MAX(nout, 1)))
+  CALL ef_batch(qef_fnqb, cq, ufb, wfb, npair, pair, nout, qef_g2)
   DEALLOCATE(cq, ufb, wfb, pair)
-  CALL stop_clock('rtsc_fbatch')
-  END SUBROUTINE rtsc_fine_batch
+  CALL stop_clock('qef_fbatch')
+  END SUBROUTINE qef_fine_batch
+#else
+  !--------------------------------------------------------------------------
+  SUBROUTINE qef_fine_batch(iqq0)
+  !--------------------------------------------------------------------------
+  !! qe-fast: unreachable without CUDA (qef_fine_ok is false there).
+  INTEGER, INTENT(IN) :: iqq0
+  CALL errore('qef_fine_batch', 'GPU fine path in a build without CUDA', 1)
+  END SUBROUTINE qef_fine_batch
+#endif
   !
   !--------------------------------------------------------------------------
   LOGICAL FUNCTION ekfs_win(ib, k)
   !--------------------------------------------------------------------------
-  !! rtsc: band ib of Fermi-shell k inside write_ephmat's window
+  !! qe-fast: band ib of Fermi-shell k inside write_ephmat's window
   USE supercond_common, ONLY : ekfs
   INTEGER, INTENT(IN) :: ib, k
   IF (efermi_read) THEN

@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -11,6 +12,7 @@
   !
   !----------------------------------------------------------------------
   MODULE ep_coarse
+    USE qef_config, ONLY : qef_getenv
   !----------------------------------------------------------------------
   !!
   !! This module contains routines for the EPC computed on the coarse grid.
@@ -18,12 +20,12 @@
   USE kinds, ONLY : DP
   IMPLICIT NONE
   !
-  ! rtsc epw3 (RTSC_EPW_STAR=1; groups/compute/EPW3-LOG.md): star-of-q shortcut. The coarse g of the first q0 of a
+  ! qe-fast (QEF_EPW_STAR=1): star-of-q shortcut. The coarse g of the first q0 of a
   ! star (identity op) is kept for every k (star_g0, pattern basis, all modes). For another member S q0, EPW evaluates
   ! g = <R psi_{k+Sq0}| dV_q0 |R psi_k> with R psi_k at k~ = S k (and R psi_{k+Sq0} at k~ + q0); this is
   ! g = D_kq^H g0(k~) D_k with D_k = <psi_stored(k~)| R psi_k> (kept bands), exact when D is unitary. A k whose D
   ! misses unitarity by more than star_tol (degenerate multiplet cut by the band set) is computed directly.
-  ! RTSC_EPW_STAR_CHECK=1: the first 2 k of every member are also computed directly and compared.
+  ! QEF_EPW_STAR_CHECK=1: the first 2 k of every member are also computed directly and compared.
   LOGICAL, SAVE, PRIVATE :: star_read = .FALSE., star_req = .FALSE., star_chk = .FALSE.
   LOGICAL, SAVE, PRIVATE :: star_now = .FALSE., star_have = .FALSE.
   COMPLEX(KIND = DP), ALLOCATABLE, SAVE, PRIVATE :: star_g0(:, :, :, :)
@@ -32,21 +34,21 @@
   REAL(KIND = DP), SAVE, PRIVATE :: star_umax = 0.0_DP, star_cmax = 0.0_DP
   REAL(KIND = DP), PARAMETER, PRIVATE :: star_tol = 1.0E-8_DP
   INTEGER, SAVE, PRIVATE :: star_iqirr = 0, star_nqcirr = 0
-  INTEGER, SAVE, PRIVATE :: star_fbk = 0   ! RTSC_EPW_STAR_FB=n (diagnostic): local k n always takes the fallback
+  INTEGER, SAVE, PRIVATE :: star_fbk = 0   ! QEF_EPW_STAR_FB=n (diagnostic): local k n always takes the fallback
   !
   CONTAINS
     !
     !-----------------------------------------------------------------------
     LOGICAL FUNCTION star_enabled()
     !-----------------------------------------------------------------------
-    !! rtsc epw3: RTSC_EPW_STAR=1 and the all-modes GPU path of ep_coarse_compute applies
+    !! qe-fast: QEF_EPW_STAR=1 and the all-modes GPU path of ep_coarse_compute applies
     CHARACTER(LEN = 16) :: ev
     IF (.NOT. star_read) THEN
-      CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_STAR', ev)
+      CALL qef_getenv('QEF_EPW_STAR', ev)
       star_req = TRIM(ev) == '1'
-      CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_STAR_CHECK', ev)
+      CALL qef_getenv('QEF_EPW_STAR_CHECK', ev)
       star_chk = star_req .AND. TRIM(ev) == '1'
-      CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_STAR_FB', ev)
+      CALL qef_getenv('QEF_EPW_STAR_FB', ev)
       IF (LEN_TRIM(ev) > 0) READ(ev, *, ERR = 10) star_fbk
 10    CONTINUE
       star_read = .TRUE.
@@ -72,7 +74,7 @@
     LOGICAL FUNCTION star_lazy()
     !-----------------------------------------------------------------------
     !! the member's dvscf is read (and the GPU potentials set up) only if some k needs the direct form
-    !! (RTSC_EPW_STAR_CHECK=1 computes 2 k directly, so it reads up front)
+    !! (QEF_EPW_STAR_CHECK=1 computes 2 k directly, so it reads up front)
     star_lazy = star_now .AND. .NOT. star_chk
     END FUNCTION star_lazy
     !
@@ -377,15 +379,15 @@
     DEALLOCATE(dvscfin, STAT = ierr)
     IF (ierr /= 0) CALL errore('dvscf_read', 'Error deallocating dvscfin', 1)
     !
-    CALL stop_clock('dvscf_read')  ! rtsc: was never stopped
+    CALL stop_clock('dvscf_read')  ! qe-fast: was never stopped
     !
     !-----------------------------------------------------------------------
     END SUBROUTINE dvscf_read
     !-----------------------------------------------------------------------
     LOGICAL FUNCTION ep_coarse_gpu_ok()
     !-----------------------------------------------------------------------
-    !! rtsc: .TRUE. when the GPU path of ep_coarse_compute applies: CUDA build, norm-conserving,
-    !! collinear, no spin polarisation, no DFT+U, and RTSC_EPW_COARSE is not '0'.
+    !! qe-fast: .TRUE. when the GPU path of ep_coarse_compute applies: CUDA build, norm-conserving,
+    !! collinear, no spin polarisation, no DFT+U, and QEF_EPW_COARSE is not '0'.
     USE uspp,             ONLY : okvan
     USE noncollin_module, ONLY : noncolin, npol
     USE ldaU,             ONLY : lda_plus_u
@@ -393,7 +395,7 @@
     CHARACTER(LEN = 16) :: envval
     ep_coarse_gpu_ok = .FALSE.
 #if defined (__CUDA)
-    CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_COARSE', envval)
+    CALL qef_getenv('QEF_EPW_COARSE', envval)
     ep_coarse_gpu_ok = (TRIM(envval) /= '0') .AND. (.NOT. okvan) .AND. (.NOT. noncolin) .AND. &
                        (.NOT. lda_plus_u) .AND. (TRIM(lsda) == 'none') .AND. (npol == 1)
 #endif
@@ -528,7 +530,7 @@
     REAL(KIND = DP), INTENT(in) :: xq0(3)
     !! The first q-point in the star (cartesian coords.)
     COMPLEX(KIND = DP), INTENT(inout) :: dvscfins(dffts%nnr, nspin_mag, npe)
-    !! rtsc epw3: inout, filled here when a RTSC_EPW_STAR member defers its read (star_lazy)
+    !! qe-fast: inout, filled here when a QEF_EPW_STAR member defers its read (star_lazy)
     !! Delta scf potential
     COMPLEX(KIND = DP), INTENT(in) :: eigv(ngxxf)
     !! $e^{iGv}$ for 1...nsym (v the fractional translation)
@@ -615,10 +617,10 @@
     !! projector for S*atomic wavefunctions at k-point
     COMPLEX(KIND = DP), ALLOCATABLE :: swfcatomkpq_(:, :)
     !! projector for S*atomic wavefunctions at k+q-point
-    ! rtsc: GPU path (local part by Parseval on the GPU, nonlocal part by projections)
+    ! qe-fast: GPU path (local part by Parseval on the GPU, nonlocal part by projections)
     LOGICAL :: use_gpu, nl_gpu
     LOGICAL :: bec_gpu
-    !! rtsc amdahl: RTSC_EPW_BEC (becp1 / alphap on the device)
+    !! qe-fast: QEF_EPW_BEC (becp1 / alphap on the device)
     REAL(KIND = DP), ALLOCATABLE :: kgk(:, :)
     INTEGER :: nt, na, mu, ih, jh, ikb, jkb, ijkb0
     INTEGER, ALLOCATABLE :: kbatom(:)
@@ -628,7 +630,7 @@
     REAL(KIND = DP) :: xq_bak(3)
     REAL(KIND = DP), ALLOCATABLE :: deff(:, :, :)
     COMPLEX(KIND = DP), ALLOCATABLE :: vtot(:, :), becq(:, :, :), auxv(:, :), ps1(:, :), ps2(:, :, :)
-    ! rtsc epw3: RTSC_EPW_STAR
+    ! qe-fast: QEF_EPW_STAR
     LOGICAL :: star_done, star_cmp, lazy, use_star
     LOGICAL, ALLOCATABLE :: kdefer(:)
     INTEGER :: kpass, ndefer
@@ -698,14 +700,14 @@
       swfcatomkpq_(:, :) = czero
     ENDIF
     !
-    ! rtsc: decide on the GPU path (NC, collinear, no spin, no DFT+U); RTSC_EPW_COARSE=0 disables it
+    ! qe-fast: decide on the GPU path (NC, collinear, no spin, no DFT+U); QEF_EPW_COARSE=0 disables it
     use_gpu = .FALSE.
     nl_gpu = .FALSE.
     bec_gpu = .FALSE.
 #if defined (__CUDA)
     use_gpu = ep_coarse_gpu_ok()
 #endif
-    ! rtsc epw3 (RTSC_EPW_STAR): a member using the shortcut defers dvscf and the GPU potentials to pass 2,
+    ! qe-fast (QEF_EPW_STAR): a member using the shortcut defers dvscf and the GPU potentials to pass 2,
     ! which runs only if some k of some pool needs the direct form
     lazy = star_lazy()
     IF (.NOT. lazy) CALL gpu_setup()
@@ -896,7 +898,7 @@
       !
       CALL rotate_cart(xk_loc(:, ik), s(:, :, isym), sxk)
       !
-      ! rtsc epw3 (RTSC_EPW_STAR=1): g from the base member of the star and the band overlaps D (module header)
+      ! qe-fast (QEF_EPW_STAR=1): g from the base member of the star and the band overlaps D (module header)
       star_done = .FALSE.
       star_cmp = .FALSE.
       IF (use_star) THEN
@@ -929,7 +931,7 @@
       ! here we generate vkb on the igk() set and for k ...
       CALL init_us_2(npw, igk, sxk, vkb)
       !
-      ! rtsc amdahl (RTSC_EPW_BEC=1, GPU NL path): becp1 and alphap are formed on the device in egc_local_nl
+      ! qe-fast (QEF_EPW_BEC=1, GPU NL path): becp1 and alphap are formed on the device in egc_local_nl
       IF (bec_gpu) THEN
         DO ipol = 1, 3
           DO ig = 1, npw
@@ -959,7 +961,7 @@
         ENDDO
         CALL calbec(npw, vkb, aux2(:, lower_band:upper_band), alphap(ipol, ik), upper_band - lower_band + 1)
       ENDDO
-      ENDIF   ! rtsc bec_gpu
+      ENDIF   ! qe-fast bec_gpu
       !
       ! now we generate vkb on the igkq() set because dvpsi is needed on that set
       ! we need S(k)+q_0 in the KB projector: total momentum transfer must be q_0
@@ -1043,7 +1045,7 @@
         star_cmax = MAX(star_cmax, MAXVAL(ABS(elphmat(:, :, 1:npe) - gstar(:, :, 1:npe))) / &
                                    MAXVAL(ABS(elphmat(:, :, 1:npe))))
       ENDIF
-      ENDIF ! rtsc epw3: .NOT. star_done
+      ENDIF ! qe-fast: .NOT. star_done
       !
       CALL mp_sum(elphmat, intra_pool_comm)
       !
@@ -1138,7 +1140,7 @@
     ENDIF
     !
     IF (use_gpu) CALL egc_prof_print()
-    IF (star_now) WRITE(stdout, '(5x, "rtsc epw star (cumulative): ", I0, " k from the base member, ", I0, &
+    IF (star_now) WRITE(stdout, '(5x, "qef epw star (cumulative): ", I0, " k from the base member, ", I0, &
          &" computed directly (D not unitary), max |D^H D - 1| ", ES9.2, "; check: ", I0, " k, max |dg|/max|g| ", &
          &ES9.2)') star_nsc, star_nfb, star_umax, star_nck, star_cmax
     IF (ALLOCATED(gstar)) DEALLOCATE(gstar)
@@ -1177,7 +1179,7 @@
     CONTAINS
       !
       SUBROUTINE gpu_setup()
-      !! rtsc: GPU-path setup of ep_coarse_compute (total local potentials, device buffers, nonlocal data)
+      !! qe-fast: GPU-path setup of ep_coarse_compute (total local potentials, device buffers, nonlocal data)
 #if defined (__CUDA)
       IF (use_gpu) THEN
         ! total local perturbing potential per perturbation: dvscf + dV_loc^bare (k-independent)
@@ -1200,12 +1202,12 @@
         CALL egc_init(dffts%nr1, dffts%nr2, dffts%nr3, dffts%nr1x, dffts%nr2x, dffts%nr3x, &
                       dffts%nnr, nbndep, 3 * nat, npwx)
         CALL egc_set_v(npe, vtot)
-        ! nonlocal part on the GPU too (RTSC_EPW_NL=0 keeps the host code below)
+        ! nonlocal part on the GPU too (QEF_EPW_NL=0 keeps the host code below)
         BLOCK
           CHARACTER(LEN = 16) :: ev
-          CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_NL', ev)
+          CALL qef_getenv('QEF_EPW_NL', ev)
           nl_gpu = (TRIM(ev) /= '0') .AND. nkb > 0
-          CALL GET_ENVIRONMENT_VARIABLE('RTSC_EPW_BEC', ev)
+          CALL qef_getenv('QEF_EPW_BEC', ev)
           bec_gpu = nl_gpu .AND. TRIM(ev) == '1' .AND. .NOT. noncolin .AND. lower_band == 1 .AND. upper_band == nbndep
           IF (bec_gpu) ALLOCATE(kgk(npwx, 3))
         END BLOCK
@@ -1234,7 +1236,7 @@
       END SUBROUTINE gpu_setup
       !
       SUBROUTINE ep_gpu_k()
-      !! rtsc: elphmat(:, :, 1:npe) for the current k, all perturbations of this irrep at once.
+      !! qe-fast: elphmat(:, :, 1:npe) for the current k, all perturbations of this irrep at once.
       !! Local part: (1/N) sum_r conj(psi_k+q(r)) V(r) psi_k(r) on the GPU (Parseval form of
       !! dvqpsi_us3 + ZGEMM). Nonlocal part: vanilla dvqpsi_us_only3 builds
       !! dvpsi_nl = vkb ps1 + sum_a [(k+q+G)_a vkb] ps2_a; projecting on aux4 gives

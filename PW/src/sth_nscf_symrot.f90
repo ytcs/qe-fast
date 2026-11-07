@@ -1,6 +1,7 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
-! rtsc: exact symmetry rotation instead of the per-q nscf eigensolve (RTSC_NSCF_SYMROT=1; off by default).
-! groups/compute/NSCFROT-LOG.md.
+! qe-fast: exact symmetry rotation instead of the per-q nscf eigensolve (QEF_NSCF_SYMROT=1).
 !
 ! ph.x runs an nscf for every q on the k list of the small group of q plus the k+q. On a commensurate grid
 ! every k of that list is an image, under the full crystal group (including fractional translations) and
@@ -19,20 +20,21 @@
 ! depend on that gauge. Band count: all nbnd bands of the representative are rotated.
 !
 ! Representatives not yet in the cache are diagonalized by the existing nscf path (batched Davidson or the
-! per-k loop), at ethr * RTSC_NSCF_SYMROT_TIGHT (default 0.01), then stored. A k-point is rotated only if the
+! per-k loop), at ethr * QEF_NSCF_SYMROT_TIGHT (default 0.01), then stored. A k-point is rotated only if the
 ! k+G sphere maps onto itself exactly (same count, every G found); otherwise it is diagonalized itself.
 !
-! RTSC_NSCF_SYMROT_CHECK=1 (diagnostic): residuals |H psi - e psi| of every rotated and every Davidson k are
+! QEF_NSCF_SYMROT_CHECK=1 (diagnostic): residuals |H psi - e psi| of every rotated and every Davidson k are
 ! computed with h_psi and their maxima printed (exactness check of the rotation, phases and time reversal).
 !
 MODULE sth_nscf_symrot
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: symrot_on, symrot_plan, symrot_after_solve, symrot_report, symrot_tight, symrot_check_on, symrot_resid
-  ! rtsc epw3 (RTSC_PW_SYMROT=1; groups/compute/EPW3-LOG.md): the same rotation in pw.x's nscf (c_bands_nscf), the
+  ! qe-fast (QEF_PW_SYMROT=1): the same rotation in pw.x's nscf (c_bands_nscf), the
   ! Wannier k grid read by EPW. The module lives in PW/src so that both pw.x and ph.x use it.
-  PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop
+  PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
   PUBLIC :: symrot_pw_on, symrot_pw_tight, symrot_pw_check_on, symrot_note_notconv, symrot_rep_guard
   INTEGER, SAVE :: last_notconv = 0, nbadrep = 0
   !
@@ -79,7 +81,7 @@ CONTAINS
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
     symrot_on = .FALSE.
-    CALL get_environment_variable('RTSC_NSCF_SYMROT', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_SYMROT', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
     ! single pool / band group: the cache must see every k of the list
     IF (noncolin .OR. gamma_only .OR. lsda .OR. nproc_bgrp /= 1 .OR. npool /= 1 .OR. lda_plus_u) RETURN
@@ -94,7 +96,7 @@ CONTAINS
   END SUBROUTINE symrot_note_notconv
   !
   LOGICAL FUNCTION symrot_rep_guard(ik)
-    !! RTSC_PW_SYMROT: a representative whose eigensolve left unconverged eigenvalues is not a rotation source;
+    !! QEF_PW_SYMROT: a representative whose eigensolve left unconverged eigenvalues is not a rotation source;
     !! the k-points waiting for it are diagonalized themselves (as the switch-off build does for every k).
     !! .TRUE. = ik was such a representative (the caller re-diagonalizes it at pw.x's own ethr)
     USE io_global, ONLY : stdout
@@ -105,7 +107,7 @@ CONTAINS
         kind_(ik) = 0
         nbadrep = nbadrep + 1
         symrot_rep_guard = .TRUE.
-        WRITE(stdout, '(5x,"rtsc nscf symrot: representative ",I0," has ",I0, &
+        WRITE(stdout, '(5x,"qef nscf symrot: representative ",I0," has ",I0, &
              &" unconverged eigenvalues: its orbit is diagonalized instead (",I0," such reps)")') ik, last_notconv, nbadrep
       ENDIF
     ENDIF
@@ -113,11 +115,11 @@ CONTAINS
   END FUNCTION symrot_rep_guard
   !
   LOGICAL FUNCTION symrot_pw_on()
-    !! RTSC_PW_SYMROT=1, with the same declines as RTSC_NSCF_SYMROT
+    !! QEF_PW_SYMROT=1, with the same declines as QEF_NSCF_SYMROT
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
     symrot_pw_on = .FALSE.
-    CALL get_environment_variable('RTSC_PW_SYMROT', s, STATUS=ios)
+    CALL qef_getenv('QEF_PW_SYMROT', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
     symrot_pw_on = symrot_ok()
   END FUNCTION symrot_pw_on
@@ -135,11 +137,11 @@ CONTAINS
   END FUNCTION symrot_ok
   !
   REAL(DP) FUNCTION symrot_pw_tight()
-    !! RTSC_PW_SYMROT_TIGHT: factor on pw.x's nscf ethr for the representatives (default 1: pw.x's own ethr)
+    !! QEF_PW_SYMROT_TIGHT: factor on pw.x's nscf ethr for the representatives (default 1: pw.x's own ethr)
     CHARACTER(LEN=32) :: s
     INTEGER :: ios
     symrot_pw_tight = 1.0_DP
-    CALL get_environment_variable('RTSC_PW_SYMROT_TIGHT', s, STATUS=ios)
+    CALL qef_getenv('QEF_PW_SYMROT_TIGHT', s, STATUS=ios)
     IF (ios == 0 .AND. LEN_TRIM(s) > 0) READ(s, *, IOSTAT=ios) symrot_pw_tight
     IF (ios /= 0 .OR. symrot_pw_tight <= 0) symrot_pw_tight = 1.0_DP
   END FUNCTION symrot_pw_tight
@@ -147,7 +149,7 @@ CONTAINS
   LOGICAL FUNCTION symrot_pw_check_on()
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
-    CALL get_environment_variable('RTSC_PW_SYMROT_CHECK', s, STATUS=ios)
+    CALL qef_getenv('QEF_PW_SYMROT_CHECK', s, STATUS=ios)
     symrot_pw_check_on = (ios == 0 .AND. TRIM(s) == '1')
   END FUNCTION symrot_pw_check_on
   !
@@ -155,7 +157,7 @@ CONTAINS
     CHARACTER(LEN=32) :: s
     INTEGER :: ios
     symrot_tight = 0.01_DP
-    CALL get_environment_variable('RTSC_NSCF_SYMROT_TIGHT', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_SYMROT_TIGHT', s, STATUS=ios)
     IF (ios == 0 .AND. LEN_TRIM(s) > 0) READ(s, *, IOSTAT=ios) symrot_tight
     IF (ios /= 0 .OR. symrot_tight <= 0) symrot_tight = 0.01_DP
   END FUNCTION symrot_tight
@@ -163,7 +165,7 @@ CONTAINS
   LOGICAL FUNCTION symrot_check_on()
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
-    CALL get_environment_variable('RTSC_NSCF_SYMROT_CHECK', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_SYMROT_CHECK', s, STATUS=ios)
     symrot_check_on = (ios == 0 .AND. TRIM(s) == '1')
   END FUNCTION symrot_check_on
   !
@@ -374,14 +376,14 @@ CONTAINS
     INTEGER(8) :: key
     REAL(DP) :: kr(3)
     LOGICAL :: hasft
-    ! RTSC_NSCF_SYMROT_PREFER_FT=1 (diagnostic): ops with a fractional translation are inserted first, so they are
+    ! QEF_NSCF_SYMROT_PREFER_FT=1 (diagnostic): ops with a fractional translation are inserted first, so they are
     ! the ones used wherever they reach the image (exercises the phase factor)
     DO ipass = 1, 2
     DO itr = 1, 2
       tr = 3 - 2 * itr
       IF (tr == -1 .AND. .NOT. time_reversal) EXIT
       DO js = 1, nsr
-        ! RTSC_NSCF_SYMROT_REVOPS=1 (diagnostic): reversed op order, so images with a non-trivial stabilizer are
+        ! QEF_NSCF_SYMROT_REVOPS=1 (diagnostic): reversed op order, so images with a non-trivial stabilizer are
         ! reached by another op (a pure gauge change of the rotated set)
         is = js
         IF (rev_ops) is = nsr + 1 - js
@@ -445,12 +447,12 @@ CONTAINS
     CALL h_reset(tl)
     IF (tc%cap == 0) THEN
       CALL h_reset(tc)
-      CALL get_environment_variable('RTSC_NSCF_SYMROT_PREFER_FT', sv, STATUS=ios)
+      CALL qef_getenv('QEF_NSCF_SYMROT_PREFER_FT', sv, STATUS=ios)
       prefer_ft = (ios == 0 .AND. TRIM(sv) == '1')
       nsr = nsym_cur
       sr(:, :, 1:nsr) = s_cur(:, :, 1:nsr)
       ftr(:, 1:nsr) = ft_cur(:, 1:nsr)
-      CALL get_environment_variable('RTSC_NSCF_SYMROT_REVOPS', sv, STATUS=ios)
+      CALL qef_getenv('QEF_NSCF_SYMROT_REVOPS', sv, STATUS=ios)
       rev_ops = (ios == 0 .AND. TRIM(sv) == '1')
     ENDIF
     IF (npos /= dfftp%nr1 * dfftp%nr2 * dfftp%nr3) THEN
@@ -510,7 +512,7 @@ CONTAINS
         IF (io_level > -1) CALL save_buffer(evc, nwordwfc, iunwfc, ik)
         kdone(ik) = .TRUE.
         kind_(ik) = 1; ksrc(ik) = i0
-        ksym(ik) = isym; ktr(ik) = tr; kg0(:, ik) = g0     ! kept for symrot_kmap (RTSC_STH_CBSR)
+        ksym(ik) = isym; ktr(ik) = tr; kg0(:, ik) = g0     ! kept for symrot_kmap (QEF_STH_CBSR)
         nrot_c = nrot_c + 1
         found = .TRUE.
         EXIT
@@ -554,7 +556,7 @@ CONTAINS
       CALL pos_set(ik, 0)
     ENDDO
     DEALLOCATE(mrep)
-    IF (ANY(miss > 0)) WRITE(stdout, '(5x,"rtsc nscf symrot: cache misses: no image ",I0,", G0 ",I0,", sphere size ",I0, &
+    IF (ANY(miss > 0)) WRITE(stdout, '(5x,"qef nscf symrot: cache misses: no image ",I0,", G0 ",I0,", sphere size ",I0, &
          &", sphere map ",I0)') miss
     !$acc update device(et)
     CALL SYSTEM_CLOCK(c1)
@@ -582,7 +584,7 @@ CONTAINS
     INTEGER(8) :: c0, c1, cr
     CALL start_clock('nscf_symrot')
     CALL SYSTEM_CLOCK(c0, cr)
-    IF (io_level <= -1) CALL errore('symrot_after_solve', 'RTSC_NSCF_SYMROT needs the wfc buffer (io_level > -1)', 1)
+    IF (io_level <= -1) CALL errore('symrot_after_solve', 'QEF_NSCF_SYMROT needs the wfc buffer (io_level > -1)', 1)
     ALLOCATE(slot(nks))
     slot = 0
     ! cache the reps that were solved
@@ -599,7 +601,7 @@ CONTAINS
       cwfc(1:ngk(ik), 1:nbnd, nc) = evc(1:ngk(ik), 1:nbnd)
       ce(1:nbnd, nc) = et(1:nbnd, ik)
       slot(ik) = nc
-      ksrc(ik) = nc; ksym(ik) = -1                     ! identity, for symrot_kmap (RTSC_STH_CBSR)
+      ksrc(ik) = nc; ksym(ik) = -1                     ! identity, for symrot_kmap (QEF_STH_CBSR)
       CALL h_images(tc, cxk(:, nc), nc)
     ENDDO
     ! rotate the waiting k-points
@@ -627,7 +629,7 @@ CONTAINS
     tot_dav = tot_dav + nrep + nfb
     CALL SYSTEM_CLOCK(c1)
     t_after = t_after + REAL(c1 - c0, DP) / REAL(cr, DP)
-    WRITE(stdout, '(5x,"rtsc nscf symrot: ",I0," k rotated from the cache, ",I0," from reps of this list, ",I0, &
+    WRITE(stdout, '(5x,"qef nscf symrot: ",I0," k rotated from the cache, ",I0," from reps of this list, ",I0, &
          &" reps diagonalized, ",I0," fallbacks; cache ",I0," k; time plan+rotate ",F8.3," s, cache+rotate ",F8.3, &
          &" s (cumulative); ",I0," rotations with a fractional translation (cumulative)")') &
          nrot_c, nrot_l - nfb, nrep, nfb, nc, t_plan, t_after, nft
@@ -659,7 +661,7 @@ CONTAINS
   !------------------------------------------------------------------------------------------
   SUBROUTINE symrot_resid()
     !------------------------------------------------------------------------------------------
-    !! RTSC_NSCF_SYMROT_CHECK=1: max_n |H psi_n - e_n psi_n| over rotated and over Davidson k-points
+    !! QEF_NSCF_SYMROT_CHECK=1: max_n |H psi_n - e_n psi_n| over rotated and over Davidson k-points
     USE klist,     ONLY : nks, ngk, igk_k, xk
     USE wvfct,     ONLY : et, nbnd, npwx, current_k
     USE wavefunctions, ONLY : evc
@@ -701,14 +703,14 @@ CONTAINS
     DEALLOCATE(hpsi)
     CALL deallocate_bec_type_acc(becp)
     rmax_rot = MAX(rmax_rot, rr); rmax_dav = MAX(rmax_dav, rd)
-    WRITE(stdout, '(5x,"rtsc nscf symrot check: max |H psi - e psi| rotated ",ES10.3,", diagonalized ",ES10.3, &
+    WRITE(stdout, '(5x,"qef nscf symrot check: max |H psi - e psi| rotated ",ES10.3,", diagonalized ",ES10.3, &
          &"; max | |psi| - 1 | ",ES10.3)') rr, rd, ro
   END SUBROUTINE symrot_resid
   !
   !------------------------------------------------------------------------------------------
   SUBROUTINE symrot_kmap(ik, i0, ngs, tr, imap, ph, ok)
     !------------------------------------------------------------------------------------------
-    !! rtsc CBSR (RTSC_STH_CBSR; groups/compute/SOLVE-LOG.md session 4): for k-point ik of the current plan, the cache
+    !! qe-fast CBSR (QEF_STH_CBSR): for k-point ik of the current plan, the cache
     !! entry i0 whose eigenpairs it was rotated from (or which it is), and the G map of that rotation:
     !!   psi_ik(imap(ig)) = ph(ig) psi_i0(ig) (tr = 1),  conj(ph(ig) psi_i0(ig)) (tr = -1),  ig = 1..ngs (cache order).
     !! ok = .FALSE. if ik was diagonalized itself (no cache entry) or the plan does not describe the current k list.
@@ -769,8 +771,140 @@ CONTAINS
     ok = .TRUE.
   END SUBROUTINE symrot_kmap
   !
+  INTEGER FUNCTION symrot_nops()
+    symrot_nops = nsr
+  END FUNCTION symrot_nops
+  !
+  SUBROUTINE symrot_count(nqg, nqs, xqc, doq, norb, nkf, sumk, maxk, nq, lg)
+    !------------------------------------------------------------------------------------------
+    !! qe-fast (QEF_STH_CBSR's automatic fallback): what the run will need, before any basis
+    !! is built. Every k+q of a ph.x run lies on the grid of lcm(nk, nq) points per direction, and every orbit of that grid
+    !! under the full group (with time reversal) is reached, so
+    !!   norb = the number of orbits on it = the number of bases (one per orbit), -1 if the k-points are an explicit list;
+    !!   nkf  = nk1 nk2 nk3; sumk, maxk = sum and maximum over the q of this run (q /= Gamma) of nksq, the orbits of the
+    !!   k grid under the effective small group of q; nq = how many such q; lg = the grid.
+    USE cell_base, ONLY : at
+    USE start_k,   ONLY : nk1, nk2, nk3, k1, k2, k3
+    USE symm_base, ONLY : time_reversal
+    INTEGER, INTENT(IN) :: nqg(3), nqs
+    REAL(DP), INTENT(IN) :: xqc(3, nqs)
+    LOGICAL, INTENT(IN) :: doq(nqs)
+    INTEGER, INTENT(OUT) :: norb, nkf, nq, lg(3)
+    INTEGER(8), INTENT(OUT) :: sumk, maxk
+    INTEGER :: nk(3), kk(3), i, j, is, itr, tr, n, iq, no, nsk, m(3, 3, 96)
+    INTEGER, ALLOCATABLE :: par(:)
+    REAL(DP) :: x(3), y(3), d(3)
+    LOGICAL :: dup
+    !
+    norb = -1; nkf = 0; sumk = 0; maxk = 0; nq = 0; lg = 0
+    nk = (/ nk1, nk2, nk3 /); kk = (/ k1, k2, k3 /)
+    IF (ANY(nk <= 0) .OR. nsr == 0) RETURN
+    nkf = nk(1) * nk(2) * nk(3)
+    DO i = 1, 3
+      lg(i) = nk(i)
+      IF (nqg(i) > 0) lg(i) = nk(i) / gcd2(nk(i), nqg(i)) * nqg(i)
+    ENDDO
+    ! the full group with time reversal, on the k+q grid
+    no = 0
+    DO itr = 1, 2
+      tr = 3 - 2 * itr
+      IF (tr == -1 .AND. .NOT. time_reversal) EXIT
+      DO is = 1, nsr
+        no = no + 1
+        m(:, :, no) = tr * sr(:, :, is)
+      ENDDO
+    ENDDO
+    norb = norbits(lg, no)
+    ! nksq of each q of this run: the k grid's orbits under the distinct actions on k of {S : S q = q} and {-S : S q = -q}
+    DO iq = 1, nqs
+      IF (.NOT. doq(iq)) CYCLE
+      DO j = 1, 3
+        x(j) = xqc(1, iq) * at(1, j) + xqc(2, iq) * at(2, j) + xqc(3, iq) * at(3, j)
+      ENDDO
+      IF (ALL(ABS(x - NINT(x)) < 1.d-6)) CYCLE
+      no = 0
+      DO itr = 1, 2
+        tr = 3 - 2 * itr
+        IF (tr == -1 .AND. .NOT. time_reversal) EXIT
+        DO is = 1, nsr
+          DO j = 1, 3
+            y(j) = tr * (sr(j, 1, is) * x(1) + sr(j, 2, is) * x(2) + sr(j, 3, is) * x(3))
+          ENDDO
+          d = y - x
+          IF (ANY(ABS(d - NINT(d)) > 1.d-6)) CYCLE
+          dup = .FALSE.
+          DO n = 1, no
+            IF (ALL(m(:, :, n) == tr * sr(:, :, is))) dup = .TRUE.
+          ENDDO
+          IF (.NOT. dup) THEN
+            no = no + 1
+            m(:, :, no) = tr * sr(:, :, is)
+          ENDIF
+        ENDDO
+      ENDDO
+      nsk = norbits(nk, no)
+      nq = nq + 1
+      sumk = sumk + nsk
+      maxk = MAX(maxk, INT(nsk, 8))
+    ENDDO
+  CONTAINS
+    INTEGER FUNCTION norbits(g, nop)
+      !! orbits of the grid of g points per direction (shifted as the k grid) under m(:, :, 1:nop); an image off the grid connects nothing
+      INTEGER, INTENT(IN) :: g(3), nop
+      INTEGER :: a, b, c, ig, jg, r1, r2, ng, u(3), io
+      REAL(DP) :: xx(3), yy(3), dd(3)
+      ng = g(1) * g(2) * g(3)
+      ALLOCATE(par(ng))
+      DO ig = 1, ng
+        par(ig) = ig
+      ENDDO
+      DO c = 0, g(3) - 1
+        DO b = 0, g(2) - 1
+          DO a = 0, g(1) - 1
+            ig = 1 + a + g(1) * (b + g(2) * c)
+            xx = (/ (a + 0.5_DP * kk(1) * g(1) / nk(1)) / g(1), (b + 0.5_DP * kk(2) * g(2) / nk(2)) / g(2), &
+                    (c + 0.5_DP * kk(3) * g(3) / nk(3)) / g(3) /)
+            DO io = 1, nop
+              DO j = 1, 3
+                yy(j) = m(j, 1, io) * xx(1) + m(j, 2, io) * xx(2) + m(j, 3, io) * xx(3)
+              ENDDO
+              dd = yy * g - 0.5_DP * kk * g / nk
+              IF (ANY(ABS(dd - NINT(dd)) > 1.d-6)) CYCLE
+              u = MODULO(NINT(dd), g)
+              jg = 1 + u(1) + g(1) * (u(2) + g(2) * u(3))
+              r1 = froot(ig); r2 = froot(jg)
+              IF (r1 /= r2) par(MAX(r1, r2)) = MIN(r1, r2)
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDDO
+      norbits = 0
+      DO ig = 1, ng
+        IF (froot(ig) == ig) norbits = norbits + 1
+      ENDDO
+      DEALLOCATE(par)
+    END FUNCTION norbits
+    INTEGER FUNCTION froot(i0)
+      INTEGER, INTENT(IN) :: i0
+      froot = i0
+      DO WHILE (par(froot) /= froot)
+        par(froot) = par(par(froot))
+        froot = par(froot)
+      ENDDO
+    END FUNCTION froot
+    INTEGER FUNCTION gcd2(p, q)
+      INTEGER, INTENT(IN) :: p, q
+      INTEGER :: aa, bb, t
+      aa = p; bb = q
+      DO WHILE (bb /= 0)
+        t = MOD(aa, bb); aa = bb; bb = t
+      ENDDO
+      gcd2 = aa
+    END FUNCTION gcd2
+  END SUBROUTINE symrot_count
+  !
   INTEGER FUNCTION symrot_cache_n()
-    !! number of cached representatives (RTSC_STH_KDEV keeps a device copy)
+    !! number of cached representatives (QEF_STH_KDEV keeps a device copy)
     symrot_cache_n = nc
   END FUNCTION symrot_cache_n
   !
@@ -787,7 +921,7 @@ CONTAINS
   END SUBROUTINE symrot_cache_get
   !
   SUBROUTINE symrot_kop(ik, i0, sop, tr, g0, hasft, ok)
-    !! rtsc KDEV v2: the operation that maps cache entry i0 onto k-point ik of the current plan, without any per-G work:
+    !! qe-fast KDEV v2: the operation that maps cache entry i0 onto k-point ik of the current plan, without any per-G work:
     !! Miller m of i0 goes to tr * sop m - g0 in ik's sphere (sop = identity, tr = 1, g0 = 0 for a representative itself).
     !! hasft: the operation carries a fractional translation (a phase per G). ok = .FALSE. as in symrot_kmap.
     USE klist,     ONLY : nks, ngk
@@ -824,7 +958,7 @@ CONTAINS
   !
   SUBROUTINE symrot_report()
     USE io_global, ONLY : stdout
-    WRITE(stdout, '(5x,"rtsc nscf symrot totals: ",I0," rotated, ",I0," diagonalized")') tot_rot, tot_dav
+    WRITE(stdout, '(5x,"qef nscf symrot totals: ",I0," rotated, ",I0," diagonalized")') tot_rot, tot_dav
   END SUBROUTINE symrot_report
   !
 END MODULE sth_nscf_symrot

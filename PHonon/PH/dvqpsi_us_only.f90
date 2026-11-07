@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001-2008 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -364,7 +365,7 @@ END SUBROUTINE dvqpsi_us_only!
 !----------------------------------------------------------------------
 SUBROUTINE dvqpsi_us_only_acc (ik, uact, becp1, alphap)
   !----------------------------------------------------------------------
-  !! rtsc: dvqpsi_us_only for norm-conserving, collinear pseudopotentials (no okvan, no noncolin),
+  !! qe-fast: dvqpsi_us_only for norm-conserving, collinear pseudopotentials (no okvan, no noncolin),
   !! called by dvqpsi_us while dvpsi is present on the device. ps1 and ps2 are formed on the host
   !! exactly as in dvqpsi_us_only; the two plane-wave updates
   !!   dvpsi += vkb ps1   and   dvpsi += sum_ipol [ (k+q+G)_ipol vkb ] ps2(:,:,ipol)

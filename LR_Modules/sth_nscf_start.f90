@@ -1,8 +1,10 @@
+! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO and EPW; see NOTICE.
+! SPDX-License-Identifier: GPL-2.0-or-later
 !
-! rtsc: starting wavefunctions for the ph.x nscf (c_bands_nscf_ph) by symmetry rotation of the scf
+! qe-fast: starting wavefunctions for the ph.x nscf (c_bands_nscf_ph) by symmetry rotation of the scf
 ! wavefunctions in the restart directory, instead of random vectors.
 !
-! On by default; RTSC_NSCF_ROT=0 gives vanilla's random start. Davidson then runs exactly as in vanilla, to the
+! On by default; QEF_NSCF_ROT=0 gives vanilla's random start. Davidson then runs exactly as in vanilla, to the
 ! same threshold (ethr_nscf = 1e-9/nelec), from a much better start. The start only changes how
 ! many Davidson iterations are needed; it cannot change what Davidson converges to beyond ethr
 ! (vanilla's own result already depends on its random start at that level). If no symmetry image
@@ -15,6 +17,7 @@
 ! Then c_k'(tr S m - G0) = c_k(m) (tr = +1) or conj(c_k(m)) (tr = -1), m the Miller indices.
 !
 MODULE sth_nscf_start
+  USE qef_config, ONLY : qef_getenv
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -50,8 +53,8 @@ CONTAINS
     COMPLEX(DP), ALLOCATABLE :: w(:)
     !
     CALL nscf_start_free()
-    ! on by default (passed the nscf gate on the full B1 smoke); RTSC_NSCF_ROT=0 restores vanilla
-    CALL get_environment_variable('RTSC_NSCF_ROT', s, STATUS=ios)
+    ! on by default (passed the nscf gate on the full B1 smoke); QEF_NSCF_ROT=0 restores vanilla
+    CALL qef_getenv('QEF_NSCF_ROT', s, STATUS=ios)
     IF (ios == 0 .AND. TRIM(s) == '0') RETURN
     IF (noncolin .OR. gamma_only .OR. lsda .OR. nproc_bgrp /= 1) RETURN
     CALL start_clock('nscf_rot')
@@ -106,7 +109,7 @@ CONTAINS
     ENDDO
     active = .TRUE.
     nfound = 0; nfallback = 0
-    WRITE(stdout, '(5x,"rtsc nscf: rotated starting wavefunctions from ",I0," stored k-points")') nks0
+    WRITE(stdout, '(5x,"qef nscf: rotated starting wavefunctions from ",I0," stored k-points")') nks0
     CALL stop_clock('nscf_rot')
   END SUBROUTINE nscf_start_prepare
   !
@@ -197,11 +200,11 @@ CONTAINS
   END FUNCTION nscf_start_get
   !
   REAL(DP) FUNCTION nscf_ethr_scale()
-    !! RTSC_NSCF_ETHR_SCALE (diagnostic): factor on ph.x's nscf threshold; 1 when unset
+    !! QEF_NSCF_ETHR_SCALE (diagnostic): factor on ph.x's nscf threshold; 1 when unset
     CHARACTER(LEN=32) :: s
     INTEGER :: ios
     nscf_ethr_scale = 1.0_DP
-    CALL get_environment_variable('RTSC_NSCF_ETHR_SCALE', s, STATUS=ios)
+    CALL qef_getenv('QEF_NSCF_ETHR_SCALE', s, STATUS=ios)
     IF (ios == 0 .AND. LEN_TRIM(s) > 0) READ(s, *, IOSTAT=ios) nscf_ethr_scale
     IF (ios /= 0 .OR. nscf_ethr_scale <= 0) nscf_ethr_scale = 1.0_DP
   END FUNCTION nscf_ethr_scale
@@ -231,7 +234,7 @@ CONTAINS
   !
   SUBROUTINE nscf_start_free()
     USE io_global, ONLY : stdout
-    IF (active) WRITE(stdout, '(5x,"rtsc nscf: rotated starts ",I0,", vanilla starts ",I0)') nfound, nfallback
+    IF (active) WRITE(stdout, '(5x,"qef nscf: rotated starts ",I0,", vanilla starts ",I0)') nfound, nfallback
     active = .FALSE.
     nks0 = 0; nbnd0 = 0; ngwx0 = 0
     IF (ALLOCATED(xk0)) DEALLOCATE(xk0, ngw0, mill0, wfc0)

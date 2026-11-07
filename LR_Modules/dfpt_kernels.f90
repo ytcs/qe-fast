@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2025-2026 Quantum ESPRESSO Foundation
 ! This file is distributed under the terms of the
@@ -8,6 +9,7 @@
 !
 !------------------------------------------------------------------------------
 MODULE dfpt_kernels
+  USE qef_config, ONLY : qef_getenv
 IMPLICIT NONE
 CONTAINS
 SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
@@ -85,7 +87,7 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    USE kinds,                ONLY : DP
    USE mp_pools,             ONLY : inter_pool_comm
    USE sth_batched,          ONLY : sth_batched_flush_end, sth_call_eta
-   USE rtsc_mix,             ONLY : rtsc_mix_q0, rtsc_mix_kerker
+   USE qef_mix,             ONLY : qef_mix_q0, qef_mix_kerker
    USE mp_bands,             ONLY : intra_bgrp_comm
    USE mp,                   ONLY : mp_sum
    USE fft_base,             ONLY : dfftp, dffts
@@ -187,9 +189,9 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    !
    REAL(DP) :: tcpu, get_clock
    !
-   ! rtsc RTSC_THRESH_L = L > 1 (SOLVE-LOG.md): non-final SCF iterations solve to L x the vanilla
+   ! qe-fast QEF_THRESH_L = L > 1: non-final SCF iterations solve to L x the vanilla
    ! thresh. The vanilla chain tv = min(0.1 sqrt(dr2), tv) is kept alongside; an iteration whose
-   ! predicted |ddv|^2 (dr2 * min(1, dr2/dr2_prev)) is below RTSC_THRESH_G (default 100) x tr2_ph uses
+   ! predicted |ddv|^2 (dr2 * min(1, dr2/dr2_prev)) is below QEF_THRESH_G (default 100) x tr2_ph uses
    ! tv. If the SCF converges on a loose iteration, one polish iteration re-solves with the same
    ! dV_in at tv (no mixing), so the final dpsi / drho always come from a solve at the vanilla thresh.
    REAL(DP) :: xl_l, xl_g, tv, tl, dr2_prev, xl_pred, xl_eta
@@ -255,22 +257,22 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    BLOCK
      CHARACTER(LEN=32) :: sv
      INTEGER :: ios
-     CALL get_environment_variable('RTSC_THRESH_L', sv, STATUS=ios)
+     CALL qef_getenv('QEF_THRESH_L', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_l
      IF (ios /= 0) xl_l = 1.d0
-     CALL get_environment_variable('RTSC_THRESH_G', sv, STATUS=ios)
+     CALL qef_getenv('QEF_THRESH_G', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_g
      IF (ios /= 0) xl_g = 1.d2
      xl_eta = 0.d0
-     CALL get_environment_variable('RTSC_STH_ETA', sv, STATUS=ios)
+     CALL qef_getenv('QEF_STH_ETA', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_eta
      IF (ios /= 0) xl_eta = 0.d0
    END BLOCK
    xl_on = (xl_l > 1.d0 .OR. xl_eta > 0.d0) .AND. .NOT. okpaw .AND. .NOT. finite_freq .AND. .NOT. twochem
    xl_loose = .FALSE.
    xl_polish = .FALSE.
-   ! rtsc: Kerker-preconditioned Broyden (RTSC_MIX_Q0 > 0); in-memory mixing, no PAW, nspin_mag = 1
-   kq0 = rtsc_mix_q0()
+   ! qe-fast: Kerker-preconditioned Broyden (QEF_MIX_Q0 > 0); in-memory mixing, no PAW, nspin_mag = 1
+   kq0 = qef_mix_q0()
    IF (okpaw .OR. flmixdpot /= ' ' .OR. nspin_mag /= 1 .OR. npol /= 1) kq0 = 0.d0
    tv = 1.d-2
    tl = 1.d-2
@@ -305,7 +307,7 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
       ELSEIF (.NOT. xl_on) THEN
          thresh = min(1.d-1 * sqrt(dr2), thresh)
       ELSE
-         ! rtsc: vanilla chain tv, loose chain tl; tv when this iteration may be the last one
+         ! qe-fast: vanilla chain tv, loose chain tl; tv when this iteration may be the last one
          IF (.NOT. xl_polish) THEN
             tv = min(1.d-1 * sqrt(dr2), tv)
             tl = min(xl_l * 1.d-1 * sqrt(dr2), tl, 1.0d-2)
@@ -465,13 +467,13 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
                             npert * tr2_ph / npol, iter, nmix_ph, flmixdpot, convt)
          CALL setmixout(ndim_pot, ndim_paw, mixin, dfpt_data%dvscfp, dfpt_data%dbecsum, ndim, 1)
       ELSEIF (xl_polish) THEN
-         ! rtsc polish iteration: dV_in unchanged (mix_potential returned without updating it when it
+         ! qe-fast polish iteration: dV_in unchanged (mix_potential returned without updating it when it
          ! reported convergence); report |dV_out - dV_in|^2 as mix_potential does, then stop
          dvscftmp = dvscftmp - dfpt_data%dvscfp
          dr2 = (dnrm2(2 * ndim_pot, dvscftmp, 1) / REAL(2 * ndim_pot, DP))**2
          convt = .TRUE.
       ELSEIF (kq0 > 0.d0) THEN
-         CALL rtsc_mix_kerker(dfftp%nnr, npert, dvscftmp(:, 1, :), dfpt_data%dvscfp(:, 1, :), alpha_mix(kter), dr2, &
+         CALL qef_mix_kerker(dfftp%nnr, npert, dvscftmp(:, 1, :), dfpt_data%dvscfp(:, 1, :), alpha_mix(kter), dr2, &
                               npert * tr2_ph / npol, iter, nmix_ph, convt, kq0)
       ELSE
          CALL mix_potential(2 * ndim_pot, dvscftmp, dfpt_data%dvscfp, alpha_mix(kter), dr2, &
@@ -538,15 +540,15 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
       !
       dr2 = dr2 / npert
       IF (xl_on) THEN
-         IF (xl_polish) WRITE(stdout, '(5x,"rtsc thresh: polish solve at the vanilla thresh")')
+         IF (xl_polish) WRITE(stdout, '(5x,"qef thresh: polish solve at the vanilla thresh")')
          IF (convt .AND. xl_loose .AND. .NOT. xl_polish) THEN
             ! converged on a loose solve: one more solve with the same dV_in at tv
             convt = .FALSE.
             xl_polish = .TRUE.
-            WRITE(stdout, '(5x,"rtsc thresh: converged on a loose solve (",ES9.2," > ",ES9.2,"): polish")') &
+            WRITE(stdout, '(5x,"qef thresh: converged on a loose solve (",ES9.2," > ",ES9.2,"): polish")') &
                  thresh, tv
          ELSE
-            IF (xl_loose) WRITE(stdout, '(5x,"rtsc thresh: loose ",ES9.2," (vanilla ",ES9.2,")")') thresh, tv
+            IF (xl_loose) WRITE(stdout, '(5x,"qef thresh: loose ",ES9.2," (vanilla ",ES9.2,")")') thresh, tv
          ENDIF
       ENDIF
       WRITE( stdout, '(/,5x," iter # ",i3," total cpu time :",f8.1, &
@@ -568,7 +570,7 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    ENDDO ! iteration
    sth_call_eta = 0.d0
    !
-   ! rtsc: write the batched engine's dpsi to iudwf when a later step reads it there (no-op unless the
+   ! qe-fast: write the batched engine's dpsi to iudwf when a later step reads it there (no-op unless the
    ! engine ran this irrep)
    CALL sth_batched_flush_end()
    !

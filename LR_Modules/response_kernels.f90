@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
 !
 ! Copyright (C) 2001-2018 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -132,7 +133,7 @@ SUBROUTINE sternheimer_kernel(first_iter, time_reversed, npert, lrdvpsi, iudvpsi
    EXTERNAL ch_psi_all, cg_psi
    !! functions passed to cgsolve_all
    LOGICAL :: sth_done
-   !! rtsc: true if the batched engine handled this call
+   !! qe-fast: true if the batched engine handled this call
    INTEGER(8) :: sth_c0, sth_c1, sth_cr
    !
    ! Initialization
@@ -140,25 +141,25 @@ SUBROUTINE sternheimer_kernel(first_iter, time_reversed, npert, lrdvpsi, iudvpsi
    CALL start_clock("sth_kernel")
    CALL SYSTEM_CLOCK(sth_c0, sth_cr)
    !
-   ! rtsc: batched Sternheimer engine (RTSC_STH=1, supported cases only; see LR_Modules/sth_batched.f90)
+   ! qe-fast: batched Sternheimer engine (QEF_STH=1, supported cases only; see LR_Modules/sth_batched.f90)
    !
    IF (.NOT. PRESENT(exclude_hubbard)) THEN
       CALL sth_batched_kernel(first_iter, time_reversed, npert, lrdvpsi, iudvpsi, thresh, &
                               dvscfins, all_conv, avg_iter, drhoout, sth_done)
       IF (sth_done) THEN
          CALL SYSTEM_CLOCK(sth_c1)
-         IF (sth_env_flag('RTSC_STH_TIME')) WRITE(stdout, '(5x,"rtsc sth_kernel call: engine ",F10.3," s")') &
+         IF (sth_env_flag('QEF_STH_TIME')) WRITE(stdout, '(5x,"qef sth_kernel call: engine ",F10.3," s")') &
             REAL(sth_c1 - sth_c0, DP) / REAL(sth_cr, DP)
          CALL stop_clock("sth_kernel")
          RETURN
       ENDIF
-      CALL sth_strict_check('sternheimer_kernel', sth_done)   ! RTSC_STRICT=1: no silent vanilla path
+      CALL sth_strict_check('sternheimer_kernel', sth_done)   ! QEF_STRICT=1: no silent vanilla path
    ENDIF
    !
    exclude_hubbard_ = .FALSE.
    IF (PRESENT(exclude_hubbard)) exclude_hubbard_ = exclude_hubbard
    !
-   ! rtsc: optional offline dump of this call (RTSC_STH_DUMP); no effect when unset
+   ! qe-fast: optional offline dump of this call (QEF_STH_DUMP); no effect when unset
    CALL sth_dump_begin(first_iter, npert, lrdvpsi, iudvpsi, thresh, dvscfins, drhoout)
    !
    !  change the sign of the magnetic field if required
@@ -325,7 +326,7 @@ SUBROUTINE sternheimer_kernel(first_iter, time_reversed, npert, lrdvpsi, iudvpsi
    DEALLOCATE(h_diag)
    !
    CALL SYSTEM_CLOCK(sth_c1)
-   IF (sth_env_flag('RTSC_STH_TIME')) WRITE(stdout, '(5x,"rtsc sth_kernel call: vanilla ",F10.3," s")') &
+   IF (sth_env_flag('QEF_STH_TIME')) WRITE(stdout, '(5x,"qef sth_kernel call: vanilla ",F10.3," s")') &
       REAL(sth_c1 - sth_c0, DP) / REAL(sth_cr, DP)
    CALL stop_clock("sth_kernel")
    !
