@@ -435,7 +435,6 @@ MODULE exx_bp
                    ENDIF
 #if defined(__CUDA)
                 IF (use_gpu) CALL dev_buf%release_buffer(psic_nc_d, ierr)
-                IF (use_gpu) exxbuff = exxbuff_d
 #endif
                 ELSE ! noncolinear
 #if defined(__MPI)
@@ -475,6 +474,8 @@ MODULE exx_bp
        IF_GAMMA_ONLY
     ENDDO&
     KPOINTS_LOOP
+    ! Host copy once, after all (k, band) updates: inside the loop it moved the whole buffer per band.
+    IF (use_gpu .AND. noncolin) exxbuff = exxbuff_d
     !
     IF (noncolin) THEN
        DEALLOCATE( temppsic_nc, psic_nc )
