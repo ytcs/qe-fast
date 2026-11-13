@@ -43,7 +43,7 @@ also carries a notice in its first line, with the dates of their changes:
   external/CMakeLists.txt                  2026-11-12
   external/devxlib.cmake                   2026-10-27 to 2026-11-06
   external/submodule_commit_hash_records   2026-10-27 to 2026-11-12
-  external/wannier90.cmake                 2026-10-29 to 2026-11-06
+  external/wannier90.cmake                 2026-10-29 to 2026-11-13
   LR_Modules/c_bands_ph.f90                2026-10-28 to 2026-11-06
   LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-06
   LR_Modules/dfpt_kernels.f90              2026-10-28 to 2026-11-06

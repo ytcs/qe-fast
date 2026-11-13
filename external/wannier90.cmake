@@ -1,4 +1,4 @@
-# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-29 to 2026-11-06; see NOTICE.
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-29 to 2026-11-13; see NOTICE.
 ###########################################################
 # WANNIER90
 ###########################################################
@@ -36,7 +36,8 @@ if(QE_WANNIER90_INTERNAL)
         wannier90/src/ws_distance.F90)
 
     qe_add_library(qe_wannier90 ${sources})
-    target_link_libraries(qe_wannier90 PRIVATE qe_lapack qe_qefconfig)
+    # PUBLIC: w90_wannierise and w90_disentangle USE qef_config, and nvfortran needs its .mod wherever they are used
+    target_link_libraries(qe_wannier90 PRIVATE qe_lapack PUBLIC qe_qefconfig)
     # qe-fast: OpenMP over k in dis_extract (QEF_W90_NT); the copy is bitwise identical to the original
     if(QE_ENABLE_OPENMP)
         target_link_libraries(qe_wannier90 PRIVATE qe_openmp_fortran)

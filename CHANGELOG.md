@@ -23,6 +23,8 @@ All notable changes to qe-fast are recorded here. The format follows
   CPU builds and when the input rules out the fused path. Found by `test-suite/epw_super`.
 - `QEF_NSCF_SYMROT` (`safe`) and `QEF_PW_SYMROT` (`fast`) stopped an nscf run with `disk_io = 'none'`; they now decline and the run
   diagonalizes every k-point.
+- GPU (nvfortran) builds stopped at `wannier90.x`: `qef_config.mod` was not visible to the users of the patched
+  wannier90 modules.
 - The `dvxc_gpu` startup line no longer says "on the device" in builds without OpenACC.
 
 ### Removed
