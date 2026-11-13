@@ -1522,6 +1522,7 @@ contains
 
     use w90_io, only: io_wallclocktime
     use w90_sitesym, only: ir2ik, ik2ir, nkptirr, nsymmetry, kptsym !YN: RS:
+!$   use omp_lib, only: omp_get_max_threads
 
     implicit none
 
@@ -1611,6 +1612,10 @@ contains
       if (ios_nt /= 0) nthr = 1
     endif
     nthr = max(1, nthr)
+    ! never more threads than the run was given (OMP_NUM_THREADS, cores per rank); 1 without OpenMP
+    ios_nt = nthr
+    nthr = 1
+!$  nthr = min(ios_nt, omp_get_max_threads())
 
     if (on_root) write (stdout, '(/1x,a)') &
       '                  Extraction of optimally-connected subspace                  '
@@ -1722,7 +1727,8 @@ contains
       '+---------------------------------------------------------------------+<-- DIS'
 
     dis_converged = .false.
-    par = nthr > 1 .and. .not. lsitesymmetry .and. index(devel_flag, 'compspace') == 0
+    ! io_stopwatch is not thread safe: timing_level > 1 keeps the serial loop
+    par = nthr > 1 .and. .not. lsitesymmetry .and. index(devel_flag, 'compspace') == 0 .and. timing_level <= 1
     if (par .and. on_root) write (stdout, '(1x,a,i3,a)') 'qef: dis_extract k-loops on ', nthr, ' OpenMP threads'
 
     ! ------------------
