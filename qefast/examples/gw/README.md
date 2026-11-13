@@ -80,6 +80,34 @@ used):
 - Memory: the binned matrices are 16 × bins × N_G² bytes (0.6 GB for 3000 bins and 109 G); the script estimates its
   use first and stops above `--max-mem` (2 GB by default).
 
+## Impact-ionization rate (E-13): contraction reference
+
+`qefast/gw/gamma_ref.py` contracts Im W with pair densities, Im Σ_nk = (1/(N_k Ω)) Σ_{q≠0, n′} φ† Im W(q, ε_nk − ε_n′k−q) φ
+with φ(G) = ⟨n,k| e^{i(q+G)r} |n′, k−q⟩ in the orientation of χ⁰, and Γ_ii = 2z|Im Σ|/ħ. It shows what the program
+has to produce: the full ε⁻¹_GG′(q, ω) is never stored. For Si at the E-13 settings (about 29 q in the irreducible
+wedge and 512 in the zone, 1000 energies, 200 G) it would take 19 GB on the wedge and about 330 GB on the zone; the
+program contracts per q and keeps Γ_ii and the final-state table.
+
+Si, 4³ k without symmetry, 30 bands, 4 Ry basis, W with a 0.05 eV Lorentzian, z = 1, q = 0 term left out (1/64
+of the zone); LDA gap on this grid 0.64 eV:
+
+| E − E_cbm (eV) | 0–0.5 | 0.5–1 | 1–1.5 | 2.5–3 | 4–4.5 | 5.5–6 |
+|---|---|---|---|---|---|---|
+| mean Γ_ii (s⁻¹) | 1.6×10¹¹ | 1.3×10¹² | 1.5×10¹³ | 1.3×10¹⁴ | 4.3×10¹⁴ | 7.0×10¹⁴ |
+
+- Im Σ ≤ 0 for every state, as it must be for a retarded W.
+- Below the gap energy the rate must vanish. The 1.6×10¹¹ s⁻¹ there is the Lorentzian tail of Im W below the gap.
+- This is a prototype grid: the conduction minimum near X is not on 4³, the LDA gap is half the measured one, and
+  the q = 0 term is missing. It fixes the output and the orientation, not the numbers.
+
+Stages from here to the issue's gate, each with its own check:
+
+1. ε⁻¹ per q: the reference above, then the GPU program element-wise against it (full matrix, PSD check).
+2. Γ_ii by contraction, including the q = 0 head and wings: positivity, threshold (zero below E_g), convergence in
+   k grid, bands and basis; then a comparison with published GW impact-ionization rates of Si.
+3. Phonon emission and absorption rates from EPW for the same states.
+4. The cascade Monte Carlo of chapter 18 with both kernels: ε_eh and F_eh at 123 K against 3.749 eV and 0.119.
+
 ## Recommended route
 
 1. **ε⁻¹_GG′(q, ω): native, sum over bands.** The reference above, then a GPU program checked against it.
