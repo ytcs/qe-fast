@@ -172,7 +172,7 @@ End to end against `off`, median / worst over the seven held-out materials with 
 - **Evidence is limited**: two tuning systems and eight held-out materials, on A40 and H100 GPUs, with SG15
   pseudopotentials. Gate runs were GPU runs. The grids of the held-out runs were trimmed for cost.
 - One toolchain has been tested for GPU builds (NVHPC 26.5).
-- CPU builds of `ph.x` and `epw.x` compile but have not been run.
+- CPU builds of `ph.x` have been run on one small test (Si at X, serial and MPI); `epw.x` on CPU has not been run.
 - CI covers a CPU build and a small `pw.x` test. It does not run GPU code, so the GPU results above are not
   regression-tested on each commit.
 

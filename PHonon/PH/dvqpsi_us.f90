@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-12; see NOTICE.
 !
 ! Copyright (C) 2001-2026 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -77,6 +77,9 @@ subroutine dvqpsi_us (ik, uact, addnlcc, becp1, alphap)
   complex(DP) , allocatable :: dvlocin (:), aux2 (:), aux3 (:)
   LOGICAL :: nl_acc
   !! qe-fast: nonlocal term on the GPU (dvqpsi_us_only_acc), inside the dvpsi data region
+  LOGICAL :: batched_fft
+  !! qe-fast: all bands in one batched FFT. Only the GPU drivers take howmany > 1 on every
+  !! decomposition; FFTW3 and the CPU slab driver stop on it, so CPU builds keep the band loop.
   !
 #if defined(__CUDA)
   INTEGER, POINTER, DEVICE :: nl_d(:)
@@ -134,7 +137,11 @@ subroutine dvqpsi_us (ik, uact, addnlcc, becp1, alphap)
   !
   !$acc update device(evc)
   !
-  IF (npol == 1 .AND. .NOT. dffts%has_task_groups) THEN
+  batched_fft = .FALSE.
+#if defined(__CUDA)
+  batched_fft = npol == 1 .AND. .NOT. dffts%has_task_groups
+#endif
+  IF (batched_fft) THEN
      !
      ! qe-fast: all bands in one batched transform (same operations as the band loop below)
      !

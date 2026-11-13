@@ -14,6 +14,10 @@ All notable changes to qe-fast are recorded here. The format follows
   reproduces the upstream 7.6 reference shieldings.
 - The d3q plugin links against QE 7.6 through `qefast/compat/d3q_compat.f90`.
 - FoX configures with CMake 4.
+- `ph.x` stopped in every CPU build ("howmany different from 1, not yet implemented for FFTW3", or "not yet
+  implemented for parallel driver" with more than one rank per pool): the batched FFT in `dvqpsi_us` was taken
+  without checking the build. It is now used in CUDA builds only. Si at X (`test-suite/ph_base`) runs serial, with
+  pools and with a distributed FFT.
 
 ### Removed
 

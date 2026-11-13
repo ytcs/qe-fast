@@ -57,7 +57,7 @@ also carries a notice in its first line, with the dates of their changes:
   PHonon/CMakeLists.txt                    2026-10-30 to 2026-11-06
   PHonon/PH/do_phonon.f90                  2026-10-28 to 2026-11-06
   PHonon/PH/drhodv.f90                     2026-10-28 to 2026-11-06
-  PHonon/PH/dvqpsi_us.f90                  2026-10-28 to 2026-11-06
+  PHonon/PH/dvqpsi_us.f90                  2026-10-28 to 2026-11-12
   PHonon/PH/dvqpsi_us_only.f90             2026-10-28 to 2026-11-06
   PHonon/PH/dynmat_us.f90                  2026-10-30 to 2026-11-06
   PHonon/PH/phq_init.f90                   2026-10-30 to 2026-11-06
