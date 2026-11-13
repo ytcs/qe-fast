@@ -8,7 +8,7 @@ Quantum ESPRESSO, through [their channels](https://www.quantum-espresso.org). Re
 
 ## Bug reports
 
-Give the commit, the GPU and toolchain, the `qe-fast preset:` line and any `QEF_*` variables, and a small input that
+Give the commit, the GPU and toolchain, the `qe-fast` lines at the top of the output and any `QEF_*` variables, and a small input that
 shows the problem. If the problem is a wrong number, say whether it also happens with `QEF_PRESET=off` and with
 `QEF_STH=0`.
 

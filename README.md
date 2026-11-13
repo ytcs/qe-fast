@@ -52,15 +52,21 @@ Running `deps.sh` means accepting NVIDIA's licence for MathDx. The cmake output 
     cmake --build build --target pw.x ph.x epw.x
 
 `pw.x`, `ph.x` and `epw.x` build on CPU, but the GPU engine isn't compiled in, so there is no speedup to expect.
-CI builds all three and runs a small `pw.x` test; `ph.x` and `epw.x` are compiled there, not run. No preset has been
-gated on a CPU build. For CPU-only work, use upstream QE.
+CI builds them without MPI and runs five `test-suite` cases against the upstream benchmarks (pw, ph, epw, tddfpt,
+hp). No preset has been gated on a CPU build. For CPU-only work, use upstream QE.
 
 ## Quick start
 
 The programs take the same inputs as QE's. Run `pw.x` and `ph.x` as one MPI rank per GPU with OpenMP threads,
-and pass the `QEF_*` variables on to remote ranks. Each program prints the active preset when it starts:
+and pass any `QEF_*` variables on to remote ranks. Nothing needs to be set: each lever checks the input, the build
+and the device and turns itself on only where it applies, then prints one line saying so, for example
 
-    qe-fast preset: safe (built-in default)
+    qe-fast: automatic; each lever reports below whether it applies to this run
+    qe-fast: GPU Sternheimer engine declined: not a smeared metal (fixed occupations or tetrahedra)
+    qe-fast: ph.x nscf by symmetry rotation on
+
+The automatic set is the `safe` preset below: only levers that keep the output bitwise identical or differ at
+rounding level. A lever that declines leaves QE's own code path in charge.
 
 The MgB₂ smoke chain runs every stage, in about 430 s under `safe` on an A40. It needs `mpirun` on the `PATH`
 (NVHPC ships one in `comm_libs/mpi/bin`):
@@ -74,13 +80,14 @@ The arguments after the work directory are the OpenMP threads for `pw.x` and `ph
 
 ## Presets
 
+Presets are a developer setting, for benchmarks and gates; leave `QEF_PRESET` unset for normal runs.
 `QEF_PRESET` selects a set of switches. Any `QEF_*` variable you set overrides its preset entry. The full table
 of switches, with the class, evidence and fallback of each, is in [qefast/SWITCHES.md](qefast/SWITCHES.md).
 
 | preset | what it is | status |
 |---|---|---|
 | `off` | The batched engine with every optional lever off. This is not plain QE: `QEF_STH=0` gives QE's own loop. | Reference for every gate |
-| `safe` (default) | Levers that keep the output bitwise identical or differ at rounding level, and leave the Wannier gauge alone | Full gate passed on 4 held-out materials and on the two smoke benchmarks |
+| `safe` (= automatic, the default) | Levers that keep the output bitwise identical or differ at rounding level, and leave the Wannier gauge alone | Full gate passed on 4 held-out materials and on the two smoke benchmarks |
 | `fast` | `safe` plus lever C and three Wannier-related switches | **Phonon-gated only** on held-out materials |
 | `max` | `safe` plus the CBSR exact solve and the same three switches | **Phonon-gated only** on held-out materials |
 
@@ -106,13 +113,9 @@ The batched `ph.x` engine runs when all of these hold; `LR_Modules/sth_batched.f
 Any other case takes QE's own loop automatically, with no speedup. That includes magnetic, SOC, USPP/PAW and
 DFT+U systems. `QEF_STRICT=1` turns such a fallback into a stop.
 
-Two switches have no fallback once the run has started, and `safe`, `fast` and `max` all set them:
-
-- `QEF_STH_DVB=1`: if the engine declines at run time, for example for lack of device memory, the run stops
-  with `engine declined with QEF_STH_DVB=1`. Set `QEF_STH_DVB=0`.
-- `QEF_EPW_NOVME=1`: in a CUDA build, stops in an `ephwrite` + Eliashberg run if the fused fine path declines
-  for a reason known only at run time (too many bands for the pair kernel, images). Set `QEF_EPW_NOVME=0`. It
-  is off in CPU builds and in runs whose input rules out the fused path or reads velocities.
+`QEF_STH_DVB=1` falls back to QE's own dV_bare loop when the engine declines at run time, and `QEF_EPW_NOVME=1`
+declines before Wannierisation in every case in which the fused fine path would decline later. Before 2026-11-13
+both could stop a run; the new fallbacks have not yet run on a GPU.
 
 ## Performance
 

@@ -27,7 +27,7 @@ MODULE qef_config
   IMPLICIT NONE
   PRIVATE
   !
-  PUBLIC :: qef_getenv, qef_preset_name, qef_report
+  PUBLIC :: qef_getenv, qef_preset_name, qef_report, qef_note
   !
   CHARACTER(LEN=*), PARAMETER :: default_preset = 'safe'
   !
@@ -138,15 +138,48 @@ CONTAINS
     !
     CALL GET_ENVIRONMENT_VARIABLE('QEF_PRESET', s, STATUS=ios)
     IF (ios == 0 .AND. LEN_TRIM(s) > 0) THEN
-      WRITE(unit, '(/5X,"qe-fast preset: ",A," (QEF_PRESET)")') TRIM(qef_preset_name())
+      WRITE(unit, '(/5X,"qe-fast preset: ",A," (QEF_PRESET, developer setting)")') TRIM(qef_preset_name())
     ELSE
-      WRITE(unit, '(/5X,"qe-fast preset: ",A," (built-in default)")') TRIM(qef_preset_name())
+      WRITE(unit, '(/5X,"qe-fast: automatic; each lever reports below whether it applies to this run")')
     ENDIF
     DO i = 1, nswitch
       CALL GET_ENVIRONMENT_VARIABLE(TRIM(table(i)%name), s, STATUS=ios)
       IF (ios == 0) WRITE(unit, '(5X,"qe-fast override: ",A,"=",A)') TRIM(table(i)%name), TRIM(s)
     ENDDO
   END SUBROUTINE qef_report
+  !
+  !--------------------------------------------------------------------------
+  SUBROUTINE qef_note(lever, on, why)
+    !------------------------------------------------------------------------
+    !! One line per lever in the run's output, the first time the lever decides: on, or declined and why.
+    !! Later decisions of the same lever print only when they differ from the first.
+    CHARACTER(LEN=*), INTENT(IN) :: lever
+    LOGICAL, INTENT(IN) :: on
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: why
+    INTEGER, PARAMETER :: nmax = 64
+    CHARACTER(LEN=48), SAVE :: seen(nmax)
+    LOGICAL, SAVE :: seen_on(nmax)
+    INTEGER, SAVE :: nseen = 0
+    INTEGER :: i
+    DO i = 1, nseen
+      IF (TRIM(seen(i)) /= lever) CYCLE
+      IF (seen_on(i) .EQV. on) RETURN
+      seen_on(i) = on
+      EXIT
+    ENDDO
+    IF (i > nseen .AND. nseen < nmax) THEN
+      nseen = nseen + 1
+      seen(nseen) = lever
+      seen_on(nseen) = on
+    ENDIF
+    IF (on) THEN
+      WRITE(*, '(5X,"qe-fast: ",A," on")') lever
+    ELSE IF (PRESENT(why)) THEN
+      WRITE(*, '(5X,"qe-fast: ",A," declined: ",A)') lever, why
+    ELSE
+      WRITE(*, '(5X,"qe-fast: ",A," declined")') lever
+    ENDIF
+  END SUBROUTINE qef_note
   !
   !--------------------------------------------------------------------------
   INTEGER FUNCTION preset_index()

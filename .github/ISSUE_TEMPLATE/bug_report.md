@@ -7,7 +7,7 @@ about: A crash, a wrong number or a build failure in qe-fast
 
 **Commit, GPU and toolchain**
 
-**`qe-fast preset:` line and any `QEF_*` variables**
+**`qe-fast` lines at the top of the output and any `QEF_*` variables**
 
 **Same result with `QEF_PRESET=off`? With `QEF_STH=0`?**
 

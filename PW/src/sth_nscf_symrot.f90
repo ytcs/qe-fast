@@ -27,7 +27,7 @@
 ! computed with h_psi and their maxima printed (exactness check of the rotation, phases and time reversal).
 !
 MODULE sth_nscf_symrot
-  USE qef_config, ONLY : qef_getenv
+  USE qef_config, ONLY : qef_getenv, qef_note
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -72,11 +72,13 @@ CONTAINS
   !
   LOGICAL FUNCTION symrot_on()
     CHARACTER(LEN=16) :: s
+    CHARACTER(LEN=48) :: why
     INTEGER :: ios
     symrot_on = .FALSE.
     CALL qef_getenv('QEF_NSCF_SYMROT', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
-    symrot_on = symrot_ok()
+    symrot_on = symrot_ok(why)
+    CALL qef_note('ph.x nscf by symmetry rotation', symrot_on, TRIM(why))
   END FUNCTION symrot_on
   !
   SUBROUTINE symrot_note_notconv(n)
@@ -114,7 +116,7 @@ CONTAINS
     symrot_pw_on = symrot_ok()
   END FUNCTION symrot_pw_on
   !
-  LOGICAL FUNCTION symrot_ok()
+  LOGICAL FUNCTION symrot_ok(why)
     USE noncollin_module, ONLY : noncolin
     USE control_flags,    ONLY : gamma_only
     USE lsda_mod,         ONLY : lsda
@@ -125,8 +127,19 @@ CONTAINS
     USE control_flags,    ONLY : io_level
     ! single pool / band group: the cache must see every k of the list. NC only (the overlap S = 1 is assumed in
     ! the residual check; USPP untested). The rotated wavefunctions are stored in the wfc buffer (io_level > -1).
-    symrot_ok = .NOT. (noncolin .OR. gamma_only .OR. lsda .OR. nproc_bgrp /= 1 .OR. npool /= 1 .OR. lda_plus_u &
-                       .OR. okvan .OR. io_level <= -1)
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: why
+    CHARACTER(LEN=48) :: w
+    w = ' '
+    IF (io_level <= -1) w = 'disk_io = none'
+    IF (okvan) w = 'ultrasoft or PAW pseudopotentials'
+    IF (lda_plus_u) w = 'DFT+U'
+    IF (npool /= 1) w = 'more than one pool'
+    IF (nproc_bgrp /= 1) w = 'plane waves distributed over ranks'
+    IF (lsda) w = 'spin-polarised'
+    IF (gamma_only) w = 'gamma_only'
+    IF (noncolin) w = 'noncollinear / spin-orbit'
+    symrot_ok = (LEN_TRIM(w) == 0)
+    IF (PRESENT(why)) why = w
   END FUNCTION symrot_ok
   !
   REAL(DP) FUNCTION symrot_pw_tight()

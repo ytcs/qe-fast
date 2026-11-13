@@ -14,7 +14,7 @@
 ! adds this term. Norm-conserving, collinear, no DFT+U, no elph_mat; otherwise the vanilla path runs.
 !
 MODULE qef_phq_fuse
-  USE qef_config, ONLY : qef_getenv
+  USE qef_config, ONLY : qef_getenv, qef_note
   USE kinds, ONLY : DP
   USE qef_vkb, ONLY : vkb_batch     ! moved to LR_Modules (QEF_STH_KDEV uses it too); same code
   IMPLICIT NONE
@@ -43,8 +43,9 @@ CONTAINS
 #if defined(__CUDA)
     CALL qef_getenv('QEF_PHQ_FUSE', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
-    IF (noncolin .OR. okvan .OR. lda_plus_u .OR. elph_mat .OR. lsda .OR. nproc_bgrp /= 1 .OR. nkb == 0) RETURN
-    phq_fuse_on = .TRUE.
+    phq_fuse_on = .NOT. (noncolin .OR. okvan .OR. lda_plus_u .OR. elph_mat .OR. lsda .OR. nproc_bgrp /= 1 &
+                         .OR. nkb == 0)
+    CALL qef_note('fused phq_init on the GPU', phq_fuse_on, 'noncollinear, USPP, +U, elph_mat, spin or band groups')
 #endif
   END FUNCTION phq_fuse_on
   !

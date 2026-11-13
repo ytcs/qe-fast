@@ -25,7 +25,7 @@
 ! ZGEMMs over k on all slots; FFT work runs only on the active columns.
 !
 MODULE sth_engine
-  USE qef_config, ONLY : qef_getenv
+  USE qef_config, ONLY : qef_getenv, qef_note
   USE cudafor
   USE cufft
   USE cublas_v2
@@ -5038,6 +5038,7 @@ CONTAINS
         ELSE
           WRITE(*, '(A,I3,A)') '     qef fftdx: unsupported grid/box or not built (', ier, '), cuFFT path kept'
         ENDIF
+        CALL qef_note('fused FFT kernels (FFTDX)', fdx_on, 'FFT grid not among the compiled ones; cuFFT')
         IF (sth_timing) WRITE(*, '(A,F8.3,A)') '     qef fftdx: fdx_setup ', sth_t_fdxsetup, ' s'
       END BLOCK
     ENDIF

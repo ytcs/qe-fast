@@ -12,7 +12,7 @@
   !----------------------------------------------------------------------
   SUBROUTINE use_wannier(dims, dims2, nrr_k, irvec_k, ndegen_k, wslen_k, nrr_q, &
                          irvec_q, ndegen_q, wslen_q, nrr_g, irvec_g, ndegen_g, wslen_g)
-    USE qef_config, ONLY : qef_getenv
+    USE qef_config, ONLY : qef_getenv, qef_note
   !---------------------------------------------------------------------
   !!
   !! Wannier interpolation of electron-phonon vertex
@@ -2005,6 +2005,7 @@ CONTAINS
   IF (MOD(nkf1, nqf1) /= 0 .OR. MOD(nkf2, nqf2) /= 0 .OR. MOD(nkf3, nqf3) /= 0) why = 'k and q grids not commensurate'
   IF (ef_shmem(nbndsub, nmodes, nbndfst) > 48 * 1024) why = 'too many bands in the window for the pair kernel'
   qef_fine_ok = (LEN_TRIM(why) == 0)
+  CALL qef_note('EPW fused GPU fine path', qef_fine_ok, TRIM(why))
   IF (.NOT. qef_fine_ok) WRITE(stdout, '(5x, a, a)') 'qef: fused GPU fine path off: ', TRIM(why)
   IF (qef_fine_ok) WRITE(stdout, '(5x, a)') 'qef: fused GPU fine path (k-first Fourier sums, cached eigenpairs)'
 #endif
