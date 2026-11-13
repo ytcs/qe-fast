@@ -6,6 +6,15 @@ All notable changes to qe-fast are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- XML read of `pseudo_file`: the `l` attribute was read and broadcast without being allocated. FoX builds crashed on
+  every read of a saved run (`ph.x`, `gipaw.x`, ...); other builds silently dropped it.
+- The qe-gipaw plugin builds and runs: pinned at upstream 02e76b6 (7.6 tag plus a format fix). Its quartz NMR test
+  reproduces the upstream 7.6 reference shieldings.
+- The d3q plugin links against QE 7.6 through `qefast/compat/d3q_compat.f90`.
+- FoX configures with CMake 4.
+
 ### Removed
 
 - The `./configure` and `make` build, dev-tools, archive and the upstream CI files. CMake is the only build.

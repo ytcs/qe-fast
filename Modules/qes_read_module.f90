@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
 !
 ! Copyright (C) 2001-2009 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -14903,7 +14904,10 @@ MODULE qes_read_module
       obj%nbeta_ispresent = .FALSE.
     END IF
     ! 
-    IF (hasAttribute(xml_node, "l")) THEN
+    ! qe-fast: l is an allocatable array and both XML back ends need it allocated (FoX crashed on it,
+    ! the built-in reader returned nothing); the writer gives its length as nbeta.
+    IF (hasAttribute(xml_node, "l") .AND. obj%nbeta_ispresent) THEN
+      ALLOCATE(obj%l(obj%nbeta))
       CALL extractDataAttribute(xml_node, "l", obj%l)
       obj%l_ispresent = .TRUE.
     ELSE

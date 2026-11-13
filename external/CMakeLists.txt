@@ -2,6 +2,10 @@
 ###########################################################
 # FoX
 ###########################################################
+# qe-fast: the FoX submodule declares cmake_minimum_required < 3.5, which CMake 4 refuses
+if(NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
 include(fox.cmake)
 
 ###########################################################
@@ -31,6 +35,8 @@ if("d3q" IN_LIST QE_ENABLE_PLUGINS)
   message(STATUS "Installing D3Q via submodule")
   qe_git_submodule_update(external/d3q)
   add_subdirectory(d3q)
+  # qe-fast: externals that d3q calls and QE 7.6 no longer provides (matches, imatches, sgam_ph)
+  target_sources(qe_d3q PRIVATE ${PROJECT_SOURCE_DIR}/qefast/compat/d3q_compat.f90)
 endif()
 
 ###########################################################

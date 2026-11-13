@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
 !
 ! Copyright (C) 2001-2009 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -3306,8 +3307,11 @@ MODULE qes_bcast_module
     IF (obj%nbeta_ispresent) &
       CALL mp_bcast(obj%nbeta, ionode_id, comm)
     CALL mp_bcast(obj%l_ispresent, ionode_id, comm)
-    IF (obj%l_ispresent) &
+    IF (obj%l_ispresent) THEN
+      ! qe-fast: allocate on the receiving ranks first; the reader sets l_ispresent only with nbeta
+      IF (.NOT. ALLOCATED(obj%l)) ALLOCATE(obj%l(obj%nbeta))
       CALL mp_bcast(obj%l, ionode_id, comm)
+    END IF
     CALL mp_bcast(obj%pseudoPath, ionode_id, comm)
     !
   END SUBROUTINE qes_bcast_pseudoPath
