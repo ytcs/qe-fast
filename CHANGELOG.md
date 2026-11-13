@@ -21,8 +21,9 @@ All notable changes to qe-fast are recorded here. The format follows
 - `epw.x` stopped in every CPU `ephwrite` + Eliashberg run under the default `safe` preset
   ("QEF_EPW_NOVME=1 needs the fused fine path"): the switch assumed the GPU fine path. It now turns itself off in
   CPU builds and when the input rules out the fused path. Found by `test-suite/epw_super`.
-- `QEF_NSCF_SYMROT` (`safe`) and `QEF_PW_SYMROT` (`fast`) stopped an nscf run with `disk_io = 'none'`; they now decline and the run
-  diagonalizes every k-point.
+- `QEF_PW_SYMROT` (`fast`) stopped a `pw.x` nscf run with `disk_io = 'none'`; it now declines and every k-point is
+  diagonalized. `QEF_NSCF_SYMROT` (`safe`, the nscf inside `ph.x`) shares the same decline function now; a stop
+  there was not observed.
 - GPU (nvfortran) builds stopped at `wannier90.x`: `qef_config.mod` was not visible to the users of the patched
   wannier90 modules.
 - An `epwread` run on files written under `QEF_EPW_NOVME=1` (a GPU `safe` Eliashberg run) crashed reading the
