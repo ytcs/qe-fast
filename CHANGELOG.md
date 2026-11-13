@@ -80,6 +80,8 @@ All notable changes to qe-fast are recorded here. The format follows
 - The `./configure` and `make` build, dev-tools, archive and the upstream CI files. CMake is the only build.
 - The upstream packages CPV, COUPLE, GUI, GWW, KCW, PWCOND, QEHeat and XSpectra, their test-suite cases, and the
   pw2qmcpack plugin.
+- Development scaffolding: the offline engine harness and its dump hook (`QEF_STH_DUMP`), the FFT and cuFFTDx
+  microbenchmarks, and the pod cache scripts.
 
 ## [0.1.1] - 2026-11-06
 

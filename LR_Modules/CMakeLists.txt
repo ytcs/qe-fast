@@ -1,4 +1,4 @@
-# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-13; see NOTICE.
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-14; see NOTICE.
 set(sources
     adddvscf.f90
     adddvhubscf.f90
@@ -75,7 +75,6 @@ set(sources
     ccg_psi.f90
     ccgsolve_all.f90
     ch_psi_all_complex.f90
-    sth_dump.f90
     sth_tail.f90
     qef_vkb_batch.f90
     sth_batched.f90

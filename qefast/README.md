@@ -5,11 +5,11 @@ Everything specific to qe-fast that is not a change to an upstream file lives he
 
 - `SWITCHES.md`: every run-time switch, with its default, class, gate evidence and fallback.
 - `config/`: `qef_config`, the central preset table and `qef_getenv`.
-- `sth/`: the batched Sternheimer and nscf engines and their offline harness.
-- `sth/fdx/`: the cuFFTDx kernels, a stub for builds without MathDx, `deps.sh` and microbenchmarks.
+- `sth/`: the batched Sternheimer and nscf engines.
+- `sth/fdx/`: the cuFFTDx kernels, a stub for builds without MathDx, and `deps.sh`.
 - `epw/`: GPU paths for EPW, and the gate and comparison scripts.
 - `w90/`: patched copies of two wannier90 routines and the scripts that generate them.
-- `pod/`: build and cache scripts for an NVHPC container.
+- `pod/`: setup and build scripts for an NVHPC container.
 - `pseudo.sh`: fetches the SG15 pseudopotentials that the benchmarks use.
 - `examples/eph-tc/bench/`: benchmark inputs (`B1` is MgB₂, `B2` is Mg₂IrH₆, each `smoke` and `frozen`), the chain
   runner `run-chain.sh`, and `gen/`, the held-out study's inputs and gate report.
