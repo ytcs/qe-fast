@@ -50,10 +50,10 @@ All notable changes to qe-fast are recorded here. The format follows
 - `ph.x` recover with bands read from disk forgets the SYMROT plan of an earlier q.
 - After a dV_bare fallback the engine can come back later in the same q: an irrep that asks for dV_bare on the
   engine rebuilds the per-q state when it was built without it (an illegal address on the H100 forced-decline test).
-- The batched nscf engine (`QEF_STH=1`) declines `ph.x` runs with `electron_phonon = 'ahc'`. It converges every
-  band to `ethr` where QE's loop leaves the empty bands looser, and AHC's upper Fan depends on them:
-  `test-suite/ph_ahc_diam` postahc2 was off by up to 2.3 % on GPU under every preset (H100), and passes 16 of 16
-  with the batched nscf off.
+- The batched nscf engine (`QEF_STH=1`) declines `ph.x` runs with `electron_phonon = 'ahc'`, which read every
+  band up to `nbnd`. On `test-suite/ph_ahc_diam` it returned the highest band 1.15 eV above QE's loop at one k
+  (36.06 against 34.91 eV; the lower Ritz value is the better one) and postahc2 was off by up to 2.3 % on GPU
+  under every preset (H100); with the batched nscf off all 16 tests pass. The top-band error itself is open.
 - `phq_fuse_all` sizes its k-point chunks from the free device memory (at most 1.5 GB, half of what is free above
   512 MiB); with 2 GiB free it ran out of memory at the second q-point.
 - `QEF_W90_NT` never exceeds `omp_get_num_procs()`, and stays serial with `timing_level > 1`.

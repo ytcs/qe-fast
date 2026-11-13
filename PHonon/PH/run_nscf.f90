@@ -65,9 +65,9 @@ SUBROUTINE run_nscf(do_band, iq)
   !
   LOGICAL :: exst
   !
-  ! qe-fast: AHC reads the empty bands; they must be converged as QE's own loop converges them
+  ! qe-fast: AHC reads every band up to nbnd, and the batched nscf can miss the highest one
   nscf_batched_decline = ' '
-  IF (elph_ahc) nscf_batched_decline = 'AHC (empty bands as QE converges them)'
+  IF (elph_ahc) nscf_batched_decline = 'AHC reads all bands up to nbnd'
   !
   CALL start_clock( 'PWSCF' )
   !

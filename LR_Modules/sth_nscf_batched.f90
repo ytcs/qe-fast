@@ -17,9 +17,9 @@ MODULE sth_nscf_batched
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: nscf_batched_run, nscf_batched_decline
-  ! set by the caller (ph.x) for runs whose result depends on how tightly the empty bands are converged: the
-  ! batched Davidson converges every band to ethr, QE's loop leaves empty bands looser (AHC's upper Fan moved by
-  ! up to 2.3 % on test-suite/ph_ahc_diam)
+  ! set by the caller (ph.x) for runs that read every band up to nbnd. On test-suite/ph_ahc_diam the batched
+  ! Davidson returned the 9th (highest) band 1.15 eV above QE's loop at one k (36.06 vs 34.91 eV; the lower
+  ! Ritz value is the better one), and AHC's upper Fan moved by up to 2.3 %
   CHARACTER(LEN=48), SAVE :: nscf_batched_decline = ' '
   !
 CONTAINS
