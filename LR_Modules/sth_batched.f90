@@ -571,7 +571,8 @@ CONTAINS
                                  sth_fdxdp_req, sth_fdxdp_check, sth_obatch, sth_timing, &
                                  sth_engine_set_nlk, sth_qcache, sth_engine_wdev, sth_engine_set_wdev, &
                                  sth_cbsr, sth_cbsr_skip, &
-                                 sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_rwf_free, sth_engine_kdev_map, &
+                                 sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, &
+                                 sth_engine_rwf_free, &
                                  sth_engine_cbsr_plan, sth_cbsr_off, &
                                  sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op
     USE sth_nscf_symrot,  ONLY : symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops

@@ -31,7 +31,8 @@ MODULE sth_nscf_symrot
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: symrot_on, symrot_plan, symrot_forget_plan, symrot_after_solve, symrot_report, symrot_tight, symrot_check_on, symrot_resid
+  PUBLIC :: symrot_on, symrot_plan, symrot_after_solve, symrot_report, symrot_tight, symrot_check_on, symrot_resid
+  PUBLIC :: symrot_forget_plan
   ! qe-fast (QEF_PW_SYMROT=1): the same rotation in pw.x's nscf (c_bands_nscf), the
   ! Wannier k grid read by EPW. The module lives in PW/src so that both pw.x and ph.x use it.
   PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
