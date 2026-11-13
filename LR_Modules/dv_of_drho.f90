@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-12; see NOTICE.
 !
 ! Copyright (C) 2001-2016 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -324,7 +324,11 @@ subroutine dv_of_drho_xc (dv, drho, drhoc)
        INTEGER :: ios
        CALL qef_getenv('QEF_DVXC_GPU', sv, STATUS=ios)
        qef_dvxc_gpu = (ios == 0 .AND. TRIM(sv) == '1')
-       IF (qef_dvxc_gpu) WRITE(*, '(A)') '     qef dvxc_gpu: GGA response kernel (dgradcorr) on the device'
+#if defined(_OPENACC)
+       IF (qef_dvxc_gpu) WRITE(*, '(A)') '     qef dvxc_gpu: GGA response kernel (dgradcorr_acc) on the device'
+#else
+       IF (qef_dvxc_gpu) WRITE(*, '(A)') '     qef dvxc_gpu: GGA response kernel (dgradcorr_acc) on the host'
+#endif
      END BLOCK
      qef_dvxc_init = .TRUE.
   ENDIF

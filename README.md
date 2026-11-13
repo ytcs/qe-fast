@@ -110,8 +110,9 @@ Two switches have no fallback once the run has started, and `safe`, `fast` and `
 
 - `QEF_STH_DVB=1`: if the engine declines at run time, for example for lack of device memory, the run stops
   with `engine declined with QEF_STH_DVB=1`. Set `QEF_STH_DVB=0`.
-- `QEF_EPW_NOVME=1`: stops in an `ephwrite` + Eliashberg run if the fused fine path is not taken or a velocity
-  consumer is active. Set `QEF_EPW_NOVME=0`.
+- `QEF_EPW_NOVME=1`: in a CUDA build, stops in an `ephwrite` + Eliashberg run if the fused fine path declines
+  for a reason known only at run time (too many bands for the pair kernel, images). Set `QEF_EPW_NOVME=0`. It
+  is off in CPU builds and in runs whose input rules out the fused path or reads velocities.
 
 ## Performance
 

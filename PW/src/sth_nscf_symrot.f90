@@ -71,22 +71,12 @@ MODULE sth_nscf_symrot
 CONTAINS
   !
   LOGICAL FUNCTION symrot_on()
-    USE noncollin_module, ONLY : noncolin
-    USE control_flags,    ONLY : gamma_only
-    USE lsda_mod,         ONLY : lsda
-    USE mp_bands,         ONLY : nproc_bgrp
-    USE mp_pools,         ONLY : npool
-    USE ldaU,             ONLY : lda_plus_u
-    USE uspp,             ONLY : okvan
     CHARACTER(LEN=16) :: s
     INTEGER :: ios
     symrot_on = .FALSE.
     CALL qef_getenv('QEF_NSCF_SYMROT', s, STATUS=ios)
     IF (.NOT. (ios == 0 .AND. TRIM(s) == '1')) RETURN
-    ! single pool / band group: the cache must see every k of the list
-    IF (noncolin .OR. gamma_only .OR. lsda .OR. nproc_bgrp /= 1 .OR. npool /= 1 .OR. lda_plus_u) RETURN
-    IF (okvan) RETURN   ! NC only (the overlap S = 1 is assumed in the residual check; USPP untested)
-    symrot_on = .TRUE.
+    symrot_on = symrot_ok()
   END FUNCTION symrot_on
   !
   SUBROUTINE symrot_note_notconv(n)
@@ -132,8 +122,11 @@ CONTAINS
     USE mp_pools,         ONLY : npool
     USE ldaU,             ONLY : lda_plus_u
     USE uspp,             ONLY : okvan
+    USE control_flags,    ONLY : io_level
+    ! single pool / band group: the cache must see every k of the list. NC only (the overlap S = 1 is assumed in
+    ! the residual check; USPP untested). The rotated wavefunctions are stored in the wfc buffer (io_level > -1).
     symrot_ok = .NOT. (noncolin .OR. gamma_only .OR. lsda .OR. nproc_bgrp /= 1 .OR. npool /= 1 .OR. lda_plus_u &
-                       .OR. okvan)
+                       .OR. okvan .OR. io_level <= -1)
   END FUNCTION symrot_ok
   !
   REAL(DP) FUNCTION symrot_pw_tight()

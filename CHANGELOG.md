@@ -18,6 +18,12 @@ All notable changes to qe-fast are recorded here. The format follows
   implemented for parallel driver" with more than one rank per pool): the batched FFT in `dvqpsi_us` was taken
   without checking the build. It is now used in CUDA builds only. Si at X (`test-suite/ph_base`) runs serial, with
   pools and with a distributed FFT.
+- `epw.x` stopped in every CPU `ephwrite` + Eliashberg run under the default `safe` preset
+  ("QEF_EPW_NOVME=1 needs the fused fine path"): the switch assumed the GPU fine path. It now turns itself off in
+  CPU builds and when the input rules out the fused path. Found by `test-suite/epw_super`.
+- `QEF_NSCF_SYMROT` (`safe`) and `QEF_PW_SYMROT` (`fast`) stopped an nscf run with `disk_io = 'none'`; they now decline and the run
+  diagonalizes every k-point.
+- The `dvxc_gpu` startup line no longer says "on the device" in builds without OpenACC.
 
 ### Removed
 

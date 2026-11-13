@@ -59,9 +59,10 @@ Margin used on G2, G3, G5, G6: 3.8 %, 15.0 %, 0.0 %, 0.2 %.
 - **`QEF_STH_DVB=1` has no fallback once the engine declines at run time.** There is no dV_bare buffer to go back
   to, so a decline, for example for lack of device memory, stops with `engine declined with QEF_STH_DVB=1`, even
   with `QEF_STRICT=0`. `safe`, `fast` and `max` all set it. Set `QEF_STH_DVB=0` for a run that stops this way.
-- **`QEF_EPW_NOVME=1` stops if the fused fine path is not taken** or a velocity consumer is active, in an
-  `ephwrite` + Eliashberg run without `lpolar` or `epwread`: the velocity matrices were never built. Set
-  `QEF_EPW_NOVME=0` for such a run.
+- **`QEF_EPW_NOVME=1` stops if the fused fine path declines at run time** (pair-kernel shared memory, images)
+  in an `ephwrite` + Eliashberg run: the velocity matrices were never built. Set `QEF_EPW_NOVME=0` for such a
+  run. The switch turns itself off in CPU builds and when an input flag rules out the fused path or reads
+  velocities; before 2026-11-12 it stopped those runs too, including every CPU Eliashberg run under `safe`.
 - **B1's Wannierisation ends on a mirror saddle.** At the recipe's endpoint every WF centre sits on the σh plane
   and the spread has a negative curvature (θ_min −0.0021, ‖g‖ 6.5e-8), so wannier90 stops converged on a strict
   symmetry-protected saddle (Ω 7.617 Å² on the frozen chain; the minimum is Ω 7.581 Å² on the proxy chain, with

@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-29 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-29 to 2026-11-12; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -41,14 +41,34 @@
     !! qe-fast: QEF_EPW_NOVME=1. In an ephwrite + Eliashberg run whose fine
     !! stage is the fused GPU path, nothing reads the Wannier velocity / dipole / position matrices, so the
     !! dipole matrix elements (compute_pmn_para), the formatted .mmn file, vmebloch2wan / dmebloch2wan and the
-    !! vmedata / dmedata files are skipped. use_wannier stops (errore) if the fused path is not taken or a
-    !! velocity consumer is active. Default off.
-    USE input, ONLY : ephwrite, eliashberg, lpolar, epwread
+    !! vmedata / dmedata files are skipped. The switch is off in a build without CUDA (no fused path) and in a
+    !! run whose input already rules out the fused path or reads velocities. use_wannier still stops (errore)
+    !! if the fused path declines for a reason known only at run time. Default off.
+    USE input, ONLY : ephwrite, eliashberg, lpolar, epwread, lscreen, ii_g, plrn, lwfpt, scatread, &
+                      shortrange, lfast_kmesh, longrange_only, eig_read, lopt_w2b, lifc, elecselfen, &
+                      phonselfen, plselfen, specfun_el, specfun_ph, specfun_pl, scattering, iterative_bte, &
+                      lindabs, loptabs, prtgkk, nest_fn, a2f, lsda, scissor, rand_q, filqf, etf_mem, &
+                      prtvkk, explrn, int_mob, carrier, nkf1, nkf2, nkf3, nqf1, nqf2, nqf3
+    USE global_var, ONLY : adapt_smearing
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
-    CHARACTER(LEN = 16) :: ev
+    CHARACTER(LEN = 16) :: ev, fine, vme
     IF (.NOT. rd) THEN
+      on = .FALSE.
+#if defined(__CUDA)
       CALL qef_getenv('QEF_EPW_NOVME', ev)
+      CALL qef_getenv('QEF_EPW_FINE', fine)
+      CALL qef_getenv('QEF_EPW_VME', vme)
       on = TRIM(ev) == '1' .AND. ephwrite .AND. eliashberg .AND. .NOT. lpolar .AND. .NOT. epwread
+      on = on .AND. TRIM(fine) /= '0' .AND. TRIM(vme) /= '1' .AND. etf_mem == 0
+      on = on .AND. .NOT. (lscreen .OR. ii_g .OR. plrn .OR. explrn .OR. adapt_smearing .OR. lwfpt .OR. scatread &
+                .OR. shortrange .OR. lfast_kmesh .OR. longrange_only .OR. eig_read .OR. lopt_w2b .OR. lifc)
+      on = on .AND. .NOT. (elecselfen .OR. phonselfen .OR. plselfen .OR. specfun_el .OR. specfun_ph &
+                .OR. specfun_pl .OR. scattering .OR. iterative_bte .OR. lindabs .OR. loptabs .OR. prtgkk &
+                .OR. nest_fn .OR. a2f .OR. prtvkk .OR. int_mob .OR. carrier)
+      on = on .AND. TRIM(lsda) == 'none' .AND. ABS(scissor) == 0.d0 .AND. .NOT. rand_q .AND. LEN_TRIM(filqf) == 0
+      IF (nqf1 > 0 .AND. nqf2 > 0 .AND. nqf3 > 0) &
+        on = on .AND. MOD(nkf1, nqf1) == 0 .AND. MOD(nkf2, nqf2) == 0 .AND. MOD(nkf3, nqf3) == 0
+#endif
       rd = .TRUE.
     ENDIF
     qef_novme = on
