@@ -59,16 +59,26 @@ hp). No preset has been gated on a CPU build. For CPU-only work, use upstream QE
 
 The programs take the same inputs as QE's. Run `pw.x` and `ph.x` as one MPI rank per GPU with OpenMP threads,
 and pass any `QEF_*` variables on to remote ranks. Nothing needs to be set: each lever checks the input, the build
-and the device and turns itself on only where it applies, then prints one line saying so, for example
+and the device and turns itself on only where it applies, then prints one line saying so. `ph.x` on an H100,
+first for MgB₂ (B1 smoke), then for Si with fixed occupations, which the engine does not support:
 
     qe-fast: automatic; each lever reports below whether it applies to this run
+    qe-fast: fused phq_init on the GPU on
+    qe-fast: fused FFT kernels (FFTDX) on
+    qe-fast: GPU Sternheimer engine on
+    qe-fast: dV_bare psi on the engine (QEF_STH_DVB) on
+    qe-fast: ph.x nscf by symmetry rotation on
+
+    qe-fast: automatic; each lever reports below whether it applies to this run
+    qe-fast: fused phq_init on the GPU on
     qe-fast: GPU Sternheimer engine declined: not a smeared metal (fixed occupations or tetrahedra)
     qe-fast: ph.x nscf by symmetry rotation on
 
 The automatic set is the `safe` preset below: only levers that keep the output bitwise identical or differ at
 rounding level. A lever that declines leaves QE's own code path in charge.
 
-The MgB₂ smoke chain runs every stage, in about 430 s under `safe` on an A40. It needs `mpirun` on the `PATH`
+The MgB₂ smoke chain runs every stage, in about 430 s under `safe` on an A40 and in 42 s on an H100 SXM (134 s
+under `off`). It needs `mpirun` on the `PATH`
 (NVHPC ships one in `comm_libs/mpi/bin`):
 
     qefast/pseudo.sh                            # fetches the SG15 pseudopotentials into qefast/pseudo/sg15
@@ -115,7 +125,9 @@ DFT+U systems. `QEF_STRICT=1` turns such a fallback into a stop.
 
 `QEF_STH_DVB=1` falls back to QE's own dV_bare loop when the engine declines at run time, and with
 `QEF_EPW_NOVME=1` a run-time decline of the fused fine path hands the run to the stock fine path. Before 2026-11-13
-both could stop a run; the new fallbacks have not yet run on a GPU.
+both could stop a run. The dV_bare fallback was forced on an H100 by holding all but 2 GiB of device memory: on
+B1 smoke every irrep of Γ fell back and matched `off` to 0.0000 cm⁻¹; with the memory released after 40 s the
+engine came back and all six q-points passed the gate (0.074 cm⁻¹). The NOVME hand-over has not yet run on a GPU.
 
 ## Performance
 

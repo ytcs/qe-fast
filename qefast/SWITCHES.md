@@ -60,7 +60,9 @@ Margin used on G2, G3, G5, G6: 3.8 %, 15.0 %, 0.0 %, 0.2 %.
   `safe` left the solve stage where it was on five of seven held-out materials.
 - **`QEF_STH_DVB=1` falls back when the engine declines at run time** (device memory at setup or irrep commit):
   `solve_linter`'s own dV_bare loop fills the buffer and the stock solver runs (`qef sth: dV_bare psi built by the
-  stock loop instead`). Before 2026-11-13 such a decline stopped the run. The fallback has not yet run on a GPU.
+  stock loop instead`). Before 2026-11-13 such a decline stopped the run. Forced on an H100 (all but 2 GiB of device
+  memory held): B1 smoke Γ matched `off` to 0.0000 cm⁻¹; with the memory released after 40 s, the engine came back and
+  all six q-points passed the gate (0.074 cm⁻¹).
 - **`QEF_EPW_NOVME=1` no longer stops when the fused fine path declines at run time** (pair-kernel shared memory,
   images): the stock fine path runs, and without a velocity consumer it does not read the skipped matrices.
   The switch declines up front with quadrupoles (Berry connection), in CPU builds, and when an input flag rules out

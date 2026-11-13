@@ -48,6 +48,10 @@ All notable changes to qe-fast are recorded here. The format follows
 - `QEF_STH_KDEV`'s device cache must leave 4 GiB free, else it is dropped; vkb chunks are capped at 512 MiB.
   `QEF_STH_PSIR_PART` reserves room for the NL state and FDXDP's index map allocated after it.
 - `ph.x` recover with bands read from disk forgets the SYMROT plan of an earlier q.
+- After a dV_bare fallback the engine can come back later in the same q: an irrep that asks for dV_bare on the
+  engine rebuilds the per-q state when it was built without it (an illegal address on the H100 forced-decline test).
+- `phq_fuse_all` sizes its k-point chunks from the free device memory (at most 1.5 GB, half of what is free above
+  512 MiB); with 2 GiB free it ran out of memory at the second q-point.
 - `QEF_W90_NT` never exceeds `omp_get_num_procs()`, and stays serial with `timing_level > 1`.
 
 ### Removed

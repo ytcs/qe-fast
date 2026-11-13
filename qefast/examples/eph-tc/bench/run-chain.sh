@@ -12,6 +12,9 @@
 # QEF_RUN_NOEPW=1 stops after nscf (insulators: no Fermi surface, no EPW stage).
 set -euo pipefail
 HERE=$(dirname "$(realpath "$0")")
+# UCC's CUDA transport hangs epw.x at MPI start-up in containers without NVLS peer access (H100 SXM pod, 2026-11-13:
+# "TL_CUDA ERROR failed to get peer fd"); both settings as measured there; a caller that sets them keeps its values
+export OMPI_MCA_coll_ucc_enable=${OMPI_MCA_coll_ucc_enable:-0} UCC_TLS=${UCC_TLS:-^cuda}
 IN=$(realpath "$1"); BIN=$(realpath "$2"); W=$3; NT=${4:-8}; NE=${5:-12}
 mkdir -p "$W"; W=$(realpath "$W"); cd "$W"
 cp "$IN"/*.in .
