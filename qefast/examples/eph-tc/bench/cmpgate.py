@@ -67,7 +67,7 @@ for i in range(1, 200):
         else float("nan")
     ok &= gate
     wmax = max(wmax, g.max() if g.size else 0.0)
-    print(f"{i:3d} {g.max():13.4f} {rel:9.2e} {dv:12.3e}  {'PASS' if gate else 'FAIL'}{extra}")
+    print(f"{i:3d} {(g.max() if g.size else 0.0):13.4f} {rel:9.2e} {dv:12.3e}  {'PASS' if gate else 'FAIL'}{extra}")
 print(f"{nq} q compared; max |dw| (gated modes) {wmax:.4f} cm-1 (target 0.2 {'met' if wmax <= 0.2 else 'missed'}); "
       f"gate {'PASS' if ok and nq else 'FAIL'}")
 sys.exit(0 if ok and nq else 1)
