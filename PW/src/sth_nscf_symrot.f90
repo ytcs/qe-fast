@@ -31,7 +31,7 @@ MODULE sth_nscf_symrot
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: symrot_on, symrot_plan, symrot_after_solve, symrot_report, symrot_tight, symrot_check_on, symrot_resid
+  PUBLIC :: symrot_on, symrot_plan, symrot_forget_plan, symrot_after_solve, symrot_report, symrot_tight, symrot_check_on, symrot_resid
   ! qe-fast (QEF_PW_SYMROT=1): the same rotation in pw.x's nscf (c_bands_nscf), the
   ! Wannier k grid read by EPW. The module lives in PW/src so that both pw.x and ph.x use it.
   PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
@@ -409,6 +409,12 @@ CONTAINS
   END FUNCTION g0_of
   !
   !------------------------------------------------------------------------------------------
+  SUBROUTINE symrot_forget_plan()
+    !! the bands of this q were not computed here (ph.x recover reads them from disk): no k may be
+    !! taken as a rotation of a cache entry, whose gauge need not match the wavefunctions on disk
+    IF (ALLOCATED(kind_)) DEALLOCATE(kind_, ksrc, ksym, ktr, kg0)
+  END SUBROUTINE symrot_forget_plan
+  !
   SUBROUTINE symrot_plan(kdone, kskip)
     !------------------------------------------------------------------------------------------
     !! Called by c_bands_nscf_ph before any eigensolve. k-points whose orbit is in the cache are rotated

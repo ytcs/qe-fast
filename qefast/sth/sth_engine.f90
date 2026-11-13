@@ -51,7 +51,7 @@ MODULE sth_engine
             sth_engine_becs, sth_mem_trim, sth_mem_sample, sth_mem_take_hw, &
             sth_engine_set_nlk, sth_engine_build_dvb, sth_engine_dvb_check, &
             sth_engine_kqg_ready, sth_engine_set_kqg, sth_engine_set_wdev, sth_engine_wdev, sth_engine_cbsr_map, &
-            sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op, &
+            sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_rwf_free, sth_engine_kdev_map, sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op, &
             sth_engine_set_npmax
   !
   ! Device memory. The NVHPC runtime (CUDA Fortran and OpenACC, NVCOMPILER_ACC_MEM_MANAGE, on by
@@ -2128,7 +2128,8 @@ CONTAINS
   !
   SUBROUTINE psir_part_build()
     !! QEF_STH_PSIR_PART: cache psi_kn(r) for the first psir_kc k-points, as many as fit after a reserve for the irrep
-    !! arrays (8 column arrays at sth_npmax), the CBSR chunk buffers and QEF_STH_PSIR_RES GiB (default 1.5)
+    !! arrays (8 column arrays at sth_npmax), the CBSR chunk buffers, the NL state, d_inv and QEF_STH_PSIR_RES GiB
+    !! (default 1.5)
     INTEGER(8) :: freeb, totb, res, per
     INTEGER :: istat, b0, nb, ip, nbx
     REAL(dp) :: rg
@@ -2140,6 +2141,10 @@ CONTAINS
     IF (cbsr_q .AND. cbsr_rf) res = res + 48_8 * cb_n0 * cb_cmax
     IF (cbsr_q .AND. .NOT. cbsr_rf .AND. .NOT. cb_xch) res = res + 2_8 * 16_8 * cb_n0 * nslot * sth_npmax * nksq
     IF (cbsr_q .AND. .NOT. cbsr_rf .AND. cb_xch) res = res + 32_8 * cb_n0 * MIN(cb_cmax, nslot * sth_npmax * nksq)
+    ! allocated after this cache: the NL state of nl_setup at its peak (dV_bare psi on the engine) and d_inv,
+    ! which FDXDP builds when fftdx declines (the decision comes later, so it is always reserved)
+    IF (sth_dvb_req .AND. nkb > 0) res = res + 128_8 * nkb * nslot * nksq
+    IF (sth_fdxdp_req) res = res + 4_8 * nnr * nksq
     CALL sth_mem_trim()
     istat = cudaMemGetInfo(freeb, totb)
     per = 16_8 * nnr * nslot
@@ -2718,15 +2723,20 @@ CONTAINS
     sth_engine_rwf_count = rwf_n
   END FUNCTION sth_engine_rwf_count
   !
-  SUBROUTINE sth_engine_rwf_put(i, ngs, nb, wfc, mill)
+  SUBROUTINE sth_engine_rwf_put(i, ngs, nb, wfc, mill, ok)
     !! KDEV: SYMROT cache entry i (ngs coefficients x nb bands, cache G order) onto the device (entries arrive in order);
-    !! v2 also keeps its Miller indices
+    !! v2 also keeps its Miller indices. ok = .FALSE.: growing the cache would leave less than rwf_reserve free
+    !! for the engine's own state; nothing is changed and the caller drops KDEV (sth_engine_rwf_free)
     INTEGER, INTENT(IN) :: i, ngs, nb
     COMPLEX(dp), INTENT(IN) :: wfc(:,:)
     INTEGER, INTENT(IN), OPTIONAL :: mill(:,:)
+    LOGICAL, INTENT(OUT) :: ok
     COMPLEX(dp), DEVICE, ALLOCATABLE :: tmp(:,:,:)
     INTEGER, DEVICE, ALLOCATABLE :: itmp(:,:,:)
-    INTEGER :: cap
+    INTEGER :: cap, istat
+    INTEGER(8) :: freeb, totb
+    INTEGER(8), PARAMETER :: rwf_reserve = 4_8 * 1024_8**3
+    ok = .TRUE.
     IF (rwf_ld == 0) THEN
       rwf_ld = SIZE(wfc, 1); rwf_nb = nb
     ENDIF
@@ -2734,6 +2744,11 @@ CONTAINS
     cap = 0
     IF (ALLOCATED(d_rwf)) cap = SIZE(d_rwf, 3)
     IF (i > cap) THEN
+      istat = cudaMemGetInfo(freeb, totb)
+      IF (INT(MAX(64, 2 * cap), 8) * INT(rwf_ld, 8) * (16_8 * rwf_nb + 12_8) > freeb - rwf_reserve) THEN
+        ok = .FALSE.
+        RETURN
+      ENDIF
       ALLOCATE(tmp(rwf_ld, rwf_nb, MAX(64, 2 * cap)))
       IF (cap > 0) THEN
         tmp(:, :, 1:cap) = d_rwf(:, :, 1:cap)
@@ -2752,6 +2767,13 @@ CONTAINS
     IF (PRESENT(mill)) d_rmill(1:3, 1:ngs, i) = mill(1:3, 1:ngs)
     rwf_n = i
   END SUBROUTINE sth_engine_rwf_put
+  !
+  SUBROUTINE sth_engine_rwf_free()
+    !! KDEV: drop the device cache (refilled from entry 1 when KDEV is used again)
+    IF (ALLOCATED(d_rwf)) DEALLOCATE(d_rwf)
+    IF (ALLOCATED(d_rmill)) DEALLOCATE(d_rmill)
+    rwf_n = 0; rwf_ld = 0; rwf_nb = 0
+  END SUBROUTINE sth_engine_rwf_free
   !
   SUBROUTINE sth_engine_kdev_map(ik, wh, i0, tr, ft, imap, ph)
     !! KDEV, per q: k (wh = 1) or k+q (wh = 2) of column block ik is SYMROT cache entry i0 rotated by (imap, ph, tr);

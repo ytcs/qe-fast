@@ -48,6 +48,7 @@ SUBROUTINE run_nscf(do_band, iq)
   USE ahc,             ONLY : elph_ahc
   USE mp_images,       ONLY : intra_image_comm
   USE mp,              ONLY : mp_barrier
+  USE sth_nscf_symrot, ONLY : symrot_forget_plan
   USE rism_module,     ONLY : lrism, rism_set_restart
   USE two_chem,        ONLY : twochem
   USE input_parameters, ONLY : occupations
@@ -68,6 +69,7 @@ SUBROUTINE run_nscf(do_band, iq)
   ! FIXME: following section does not belong to this subroutine
   IF (done_bands(iq)) THEN
      WRITE (stdout,'(/,5x,"Bands found: reading from ",a)') TRIM(tmp_dir_phq)
+     CALL symrot_forget_plan() ! qe-fast: a plan left by an earlier q must not map these bands
      CALL clean_pw( .TRUE. )
      CALL close_files(.true.)
      wfc_dir=tmp_dir_phq

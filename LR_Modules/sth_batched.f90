@@ -554,7 +554,7 @@ CONTAINS
                                  sth_fdxdp_req, sth_fdxdp_check, sth_obatch, sth_timing, &
                                  sth_engine_set_nlk, sth_qcache, sth_engine_wdev, sth_engine_set_wdev, &
                                  sth_cbsr, sth_cbsr_skip, &
-                                 sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, &
+                                 sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_rwf_free, sth_engine_kdev_map, &
                                  sth_engine_cbsr_plan, sth_cbsr_off, &
                                  sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op
     USE sth_nscf_symrot,  ONLY : symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
@@ -575,7 +575,7 @@ CONTAINS
     REAL(DP) :: tk(6)      ! QEF_STH_TIME: per-k loop split (get_buffer, init_us_2, g2kin+weights, set_k, dvbare/dpsi, set_wdev)
     LOGICAL :: wdev
     ! QEF_STH_KDEV: vkb by vkb_batch in chunks; evc / evq of SYMROT-mapped k rotated on the device
-    LOGICAL :: kdev, kmapped, okk, okq, fk, fq
+    LOGICAL :: kdev, kmapped, okk, okq, fk, fq, kdok
     INTEGER :: i0k, i0q, ngsk, ngsq, trk, trq, ftk, ftq, nkd, ich, nch, j, kdv, sk(3, 3), sq(3, 3), g0k(3), g0q(3)
     INTEGER, ALLOCATABLE :: mapk(:), mapq(:), ikl(:), mil(:,:)
     COMPLEX(DP), ALLOCATABLE :: phk(:), phq(:), wtmp(:,:), vkbb(:,:,:)
@@ -635,7 +635,14 @@ CONTAINS
         ALLOCATE(wtmp(npwx, nbnd), mil(3, npwx))
         DO j = sth_engine_rwf_count() + 1, symrot_cache_n()
           CALL symrot_cache_get(j, ngsk, ich, wtmp, mil)
-          CALL sth_engine_rwf_put(j, ngsk, ich, wtmp, mil)
+          CALL sth_engine_rwf_put(j, ngsk, ich, wtmp, mil, kdok)
+          IF (.NOT. kdok) THEN
+            ! the cache would crowd out the engine's state: dropped, so every k reads its psi from the
+            ! buffer (kmapped is false with an empty cache); vkb still goes to W in chunks
+            WRITE(stdout, '(5x,"qef sth: KDEV cache declined (device memory), psi from the buffer")')
+            CALL sth_engine_rwf_free()
+            EXIT
+          ENDIF
         ENDDO
         DEALLOCATE(wtmp, mil)
       ENDIF
@@ -644,7 +651,8 @@ CONTAINS
         CALL SYSTEM_CLOCK(cb); tk(1) = tk(1) + REAL(cb - ca, DP) / crate; ca = cb
       ENDIF
       ! vkb of every k+q, in chunks (bitwise init_us_2's), device-to-device into W
-      nch = MIN(nksq, 256, npwx)
+      ! chunks of at most 512 MiB of vkb (the chunk size does not change the result)
+      nch = MIN(nksq, 256, npwx, MAX(1, INT(512_8 * 1024_8**2 / (16_8 * npwx * MAX(nkb, 1)))))
       ALLOCATE(vkbb(npwx, MAX(nkb, 1), nch), ikl(nch))
       !$acc enter data create(vkbb)
       DO ich = 1, nksq, nch
@@ -844,7 +852,13 @@ CONTAINS
         ALLOCATE(wtmp(npwx, nbnd), mil(3, npwx))
         DO j = sth_engine_rwf_count() + 1, symrot_cache_n()
           CALL symrot_cache_get(j, ngs, ich, wtmp, mil)
-          CALL sth_engine_rwf_put(j, ngs, ich, wtmp, mil)
+          CALL sth_engine_rwf_put(j, ngs, ich, wtmp, mil, ok)
+          IF (.NOT. ok) THEN
+            ! cache dropped: no k is mapped below (i0 <= rwf_count fails)
+            WRITE(stdout, '(5x,"qef sth: KDEV cache declined (device memory), psi from the buffer")')
+            CALL sth_engine_rwf_free()
+            EXIT
+          ENDIF
         ENDDO
         DEALLOCATE(wtmp, mil)
       ENDIF
