@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-13; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -69,7 +69,7 @@
                                s_bztoibz, spin_fac
   USE global_setups,    ONLY : use_wannier_setup, lsda_setup
   USE wannier2bloch,    ONLY : qef_ephwan2blochp_batch
-  USE io,               ONLY : qef_novme
+  USE io,               ONLY : qef_novme, qef_vme_absent
 #if defined(__CUDA)
   USE epw_gpu_fine,     ONLY : ef_free
 #endif
@@ -1128,6 +1128,10 @@
         ! velocity consumer may run on them
         IF (qef_novme() .AND. (qef_need_vme .OR. .NOT. qef_fused)) &
           CALL errore('use_wannier', 'QEF_EPW_NOVME=1 needs the fused fine path and no velocity consumer', 1)
+        ! qe-fast: epwread of files written under QEF_EPW_NOVME: the same condition
+        IF (qef_vme_absent .AND. (qef_need_vme .OR. .NOT. qef_fused)) &
+          CALL errore('use_wannier', 'vmedata.fmt was written with QEF_EPW_NOVME=1 (no velocity matrices); '// &
+                      'redo the epwwrite run with QEF_EPW_NOVME=0', 1)
         qef_fset = .FALSE.
         qef_fq0 = iq_restart
         qef_fnqb = 0

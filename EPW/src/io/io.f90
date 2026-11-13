@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-29 to 2026-11-12; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-29 to 2026-11-13; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -18,6 +18,11 @@
   !! Most of them are for restart purposes.
   !!
   IMPLICIT NONE
+  !
+  !! qe-fast: .TRUE. after epw_read found the QEF_EPW_NOVME marker in vmedata.fmt: the velocity, position and
+  !! dipole matrices were never computed and stay zero (use_wannier stops if this run needs them)
+  LOGICAL :: qef_vme_absent = .FALSE.
+  CHARACTER(LEN = *), PARAMETER, PRIVATE :: qef_vme_marker = 'qef_novme: not computed'
   !
   CONTAINS
     !
@@ -289,6 +294,10 @@
       WRITE(crystal,*) ngauss
       WRITE(crystal,*) lda_plus_u
       !
+      IF (qef_novme()) THEN
+        WRITE(iunvmedata, '(a)') qef_vme_marker
+        WRITE(iundmedata, '(a)') qef_vme_marker
+      ENDIF
       WRITE(epwdata,*) ef
       WRITE(epwdata,*) nbndsub, nrr_k, nmodes, nrr_q, nrr_g
       WRITE(epwdata,*) zstar, epsi
@@ -298,7 +307,7 @@
           DO irk = 1, nrr_k
             WRITE (epwdata,*) chw(ibnd, jbnd, irk)
             IF (eig_read) WRITE (iunksdata,*) chw_ks(ibnd, jbnd, irk)
-            ! qe-fast (QEF_EPW_NOVME=1): velocities not computed, files left empty (a later epwread fails loudly)
+            ! qe-fast (QEF_EPW_NOVME=1): velocities not computed; the files hold only the marker line
             IF (.NOT. qef_novme()) THEN
             DO ipol = 1, 3
               WRITE(iunvmedata,*) cvmew(ipol, ibnd, jbnd, irk)
@@ -518,6 +527,14 @@
       IF (TRIM(lsda) == 'down') fnm = 'dmedata.down.fmt'
       OPEN(UNIT = iundmedata, FILE = TRIM(fnm), STATUS = 'old', IOSTAT = ios)
       IF (ios /= 0) CALL errore ('epw_read', 'error opening dmedata.fmt', iundmedata)
+      ! qe-fast: a file written under QEF_EPW_NOVME holds only the marker line
+      BLOCK
+        CHARACTER(LEN = 64) :: line
+        line = ' '
+        READ(iunvmedata, '(a)', IOSTAT = ios) line
+        qef_vme_absent = ios == 0 .AND. TRIM(line) == qef_vme_marker
+        IF (.NOT. qef_vme_absent) REWIND(iunvmedata)
+      END BLOCK
       READ(epwdata,*) ef
       READ(epwdata,*) nbndsub, nrr_k, nmodes, nrr_q, nrr_g
       READ(epwdata,*) zstar, epsi
@@ -531,6 +548,7 @@
     CALL mp_bcast(nrr_g,   meta_ionode_id, world_comm)
     CALL mp_bcast(zstar,   meta_ionode_id, world_comm)
     CALL mp_bcast(epsi,    meta_ionode_id, world_comm)
+    CALL mp_bcast(qef_vme_absent, meta_ionode_id, world_comm)
     !
     ALLOCATE(chw(nbndsub, nbndsub, nrr_k), STAT = ierr)
     IF (ierr /= 0) CALL errore('epw_read', 'Error allocating chw', 1)
@@ -558,11 +576,13 @@
           DO irk = 1, nrr_k
             READ(epwdata,*) chw(ibnd, jbnd, irk)
             IF (eig_read) READ(iunksdata,*) chw_ks(ibnd, jbnd, irk)
+            IF (.NOT. qef_vme_absent) THEN
             DO ipol = 1,3
               READ(iunvmedata,*) cvmew(ipol, ibnd, jbnd, irk)
               READ(iunvmedata,*) crrw(ipol, ibnd, jbnd, irk)
               READ(iundmedata,*) cdmew(ipol, ibnd, jbnd, irk)
             ENDDO
+            ENDIF
           ENDDO
         ENDDO
       ENDDO

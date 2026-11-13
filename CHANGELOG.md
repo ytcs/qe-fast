@@ -25,6 +25,9 @@ All notable changes to qe-fast are recorded here. The format follows
   diagonalizes every k-point.
 - GPU (nvfortran) builds stopped at `wannier90.x`: `qef_config.mod` was not visible to the users of the patched
   wannier90 modules.
+- An `epwread` run on files written under `QEF_EPW_NOVME=1` (a GPU `safe` Eliashberg run) crashed reading the
+  empty `vmedata.fmt` (`test-suite/epw_super`, GPU). The files now carry a marker line; the reader leaves the
+  velocity matrices at zero and stops only if the new run needs them.
 - The `dvxc_gpu` startup line no longer says "on the device" in builds without OpenACC.
 
 ### Removed
