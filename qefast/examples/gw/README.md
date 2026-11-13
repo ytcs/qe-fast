@@ -36,13 +36,43 @@ to 20000, 0.02 eV Lorentzian, spectrum to 150 eV. Q is along x in units of 2π/a
 - Q = (2.1, 0, 0) and (0, 2.1, 0) agree to 1.5×10⁻⁹. That checks the symmetry handling only.
 - The table is the output of `run.sh` as committed. One Q took 4–5 minutes on 7–14 OpenMP threads of a desktop CPU.
 
+## Inverse dielectric matrix by sum over bands
+
+The impact-ionization rate of the book's E-13 contracts the full Im W_GG′(q, ω) with pair densities, so the
+off-diagonal elements are needed, at every energy transfer up to the carrier energy. The route is the sum over
+bands that E-16 specifies (the independent-particle matrix R⁰_GG′, then a Dyson solve), which gives the whole
+matrix at every ω in one pass. A Lanczos column per G (extending `turbo_eels`) would cost on the order of
+10⁸–10⁹ H applications per q for Si against about 10⁵ pair-density FFTs, and stays as an independent check of
+the diagonal.
+
+`qefast/gw/chi0_ref.py` is the CPU reference: pair densities ρ(G) = ⟨n′, k+q| e^{i(q+G)r} |n, k⟩ for any band pair,
+transitions binned in energy (each bin's matrix is Hermitian and positive semidefinite; the run checks both),
+χ⁰(ω) by a Kramers–Kronig sum, ε = 1 − v^½ χ⁰ v^½, and ε⁻¹ by inversion. Norm-conserving pseudopotentials only.
+`si-chi0/run.sh` runs it on the Si of the smoke test (8³ k without symmetry, 60 bands, local-field basis
+|q+G|² ≤ 8 Ry, 0.1 eV Lorentzian); `APPROX=IPA` and `APPROX=RPA_with_CLFE` of `si-eels/run.sh` give the
+`turbo_eels` side at the same Q, which must be on the k grid (Q = 0.25 and 2.25 along x are; 0.1 and 2.1 are not).
+
+| Q (2π/a, x) | quantity | chi0_ref | turbo_eels |
+|---|---|---|---|
+| 0.25 | Im ε without local fields, peak (turbo's IPA "loss") | 4.32 eV | 4.32 eV |
+| 0.25 | Re ε(Q, 0) without / with local fields | 10.51 / 9.48 | 10.48 / 9.46 |
+| 0.25 | RPA loss peak, local fields | 17.40 eV | 17.34 eV |
+| 2.25 | Re ε(Q, 0) with local fields | 1.408 | 1.410 |
+| 2.25 | Im ε without local fields, peak | 23.26 eV | 23.62 eV |
+| 2.25 | RPA loss peak, local fields | 32.72 eV | 31.76 eV |
+
+- At Q = 0.25 the loss peak without local fields is 17.08, 17.06 and 17.06 eV with 20, 40 and 60 bands. At
+  Q = 2.25 the RPA peak moves from 35.24 eV (30 bands) to 32.72 eV (60 bands), toward the Sternheimer value, and the
+  f-sum fraction rises from 0.54 to 0.86.
+- The f-sum fraction at Q = 0.25 is 0.88, 0.90 and 0.91 with 20, 40 and 60 bands, the same with and without local
+  fields; `turbo_eels` itself misses it by 5.6 %.
+- The first version conjugated the antiresonant term's matrix. The head is real, so the diagonal checks passed and
+  the local-field effect came out half as large (Re ε(0) 9.98 against 9.46); with time reversal both terms carry the
+  same matrix.
+
 ## Recommended route
 
-1. **Loss function: native.** `turbo_eels` already gives the diagonal loss function at arbitrary Q. The EELS
-   Lanczos chain is projected onto one vector (ζ); the optical case projects the same chain onto three. Building
-   the start vectors exp(i(q+G′)·r) for a set of G′ and projecting onto all of them gives a whole column
-   ε⁻¹_G′G(q, ω) per chain at a cost per step of one dot product per G′. That is the extension to make if the
-   kernel needs off-diagonal elements. It is also the part worth putting on the GPU.
+1. **ε⁻¹_GG′(q, ω): native, sum over bands.** The reference above, then a GPU program checked against it.
 2. **Quasiparticle corrections: BerkeleyGW** through `pw2bgw.x`, for the G0W0 shifts and lifetimes. These are
    needed once per material, not per Q.
 3. **Excitons in LiF and NaF: BerkeleyGW BSE.** Yambo is GPL and would also do; neither has been adopted, and
@@ -50,8 +80,6 @@ to 20000, 0.02 eV Lorentzian, spectrum to 150 eV. Q is along x in units of 2π/a
 
 ## Open questions
 
-- Is the diagonal ε⁻¹(q+G, q+G; ω) enough for the kernel, or are off-diagonal elements required? The answer
-  decides whether step 1's extension is needed.
 - The issue's Si gate, ε_eh = 3.749 ± 0.001 eV and F_eh = 0.119 ± 0.002, is a measurement at 123 K (Rodrigues et
   al. 2021). The paper above compares with 3.6 eV, a room-temperature value, and gives no Fano factor. A gate
   must state its temperature.
