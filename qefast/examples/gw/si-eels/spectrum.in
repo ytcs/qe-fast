@@ -1,0 +1,13 @@
+&lr_input
+    prefix = 'si'
+    outdir = './out'
+    eels = .true.
+    itermax0 = @ITERMAX@
+    itermax = 20000
+    extrapolation = 'osc'
+    epsil = 0.02
+    units = 1
+    start = 0.0d0
+    increment = 0.02d0
+    end = @EMAX@
+/
