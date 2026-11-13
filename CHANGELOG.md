@@ -37,6 +37,10 @@ All notable changes to qe-fast are recorded here. The format follows
 
 ### Changed
 
+- The GPU Sternheimer engine runs insulators with fixed occupations (the projector onto the occupied bands of k+q,
+  as QE's `orthogonalize`). H100, against vanilla 7.6 on the same GPU: Si `ph.x` 501 s → 12 s, MgO 78 s → 6 s,
+  frequencies within 0.02 cm⁻¹, ε∞ and Born charges equal in every printed digit; the GPU `ph` test category has
+  the same 87 passes and the same two failures, with the same values, as vanilla.
 - Automatic configuration: with `QEF_PRESET` unset (the default, `safe`), the run's output says so and the main
   levers print one line each, on or declined with the reason (`qef_note`). The GPU engine's decline (an
   insulator, USPP/PAW, spin-orbit, ...) is now visible in the output.

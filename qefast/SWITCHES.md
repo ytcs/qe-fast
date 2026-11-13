@@ -81,8 +81,8 @@ Margin used on G2, G3, G5, G6: 3.8 %, 15.0 %, 0.0 %, 0.2 %.
   itself, which is class N and gated on frequencies.
 - **Lever C was tuned on B1 and B2.** Its worst held-out frequency margin is 38.7 % (G7), against 60 % used on B2.
   It has passed the frequency gate on all eight held-out materials and no held-out λ gate.
-- **Engine scope.** Magnetic, SOC, USPP/PAW and DFT+U systems, `occupations = 'fixed'` insulators and runs with more
-  than one band group take QE's own loop, with no speedup.
+- **Engine scope.** Magnetic, SOC, USPP/PAW and DFT+U systems, tetrahedron occupations and runs with more than one
+  band group take QE's own loop, with no speedup. Fixed occupations run on the engine since 2026-11-13.
 - **SOC-W (certified Wannier minimisation) is not included.** v2 failed on B2.
 
 ## Engine

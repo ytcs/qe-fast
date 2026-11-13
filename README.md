@@ -59,8 +59,8 @@ hp). No preset has been gated on a CPU build. For CPU-only work, use upstream QE
 
 The programs take the same inputs as QE's. Run `pw.x` and `ph.x` as one MPI rank per GPU with OpenMP threads,
 and pass any `QEF_*` variables on to remote ranks. Nothing needs to be set: each lever checks the input, the build
-and the device and turns itself on only where it applies, then prints one line saying so. `ph.x` on an H100,
-first for MgB₂ (B1 smoke), then for Si with fixed occupations, which the engine does not support:
+and the device and turns itself on only where it applies, then prints one line saying so (a lever that
+does not apply prints `declined:` and the reason). `ph.x` on an H100 for MgB₂ (B1 smoke):
 
     qe-fast: automatic; each lever reports below whether it applies to this run
     qe-fast: fused phq_init on the GPU on
@@ -69,13 +69,12 @@ first for MgB₂ (B1 smoke), then for Si with fixed occupations, which the engin
     qe-fast: dV_bare psi on the engine (QEF_STH_DVB) on
     qe-fast: ph.x nscf by symmetry rotation on
 
-    qe-fast: automatic; each lever reports below whether it applies to this run
-    qe-fast: fused phq_init on the GPU on
-    qe-fast: GPU Sternheimer engine declined: not a smeared metal (fixed occupations or tetrahedra)
-    qe-fast: ph.x nscf by symmetry rotation on
-
 The automatic set is the `safe` preset below: only levers that keep the output bitwise identical or differ at
 rounding level. A lever that declines leaves QE's own code path in charge.
+
+Insulators with fixed occupations (H100, `ph.x` with `ldisp`, against vanilla QE 7.6 on the same GPU): Si (8³ k,
+4³ q) 501 s → 12 s and MgO (6³ k, 2³ q) 78 s → 6 s, every frequency within 0.02 cm⁻¹ of vanilla, and ε∞ and
+the Born effective charges (MgO: ε∞ 3.2590, Z\* +1.991 / −1.996) equal to vanilla in every printed digit.
 
 The MgB₂ smoke chain runs every stage, in about 430 s under `safe` on an A40 and in 42 s on an H100 SXM (134 s
 under `off`). It needs `mpirun` on the `PATH`
@@ -115,7 +114,7 @@ The batched `ph.x` engine runs when all of these hold; `LR_Modules/sth_batched.f
 
 - norm-conserving pseudopotentials;
 - collinear and non-magnetic (`nspin_mag = 1`), no spin-orbit coupling;
-- smearing occupations, so no `occupations = 'fixed'`, no tetrahedra and no two-chemical-potential runs;
+- smearing or fixed occupations; no tetrahedra and no two-chemical-potential runs;
 - no DFT+U, meta-GGA, EXX, `real_space`, scissor or `lelfield`;
 - k-point sampling other than Γ-only (`gamma_only`);
 - serial FFT within a pool, one band group, no task groups. Any number of pools.
