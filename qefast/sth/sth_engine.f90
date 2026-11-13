@@ -53,7 +53,7 @@ MODULE sth_engine
             sth_engine_kqg_ready, sth_engine_set_kqg, sth_engine_set_wdev, sth_engine_wdev, sth_engine_cbsr_map, &
             sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op, &
             sth_engine_set_npmax
-  PUBLIC :: sth_engine_rwf_free
+  PUBLIC :: sth_engine_rwf_free, sth_engine_dvbq
   !
   ! Device memory. The NVHPC runtime (CUDA Fortran and OpenACC, NVCOMPILER_ACC_MEM_MANAGE, on by
   ! default) does not return a DEALLOCATEd device block to the driver: it keeps it on a free list and
@@ -4477,6 +4477,11 @@ CONTAINS
   LOGICAL FUNCTION sth_engine_qready()
     sth_engine_qready = qready
   END FUNCTION sth_engine_qready
+  !
+  LOGICAL FUNCTION sth_engine_dvbq()
+    !! the per-q state holds the NL state that building dV_bare psi on the engine needs
+    sth_engine_dvbq = dvb_q
+  END FUNCTION sth_engine_dvbq
   !
   LOGICAL FUNCTION sth_engine_ready()
     sth_engine_ready = ready

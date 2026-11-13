@@ -179,8 +179,11 @@ CONTAINS
     USE buffers,       ONLY : get_buffer
     USE constants,     ONLY : eps8
     USE uspp_init,     ONLY : init_us_2
+#if defined(__CUDA)
+    USE cudafor,       ONLY : cudaMemGetInfo
+#endif
     INTEGER :: nkc, k0, n, j, ik, ikk, ikq, ib, ig, itmp, nb, nx, npw
-    INTEGER(8) :: memk
+    INTEGER(8) :: memk, memf
     REAL(DP) :: q1, q2, q3, tp, tp2
     COMPLEX(DP) :: e
     COMPLEX(DP), ALLOCATABLE :: vkbb(:,:,:), evcb(:,:,:), auxb(:,:,:), bbb(:,:,:)
@@ -192,7 +195,18 @@ CONTAINS
     ! bytes per k: vkbb, evcb, auxb, bbb and vkb_batch's work arrays
     memk = 16_8 * nx * (nkb + 11 * nbnd) + 16_8 * nkb * 10 * nbnd + &
            8_8 * nx * (5 + (lmaxkb + 1)**2 + nbetam + nhm) + 16_8 * nx
-    nkc = INT(MAX(1_8, MIN(INT(nksq, 8), 1500000000_8 / memk)))
+    ! chunk size from the device memory actually free (at most 1.5 GB, half of what is free above a 512 MiB
+    ! reserve); the chunk size does not change the result
+    memf = 1500000000_8
+#if defined(__CUDA)
+    BLOCK
+      INTEGER(8) :: freeb, totb
+      INTEGER :: istat
+      istat = cudaMemGetInfo(freeb, totb)
+      IF (istat == 0) memf = MIN(memf, MAX(0_8, (freeb - 512_8 * 1024_8**2) / 2))
+    END BLOCK
+#endif
+    nkc = INT(MAX(1_8, MIN(INT(nksq, 8), memf / memk)))
     ALLOCATE(vkbb(nx, nkb, nkc), evcb(nx, nb, nkc), auxb(nx, 10 * nb, nkc), bbb(nkb, 10 * nb, nkc))
     ALLOCATE(npwc(nkc), ikkc(nkc))
     !$acc enter data create(vkbb, evcb, auxb, bbb)

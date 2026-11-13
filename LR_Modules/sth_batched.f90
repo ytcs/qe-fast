@@ -224,6 +224,7 @@ CONTAINS
     USE eqv,              ONLY : dpsi, dvpsi
 #if defined(__CUDA)
     USE sth_engine,       ONLY : sth_engine_solve, sth_engine_get_dpsi, sth_engine_ready, sth_engine_qready, &
+                                 sth_engine_dvbq, &
                                  sth_n64, sth_n32, sth_nround, sth_t_cg64, &
                                  sth_eta, sth_defl, sth_timing, sth_prof, &
                                  sth_t_dpot, sth_t_ortho, sth_t_cg, sth_t_drho, &
@@ -276,7 +277,9 @@ CONTAINS
       pending = .FALSE.
       have_state = .FALSE.
       ! per-q state (k, k+q data, vkb, h_diag, psi(r)) is kept across the irreps of one q
-      IF (.NOT. sth_engine_qready() .OR. ANY(xq /= st_xq) .OR. nksq /= st_nksq) THEN
+      ! a per-q state built without dV_bare (after a fallback earlier in this q) cannot serve an irrep with it
+      IF (.NOT. sth_engine_qready() .OR. ANY(xq /= st_xq) .OR. nksq /= st_nksq &
+          .OR. (dvb_on .AND. .NOT. sth_engine_dvbq())) THEN
         CALL sth_batched_init(first_iter, npert, lrdvpsi, iudvpsi, ierr)
         st_xq = xq
       ELSE
