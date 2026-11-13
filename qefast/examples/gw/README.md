@@ -52,23 +52,33 @@ transitions binned in energy (each bin's matrix is Hermitian and positive semide
 |q+G|² ≤ 8 Ry, 0.1 eV Lorentzian); `APPROX=IPA` and `APPROX=RPA_with_CLFE` of `si-eels/run.sh` give the
 `turbo_eels` side at the same Q, which must be on the k grid (Q = 0.25 and 2.25 along x are; 0.1 and 2.1 are not).
 
-| Q (2π/a, x) | quantity | chi0_ref | turbo_eels |
-|---|---|---|---|
-| 0.25 | Im ε without local fields, peak (turbo's IPA "loss") | 4.32 eV | 4.32 eV |
-| 0.25 | Re ε(Q, 0) without / with local fields | 10.51 / 9.48 | 10.48 / 9.46 |
-| 0.25 | RPA loss peak, local fields | 17.40 eV | 17.34 eV |
-| 2.25 | Re ε(Q, 0) with local fields | 1.408 | 1.410 |
-| 2.25 | Im ε without local fields, peak | 23.26 eV | 23.62 eV |
-| 2.25 | RPA loss peak, local fields | 32.72 eV | 31.76 eV |
+Static values (8 Ry basis, 60 bands):
 
-- At Q = 0.25 the loss peak without local fields is 17.08, 17.06 and 17.06 eV with 20, 40 and 60 bands. At
-  Q = 2.25 the RPA peak moves from 35.24 eV (30 bands) to 32.72 eV (60 bands), toward the Sternheimer value, and the
-  f-sum fraction rises from 0.54 to 0.86.
-- The f-sum fraction at Q = 0.25 is 0.88, 0.90 and 0.91 with 20, 40 and 60 bands, the same with and without local
-  fields; `turbo_eels` itself misses it by 5.6 %.
+| Q (2π/a, x) | Re ε(Q, 0) without local fields | with local fields |
+|---|---|---|
+| 0.25 | 10.51 (turbo_eels 10.48) | 9.48 (9.46) |
+| 2.25 | 1.459 | 1.408 (1.410) |
+
+Spectra, 120 bands, both codes at turbo_eels' 0.02 eV Lorentzian, then the same Gaussian smoothing (σ = 1 eV) of
+both (an 8³ grid leaves spikes at 0.02 eV; turbo_spectrum's own larger broadenings change the integral and are not
+used):
+
+| Q | quantity | peak, chi0_ref / turbo_eels | integral 0–58 eV, ratio | largest difference / peak |
+|---|---|---|---|---|
+| 0.25 | Im ε without local fields (turbo's IPA "loss") | 4.42 / 4.44 eV | 1.039 | 0.17 |
+| 0.25 | RPA loss, local fields | 17.20 / 17.14 eV | 1.014 | 0.09 |
+| 2.25 | Im ε without local fields | 23.88 / 23.78 eV | 1.014 | 0.03 |
+| 2.25 | RPA loss, local fields | 31.78 / 31.78 eV | 1.028 | 0.05 |
+
+- Bands: at Q = 0.25 the loss peak without local fields is 17.08, 17.06 and 17.06 eV with 20, 40 and 60 bands; at
+  Q = 2.25 the RPA f-sum fraction is 0.54, 0.86 and 0.93 with 30, 60 and 120 bands, and the 0.1 eV peak stays at
+  32.72 eV from 60 to 120 bands. The f-sum fraction at Q = 0.25 is 0.88, 0.90, 0.91 and 0.94 with 20, 40, 60 and
+  120 bands, the same with and without local fields; `turbo_eels` misses it by 5.6 %.
 - The first version conjugated the antiresonant term's matrix. The head is real, so the diagonal checks passed and
   the local-field effect came out half as large (Re ε(0) 9.98 against 9.46); with time reversal both terms carry the
   same matrix.
+- Memory: the binned matrices are 16 × bins × N_G² bytes (0.6 GB for 3000 bins and 109 G); the script estimates its
+  use first and stops above `--max-mem` (2 GB by default).
 
 ## Recommended route
 
