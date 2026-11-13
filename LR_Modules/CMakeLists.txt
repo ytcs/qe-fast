@@ -1,4 +1,4 @@
-# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-13; see NOTICE.
 set(sources
     adddvscf.f90
     adddvhubscf.f90
@@ -54,7 +54,6 @@ set(sources
     qdipol_cryst.f90
     mode_group.f90
     mix_pot.f90
-    qef_mix.f90
     lrcom.f90
     qpoint.f90
     lr_dot.f90

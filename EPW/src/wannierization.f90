@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-13; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -131,10 +131,6 @@
     !! Position in strings
     CHARACTER(LEN = 32) :: qef_ev
     !! qe-fast: environment value
-    INTEGER :: qef_niter
-    !! qe-fast: num_iter written to the .win (QEF_W90_NITER)
-    INTEGER :: qef_ios
-    !! qe-fast: read status
     LOGICAL :: qef_nohr
     !! qe-fast: QEF_W90_NOHR=1, do not force write_hr
     !
@@ -176,15 +172,7 @@
       IF (dis_win_max  <  9000) WRITE(iuwinfil, '("dis_win_max = ", f18.12)')  dis_win_max
       IF (dis_froz_min > -9000) WRITE(iuwinfil, '("dis_froz_min = ", f18.12)') dis_froz_min
       IF (dis_froz_max <  9000) WRITE(iuwinfil, '("dis_froz_max = ", f18.12)') dis_froz_max
-      ! qe-fast: QEF_W90_NITER=n overrides num_iter (default: the input's num_iter)
-      qef_niter = num_iter
-      CALL qef_getenv('QEF_W90_NITER', qef_ev)
-      IF (LEN_TRIM(qef_ev) > 0) THEN
-        READ(qef_ev, *, IOSTAT = qef_ios) qef_niter
-        IF (qef_ios /= 0 .OR. qef_niter < 0) qef_niter = num_iter
-        WRITE(stdout, '(5x,a,i7,a,i7)') 'qef: QEF_W90_NITER, num_iter ', num_iter, ' -> ', qef_niter
-      ENDIF
-      WRITE(iuwinfil, '("num_iter = ", i7)')         qef_niter
+      WRITE(iuwinfil, '("num_iter = ", i7)')         num_iter
       WRITE(iuwinfil, '(a)') "write_bvec = .true."
       !
       ! HL 11/2020: The code block below is necessary

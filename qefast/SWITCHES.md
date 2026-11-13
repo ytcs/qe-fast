@@ -143,9 +143,8 @@ moved λ by at most 4.7e-4 relative on G3, G5, G6.
 | `QEF_STH_MP=1`, `QEF_MP_ETA`, `QEF_MP_SAFE` | none | N | B1, B2 PASS, 74 % margin used on B2 with lever C; about 2× on ph.x on a 4090 | FP32 inner CG; hardware dependent |
 | `QEF_TR2_SCALE` | none | N | 0.01 passes against a tight same-grid reference at B2 q2, q3 with exact CBSR | tightens tr2_ph |
 | `QEF_STH_DRF=1`, `QEF_EPW_B2WG=1` | none | E | dvscf 1.6e-15 (DRF); no A40 gain | H100 A/B not run |
-| `QEF_THRESH_G`, `QEF_STH_ETA`, `QEF_MIX_Q0`, `QEF_NSCF_ETHR_SCALE`, `QEF_W90_NITER` | none | N | not adopted; NITER fails the gate on the saddle | leave unset |
+| `QEF_STH_ETA` | none | N | not adopted | leave unset; wired through the engine's CG kernels, to go with the next engine change |
 | `QEF_STH_NOPSIR=1` | none | B | B2 q5 engine memory 68.4 → 24.1 GiB, +10 % solve | memory relief |
-| `QEF_MP_INPLACE=1` | none | B | slower; dropped from the scored sets | — |
 
 ## Diagnostics: all opt-in, in no preset
 

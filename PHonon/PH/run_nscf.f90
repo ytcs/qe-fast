@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-13; see NOTICE.
 !
 ! Copyright (C) 2001-2018 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -32,7 +32,7 @@ SUBROUTINE run_nscf(do_band, iq)
   !USE save_ph,         ONLY : tmp_dir_save
   USE save_ph,         ONLY : tmp_dir_save
   USE io_files,        ONLY : postfix
-  USE sth_nscf_start,  ONLY : nscf_start_dir, nscf_ethr_scale
+  USE sth_nscf_start,  ONLY : nscf_start_dir
   !
   USE grid_irr_iq,     ONLY : done_bands
   USE acfdtest,        ONLY : acfdt_is_active, acfdt_num_der, ir_point, delta_vrs
@@ -104,8 +104,6 @@ SUBROUTINE run_nscf(do_band, iq)
   restart        = ext_restart
   conv_ions      = .true.
   ethr_nscf      = 1.0D-9 / nelec 
-  ! qe-fast (diagnostic, default 1): QEF_NSCF_ETHR_SCALE multiplies the nscf threshold
-  ethr_nscf      = ethr_nscf * nscf_ethr_scale()
   ! threshold for diagonalization ethr_nscf - should be good for all cases
   !
   IF (lrism) CALL rism_set_restart()

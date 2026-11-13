@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-28 to 2026-11-13; see NOTICE.
 !
 ! Copyright (C) 2025-2026 Quantum ESPRESSO Foundation
 ! This file is distributed under the terms of the
@@ -87,7 +87,6 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    USE kinds,                ONLY : DP
    USE mp_pools,             ONLY : inter_pool_comm
    USE sth_batched,          ONLY : sth_batched_flush_end, sth_call_eta
-   USE qef_mix,             ONLY : qef_mix_q0, qef_mix_kerker
    USE mp_bands,             ONLY : intra_bgrp_comm
    USE mp,                   ONLY : mp_sum
    USE fft_base,             ONLY : dfftp, dffts
@@ -191,12 +190,11 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    !
    ! qe-fast QEF_THRESH_L = L > 1: non-final SCF iterations solve to L x the vanilla
    ! thresh. The vanilla chain tv = min(0.1 sqrt(dr2), tv) is kept alongside; an iteration whose
-   ! predicted |ddv|^2 (dr2 * min(1, dr2/dr2_prev)) is below QEF_THRESH_G (default 100) x tr2_ph uses
+   ! predicted |ddv|^2 (dr2 * min(1, dr2/dr2_prev)) is below 100 x tr2_ph (xl_g) uses
    ! tv. If the SCF converges on a loose iteration, one polish iteration re-solves with the same
    ! dV_in at tv (no mixing), so the final dpsi / drho always come from a solve at the vanilla thresh.
    REAL(DP) :: xl_l, xl_g, tv, tl, dr2_prev, xl_pred, xl_eta
    LOGICAL :: xl_on, xl_loose, xl_polish
-   REAL(DP) :: kq0
    REAL(DP), EXTERNAL :: dnrm2
    !! timing variables
    !
@@ -260,9 +258,6 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
      CALL qef_getenv('QEF_THRESH_L', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_l
      IF (ios /= 0) xl_l = 1.d0
-     CALL qef_getenv('QEF_THRESH_G', sv, STATUS=ios)
-     IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_g
-     IF (ios /= 0) xl_g = 1.d2
      xl_eta = 0.d0
      CALL qef_getenv('QEF_STH_ETA', sv, STATUS=ios)
      IF (ios == 0) READ(sv, *, IOSTAT=ios) xl_eta
@@ -271,9 +266,6 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
    xl_on = (xl_l > 1.d0 .OR. xl_eta > 0.d0) .AND. .NOT. okpaw .AND. .NOT. finite_freq .AND. .NOT. twochem
    xl_loose = .FALSE.
    xl_polish = .FALSE.
-   ! qe-fast: Kerker-preconditioned Broyden (QEF_MIX_Q0 > 0); in-memory mixing, no PAW, nspin_mag = 1
-   kq0 = qef_mix_q0()
-   IF (okpaw .OR. flmixdpot /= ' ' .OR. nspin_mag /= 1 .OR. npol /= 1) kq0 = 0.d0
    tv = 1.d-2
    tl = 1.d-2
    dr2_prev = -1.d0
@@ -472,9 +464,6 @@ SUBROUTINE dfpt_kernel(code, npert, iter0, lrdvpsi, iudvpsi, dr2, dfpt_data, &
          dvscftmp = dvscftmp - dfpt_data%dvscfp
          dr2 = (dnrm2(2 * ndim_pot, dvscftmp, 1) / REAL(2 * ndim_pot, DP))**2
          convt = .TRUE.
-      ELSEIF (kq0 > 0.d0) THEN
-         CALL qef_mix_kerker(dfftp%nnr, npert, dvscftmp(:, 1, :), dfpt_data%dvscfp(:, 1, :), alpha_mix(kter), dr2, &
-                              npert * tr2_ph / npol, iter, nmix_ph, convt, kq0)
       ELSE
          CALL mix_potential(2 * ndim_pot, dvscftmp, dfpt_data%dvscfp, alpha_mix(kter), dr2, &
                             npert * tr2_ph / npol, iter, nmix_ph, flmixdpot, convt)

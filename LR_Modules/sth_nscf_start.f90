@@ -21,7 +21,7 @@ MODULE sth_nscf_start
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: nscf_start_prepare, nscf_start_get, nscf_start_free, nscf_start_dir, nscf_ethr_scale
+  PUBLIC :: nscf_start_prepare, nscf_start_get, nscf_start_free, nscf_start_dir
   !
   CHARACTER(LEN=320), SAVE :: nscf_start_dir = ''   ! scf restart directory (set by ph.x run_nscf)
   !
@@ -198,16 +198,6 @@ CONTAINS
       lin = 1 + n1 + n2 * dfftp%nr1 + n3 * dfftp%nr1 * dfftp%nr2
     END FUNCTION lin
   END FUNCTION nscf_start_get
-  !
-  REAL(DP) FUNCTION nscf_ethr_scale()
-    !! QEF_NSCF_ETHR_SCALE (diagnostic): factor on ph.x's nscf threshold; 1 when unset
-    CHARACTER(LEN=32) :: s
-    INTEGER :: ios
-    nscf_ethr_scale = 1.0_DP
-    CALL qef_getenv('QEF_NSCF_ETHR_SCALE', s, STATUS=ios)
-    IF (ios == 0 .AND. LEN_TRIM(s) > 0) READ(s, *, IOSTAT=ios) nscf_ethr_scale
-    IF (ios /= 0 .OR. nscf_ethr_scale <= 0) nscf_ethr_scale = 1.0_DP
-  END FUNCTION nscf_ethr_scale
   !
   FUNCTION solve3(b, x) RESULT(c)
     REAL(DP), INTENT(IN) :: b(3, 3), x(3)

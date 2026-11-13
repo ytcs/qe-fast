@@ -33,6 +33,9 @@ All notable changes to qe-fast are recorded here. The format follows
 
 ### Removed
 
+- Switches that were measured and not adopted: `QEF_THRESH_G` (now fixed at 100), `QEF_MIX_Q0` (Kerker mixing,
+  `LR_Modules/qef_mix.f90`), `QEF_NSCF_ETHR_SCALE`, `QEF_W90_NITER` and `QEF_MP_INPLACE`. `UtilXlib/mp_base.f90` is
+  upstream again.
 - The `./configure` and `make` build, dev-tools, archive and the upstream CI files. CMake is the only build.
 - The upstream packages CPV, COUPLE, GUI, GWW, KCW, PWCOND, QEHeat and XSpectra, their test-suite cases, and the
   pw2qmcpack plugin.

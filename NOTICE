@@ -39,14 +39,14 @@ also carries a notice in its first line, with the dates of their changes:
   EPW/src/use_wannier.f90                  2026-10-28 to 2026-11-13
   EPW/src/wannier.f90                      2026-10-30 to 2026-11-06
   EPW/src/wannier2bloch.f90                2026-10-28 to 2026-11-06
-  EPW/src/wannierization.f90               2026-10-30 to 2026-11-06
+  EPW/src/wannierization.f90               2026-10-30 to 2026-11-13
   external/CMakeLists.txt                  2026-11-12
   external/devxlib.cmake                   2026-10-27 to 2026-11-06
   external/submodule_commit_hash_records   2026-10-27 to 2026-11-12
   external/wannier90.cmake                 2026-10-29 to 2026-11-13
   LR_Modules/c_bands_ph.f90                2026-10-28 to 2026-11-06
-  LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-06
-  LR_Modules/dfpt_kernels.f90              2026-10-28 to 2026-11-06
+  LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-13
+  LR_Modules/dfpt_kernels.f90              2026-10-28 to 2026-11-13
   LR_Modules/dgradcorr.f90                 2026-10-30 to 2026-11-06
   LR_Modules/dv_of_drho.f90                2026-10-30 to 2026-11-12
   LR_Modules/response_kernels.f90          2026-10-28 to 2026-11-06
@@ -63,7 +63,7 @@ also carries a notice in its first line, with the dates of their changes:
   PHonon/PH/phq_init.f90                   2026-10-30 to 2026-11-06
   PHonon/PH/phq_readin.f90                 2026-10-31 to 2026-11-06
   PHonon/PH/phqscf.f90                     2026-10-30 to 2026-11-06
-  PHonon/PH/run_nscf.f90                   2026-10-28 to 2026-11-06
+  PHonon/PH/run_nscf.f90                   2026-10-28 to 2026-11-13
   PHonon/PH/solve_linter.f90               2026-10-29 to 2026-11-06
   PW/CMakeLists.txt                        2026-10-30
   PW/src/c_bands.f90                       2026-10-30 to 2026-11-06
@@ -72,7 +72,6 @@ also carries a notice in its first line, with the dates of their changes:
   test-suite/Makefile                      2026-11-12
   test-suite/userconfig.tmp                2026-11-12
   UtilXlib/CMakeLists.txt                  2026-11-06
-  UtilXlib/mp_base.f90                     2026-10-30 to 2026-11-06
 
 external/submodule_commit_hash_records lost its devxlib line (2026-10-27) and its
 pw2qmcpack line (2026-11-12); the
