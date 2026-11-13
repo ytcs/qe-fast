@@ -47,7 +47,7 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends gfortran ninja-build libopenblas-dev libfftw3-dev
+          sudo apt-get install -y -qq --no-install-recommends gfortran ninja-build libopenblas-dev libfftw3-dev python3-numpy
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQE_ENABLE_MPI=OFF -DQE_ENABLE_TEST=OFF \
@@ -56,7 +56,7 @@ jobs:
         # Every executable the test cases below call; all build without CUDA.
         run: |
           cmake --build build -j 4 --target pw.x ph.x epw.x q2r.x matdyn.x hp.x \
-            turbo_eels.x turbo_spectrum.x
+            turbo_eels.x turbo_spectrum.x chi0.x
       - name: Small pw.x test
         env:
           ESPRESSO_PSEUDO: ${{ github.workspace }}/EPW/examples/sic/pp   # holds Si.pz-vbc.UPF, so no download
@@ -96,3 +96,7 @@ jobs:
             echo "$t: $(grep -c ': Passed' "../ts-$t.log") passed in $((SECONDS - start)) s"
           done
           exit $fail
+      - name: chi0.x against its Python reference (eps^-1 matrix, Si 4^3)
+        env:
+          OMP_NUM_THREADS: 1
+        run: qefast/examples/gw/si-chi0/ci.sh "$PWD/build/bin" ci-chi0

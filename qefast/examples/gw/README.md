@@ -80,6 +80,20 @@ used):
 - Memory: the binned matrices are 16 × bins × N_G² bytes (0.6 GB for 3000 bins and 109 G); the script estimates its
   use first and stops above `--max-mem` (2 GB by default).
 
+### chi0.x (host path)
+
+`chi0.x` (`qefast/gw/chi0.f90`, built with the PP programs) is the same calculation inside the QE build: it reads the
+run with QE's own modules, uses QE's FFTs, one ZGEMM per energy bin and LAPACK for the inversion, sizes its energy
+chunks from a memory budget (`max_mem`) and writes the same columns, plus the whole ε⁻¹ matrix on request
+(`filfull`, with the G list). It runs on one MPI process for now. Against `chi0_ref.py`:
+
+- Si, 8³ k, 60 bands, 8 Ry basis, Q = 0.25: the whole ε⁻¹ (400 energies × 109²) agrees to 2×10⁻¹³; the output
+  columns agree to their printed precision.
+- CI runs `si-chi0/ci.sh`: Si on 4³ k with 12 bands at Q = 0.5, whole matrix and columns to 10⁻⁸ (measured
+  1.9×10⁻¹² and 5×10⁻¹⁰). Its first run caught a real error: QE's `'Wave'` transform covers only the columns of
+  the wavefunction sphere, and the k+q coefficients shifted by an umklapp vector fell partly outside them; the
+  program now uses the full-box transform.
+
 ## Impact-ionization rate (E-13): contraction reference
 
 `qefast/gw/gamma_ref.py` contracts Im W with pair densities, Im Σ_nk = (1/(N_k Ω)) Σ_{q≠0, n′} φ† Im W(q, ε_nk − ε_n′k−q) φ

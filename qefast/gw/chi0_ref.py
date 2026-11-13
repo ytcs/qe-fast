@@ -27,6 +27,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 HA = 27.211386245988  # eV
+trapz = getattr(np, 'trapezoid', None) or np.trapz   # numpy < 2 (Ubuntu 24.04's python3-numpy)
 
 
 def read_xml(save):
@@ -119,7 +120,7 @@ class System:
         if must is not None:
             keep |= np.all(Gm == must, axis=1)
         Gm, q2 = Gm[keep], q2[keep]
-        o = np.argsort(q2, kind='stable')
+        o = np.argsort(np.round(q2 * 1e10), kind='stable')   # ties broken by enumeration order, as chi0.x does
         return Gm[o], q2[o]
 
     def u_r(self, ik, bands, shift=None):
@@ -254,9 +255,9 @@ def main():
     np.savetxt(a.out, np.column_stack([wgrid, im_eps0, L_ipa, L_rpa, epsM.real, epsM.imag]),
                header='w(eV)  Im eps_NLF(=turbo IPA)  L_NLF  L_RPA  Re eps_M(RPA)  Im eps_M(RPA)')
     print(f'chi0_ref: Im eps without local fields (turbo IPA): peak {wgrid[np.argmax(im_eps0)]:.2f} eV ({im_eps0.max():.3f}), '
-          f'f-sum fraction {np.trapezoid(w * im_eps0, w) / (0.5 * np.pi * wp2):.3f}')
+          f'f-sum fraction {trapz(w * im_eps0, w) / (0.5 * np.pi * wp2):.3f}')
     for name, L in (('NLF', L_ipa), ('RPA', L_rpa)):
-        fs = np.trapezoid(w * L, w) / (0.5 * np.pi * wp2)
+        fs = trapz(w * L, w) / (0.5 * np.pi * wp2)
         print(f'chi0_ref: {name} loss peak {wgrid[np.argmax(L)]:.2f} eV ({L.max():.3f}), f-sum fraction {fs:.3f}')
     print(f'chi0_ref: Re eps_M(w=0) RPA {epsM[0].real:.3f}, no local fields {eQQ[0].real:.3f}')
 
