@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 # CMake < 3.13 cannot install external targets:
 # https://gitlab.kitware.com/cmake/cmake/merge_requests/2152
@@ -253,7 +254,7 @@ if(NOT QE_ENABLE_SANITIZER STREQUAL "none" AND NOT CMAKE_Fortran_COMPILER_ID MAT
 endif()
 
 # valid plugins checks
-set(VALID_QE_PLUGINS "d3q" "pw2qmcpack" "gipaw" "legacy")
+set(VALID_QE_PLUGINS "d3q" "gipaw" "legacy")
 # Perform sanitizer option check, only works in debug mode
 foreach(PLUGIN IN LISTS QE_ENABLE_PLUGINS)
   if(NOT PLUGIN IN_LIST VALID_QE_PLUGINS)
@@ -782,24 +783,16 @@ add_subdirectory(XClib)
 add_subdirectory(KS_Solvers)
 add_subdirectory(dft-d3)
 add_subdirectory(PW)
-add_subdirectory(CPV)
 add_subdirectory(atomic)
 add_subdirectory(upflib)
-add_subdirectory(COUPLE)
 add_subdirectory(LR_Modules)
 add_subdirectory(PHonon)
 add_subdirectory(PP)
 add_subdirectory(EPW)
-add_subdirectory(GWW)
 add_subdirectory(HP)
 add_subdirectory(NEB)
-add_subdirectory(PWCOND)
 add_subdirectory(TDDFPT)
-add_subdirectory(XSpectra)
-add_subdirectory(QEHeat)
-add_subdirectory(KCW)
 add_subdirectory(PIOUD)
-add_subdirectory(GUI)
 if(QE_ENABLE_DOC)
     add_subdirectory(Doc)
 endif()
@@ -858,15 +851,13 @@ add_custom_target(depgraph
 # Custom make targets
 # The collection 'pwall' is defined here
 # Each of the followings is defined inside its subdirectory
-#   pw ph pp hp pwcond neb cp tddfpt gwl ld1 upf epw
-#   xspectra couple all_currents
+#   pw ph pp hp neb tddfpt ld1 upf epw
 ###########################################################
 add_custom_target(pwall
     DEPENDS
         pw
         ph
         pp
-        pwcond
         neb
     COMMENT
-        "same as \"make pw ph pp pwcond neb\"")
+        "same as \"make pw ph pp neb\"")

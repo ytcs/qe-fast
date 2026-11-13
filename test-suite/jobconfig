@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
 # Note: unless a specific oreder of execution is desired,
 # there is no need to have for each set of tests a field below
 
@@ -328,22 +329,6 @@ inputs_args = ('bn.scf.in', '1'), ('bn.hp.in', '3'), ('bn.scf.in', '2'), ('bn.hp
 program = HP
 inputs_args = ('bn.scf.in', '1'), ('bn.hp.in', '3'), ('bn.scf.in', '2'), ('bn.hp.in', '4')
 
-[kcw_wann/]
-program = KCW
-inputs_args = ('Si.scf.in', '1'), ('Si.win', '2'), ('Si.pw2wann.in', '3'), ('Si.win', '4'), ('Si.kcw-wann2kcw.in', '5'), ('Si.kcw-screen.in', '6'), ('Si.kcw-ham.in', '7')
-
-[kcw_wann_sym/]
-program = KCW
-inputs_args = ('Si.scf.in', '1'), ('Si.win', '2'), ('Si.pw2wann.in', '3'), ('Si.win', '4'), ('Si.kcw-wann2kcw.in', '5'), ('Si.kcw-screen.in', '6'), ('Si.kcw-ham.in', '7')
-
-[kcw_ks/]
-program = KCW
-inputs_args = ('h2o.scf.in', '1'), ('h2o.kcw-wann2kcw.in', '15'), ('h2o.kcw-screen.in', '16'), ('h2o.kcw-ham.in', '7')
-
-[kcw_wann-nc/]
-program = KCW
-inputs_args = ('Si_nc.scf.in', '1'), ('Si_nc.win', '2'), ('Si_nc.pw2wann.in', '3'), ('Si_nc.win', '4'), ('Si_nc.kcw-wann2kcw.in', '5'), ('Si_nc.kcw-screen.in', '6'), ('Si_nc.kcw-ham.in', '7')
-
 [pp_acf/]
 program = PP
 inputs_args = ('scf_vdw.in', '1'), ('ppacf_fock.in', '2')
@@ -360,9 +345,6 @@ inputs_args = ('diamond_ceriotti.in',''),('diamond_pimd.in',''), ('diamond_verle
 [pw_*/]
 program = PW
 
-[cp_*/]
-program = CP
-
 [ph_*/]
 program = PH
 
@@ -377,15 +359,6 @@ program = ZG
 
 [hp_*/]
 program = HP
-
-[QEHeat_rotation/]
-program = QEHeat_h2o_mol
-
-[QEHeat_translation/]
-program = QEHeat_translation
-
-[QEHeat_h2o]
-program = QEHeat_h2o_mol_t
 
 [image_*/]
 program = IMAGE
@@ -404,7 +377,6 @@ inputs_args = ('view.in', '3 view.oscdft.in pw.in'), ('normalize.in', '3 normali
 
 [categories]
 pw_all = pw_*??
-cp_all = cp_*??
 ph_all = ph_*??
 pp_all = pp_*??
 epw_all = epw_*??
@@ -413,8 +385,6 @@ epw_partial = epw_qdpt epw_base epw_trev epw_trev_uspp epw_metal epw_soc epw_sup
 zg_all = zg_*??
 tddfpt_all = tddfpt_*??
 image_all = image_*??
-all_currents_all = QEHeat_*
-_default_ = pw_*?? cp_*?? ph_*?? epw_*?? tddfpt_*?? hp_*?? all_currents_*??
-kcw_all = kcw_*??
+_default_ = pw_*?? ph_*?? epw_*?? tddfpt_*?? hp_*??
 oscdft_all = oscdft_pw oscdft_pp
 pioud_all = pioud*??

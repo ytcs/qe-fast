@@ -1,4 +1,4 @@
-# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-27; see NOTICE.
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-27 to 2026-11-12; see NOTICE.
 [submodule "external/lapack"]
 	path = external/lapack
 	url = https://github.com/Reference-LAPACK/lapack.git
@@ -14,9 +14,6 @@
 [submodule "external/d3q"]
 	path = external/d3q
 	url = https://github.com/anharmonic/d3q.git
-[submodule "external/pw2qmcpack"]
-	path = external/pw2qmcpack
-	url = https://github.com/QMCPACK/pw2qmcpack.git
 [submodule "external/qe-gipaw"]
 	path = external/qe-gipaw
 	url = https://github.com/dceresoli/qe-gipaw

@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
 [PW]
 exe = XXXXXX/test-suite/run-pw.sh
 extract_program = XXXXXX/test-suite/extract-pw.sh
@@ -15,20 +16,6 @@ tolerance = ( (8.0e-4, 1.0e-4, 'e1'),
               (1.5e-1, None,   'vol'),
               (5.0e-3, None,   'geom'),
               (5.0e-3, None,   'num_kpts'), )
-skip_program = grep
-skip_args = 'not present in this version\|libxc needed for this functional'
-
-[CP]
-exe = XXXXXX/test-suite/run-cp.sh
-extract_program = XXXXXX/test-suite/extract-cp.sh
-inputs_args = ('*.in', '')
-run_cmd_template = tc.program -input tc.input tc.args > tc.output 2> tc.error
-tolerance = ( (1.0e-5, 1.0e-5, 'e1'),
-              (1.0e-5, 1.0e-5, 'mp1'),
-              (5.0e-4, 1.0e-4, 's1'),
-              (1.0e-2, 1.0e-2, 'v1u'),
-              (1.0e-2, 1.0e-2, 'v1d'),
-              (6.0e-3, 1.0e-3, 't1') )
 skip_program = grep
 skip_args = 'not present in this version\|libxc needed for this functional'
 
@@ -210,33 +197,6 @@ tolerance = ( (1.0e-5, 1.0e-4, 'e1') ,
 skip_program = grep
 skip_args = 'not present in this version'
 
-[QEHeat_h2o_mol_t]
-exe = XXXXXX/test-suite/run-all_currents.sh
-extract_program = XXXXXX/test-suite/extract-all_currents.sh
-inputs_args = ('*.in', '')
-run_cmd_template = tc.program tc.input tc.output tc.error
-tolerance = ( (1.0e-1, 2.5e-5 ) )
-skip_program = grep
-skip_args = 'not present in this version'
-
-[QEHeat_h2o_mol]
-exe = XXXXXX/test-suite/run-all_currents.sh
-extract_program = XXXXXX/test-suite/extract-all_currents.sh
-inputs_args = ('*.in', '')
-run_cmd_template = tc.program tc.input tc.output tc.error
-tolerance = ( (1.0e-1, 1.0e-7 ) )
-skip_program = grep
-skip_args = 'not present in this version'
-
-[QEHeat_translation]
-exe = XXXXXX/test-suite/run-all_currents.sh
-extract_program = XXXXXX/test-suite/extract-all_currents.sh
-inputs_args = ('*.in', '')
-run_cmd_template = tc.program tc.input tc.output tc.error
-tolerance = ( (1.0e-2, 1.0e-4 ) )
-skip_program = grep
-skip_args = 'not present in this version'
-
 [IMAGE]
 exe = XXXXXX/test-suite/run-image.sh
 extract_program = XXXXXX/test-suite/extract-image.sh
@@ -268,30 +228,6 @@ skip_args = 'not present in this version'
 benchmark = git
 date_fmt = %d%m%y
 diff = vimdiff
-
-[KCW]
-exe = XXXXXX/test-suite/run-kcw.sh
-extract_program = XXXXXX/test-suite/extract-kcw.sh
-inputs_args = ('*.in', '')
-run_cmd_template = tc.program tc.args tc.input tc.output tc.error
-tolerance = ( (5.0e-5, 5.0e-3, 'e1'),
-              (5.0e+0, 5.0e-1, 'n1'),
-              (1.0e-3, 1.0e-5, 'f1'),
-              (5.0e-1, 1.0e-3, 'p1'),
-              (5.0e-6, 1.0e-8, 'nkp1'),
-              (5.0e-6, 1.0e-8, 'nkp2'),
-              (5.0e-6, 1.0e-8, 'nkp3'),
-              (5.0e-4, 1.0e-5, 'omega'),
-              (5.0e-4, 1.0e-5, 'eig1'),
-              (5.0e-3, 1.0e-4, 'sh'),
-              (5.0e-4, 1.0e-5, 'rpi'),
-              (5.0e-4, 1.0e-5, 'upi'),
-              (5.0e-3, 1.0e-4, 'homo_ks'),
-              (5.0e-3, 1.0e-4, 'homo_kc'),
-              (5.0e-3, 1.0e-4, 'gap_ks'),
-              (5.0e-3, 1.0e-4, 'gap_kc'))
-skip_program = grep
-skip_args = 'not present in this version'
 
 [OSCDFT]
 exe = XXXXXX/test-suite/run-oscdft.sh

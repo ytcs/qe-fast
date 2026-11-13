@@ -17,11 +17,12 @@ This file is a statement of the project's position. It is not legal advice.
 1. Modifications to Quantum ESPRESSO (GPL section 2a)
 -----------------------------------------------------
 
-All changes were made between 2026-10-27 and 2026-11-06. The commit history of
+All changes were made between 2026-10-27 and 2026-11-12. The commit history of
 this repository records each one. The modified upstream files, each of which
 also carries a notice in its first line, with the dates of their changes:
 
-  .gitmodules                              2026-10-27
+  .gitmodules                              2026-10-27 to 2026-11-12
+  CMakeLists.txt                           2026-11-12
   EPW/CMakeLists.txt                       2026-10-28 to 2026-11-06
   EPW/src/bloch2wannier.f90                2026-10-30 to 2026-11-06
   EPW/src/ep_coarse.f90                    2026-10-28 to 2026-11-06
@@ -39,8 +40,12 @@ also carries a notice in its first line, with the dates of their changes:
   EPW/src/wannier.f90                      2026-10-30 to 2026-11-06
   EPW/src/wannier2bloch.f90                2026-10-28 to 2026-11-06
   EPW/src/wannierization.f90               2026-10-30 to 2026-11-06
-  LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-06
+  external/CMakeLists.txt                  2026-11-12
+  external/devxlib.cmake                   2026-10-27 to 2026-11-06
+  external/submodule_commit_hash_records   2026-10-27 to 2026-11-12
+  external/wannier90.cmake                 2026-10-29 to 2026-11-06
   LR_Modules/c_bands_ph.f90                2026-10-28 to 2026-11-06
+  LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-06
   LR_Modules/dfpt_kernels.f90              2026-10-28 to 2026-11-06
   LR_Modules/dgradcorr.f90                 2026-10-30 to 2026-11-06
   LR_Modules/dv_of_drho.f90                2026-10-30 to 2026-11-06
@@ -60,13 +65,15 @@ also carries a notice in its first line, with the dates of their changes:
   PHonon/PH/solve_linter.f90               2026-10-29 to 2026-11-06
   PW/CMakeLists.txt                        2026-10-30
   PW/src/c_bands.f90                       2026-10-30 to 2026-11-06
+  test-suite/CMakeLists.txt                2026-11-12
+  test-suite/jobconfig                     2026-11-12
+  test-suite/Makefile                      2026-11-12
+  test-suite/userconfig.tmp                2026-11-12
   UtilXlib/CMakeLists.txt                  2026-11-06
   UtilXlib/mp_base.f90                     2026-10-30 to 2026-11-06
-  external/devxlib.cmake                   2026-10-27 to 2026-11-06
-  external/submodule_commit_hash_records   2026-10-27
-  external/wannier90.cmake                 2026-10-29 to 2026-11-06
 
-external/submodule_commit_hash_records (2026-10-27) lost its devxlib line; the
+external/submodule_commit_hash_records lost its devxlib line (2026-10-27) and its
+pw2qmcpack line (2026-11-12); the
 format has no comments, so the notice for that file is here only.
 
 Summary of the changes: a batched GPU Sternheimer engine and batched nscf for
@@ -78,6 +85,15 @@ New source files are under qefast/, and in LR_Modules/ (qef_*.f90, sth_*.f90),
 PHonon/PH/qef_phq_fuse.f90 and PW/src/sth_nscf_symrot.f90. They carry an SPDX
 tag; several adapt upstream routines, and those portions remain under the
 copyright of their QE and EPW authors.
+
+Removed from the upstream tree (2026-11-12): the configure/make build
+(install/, configure, every Makefile, make.depend and makedeps.sh outside
+test-suite/ and external/), dev-tools/, archive/, .travis.yml and the GitLab CI
+files; the packages CPV, COUPLE, GUI, GWW, KCW, PWCOND, QEHeat and XSpectra,
+with their test-suite cases; the external/pw2qmcpack submodule. CMakeLists.txt,
+external/CMakeLists.txt, test-suite/CMakeLists.txt, test-suite/Makefile,
+test-suite/jobconfig and test-suite/userconfig.tmp were edited to match. qe-fast
+builds with CMake only.
 
 Documentation: README.md was replaced and the upstream text moved unchanged to
 README.QE.md. CONTRIBUTING.md and .github/pull_request_template.md were
@@ -106,7 +122,7 @@ In this repository:
 Git submodules, not part of this repository, at the pins of tag qe-7.6, each
 under its own licence: external/wannier90 (see above), external/lapack
 (BSD-style), external/fox, external/mbd (MPL-2.0), external/d3q,
-external/pw2qmcpack, external/qe-gipaw (GPL-2.0).
+external/qe-gipaw (GPL-2.0).
 
 Other third-party code in the upstream tree, such as dft-d3, is as upstream
 ships it.

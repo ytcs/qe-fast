@@ -1,4 +1,5 @@
-set(qe_test_categories "pw" "cp") # "ph" "epw" "tddfpt" "hp" tests are not ready
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
+set(qe_test_categories "pw") # "ph" "epw" "tddfpt" "hp" tests are not ready
 if(QE_ENABLE_OSCDFT)
   list(APPEND qe_test_categories "oscdft")
 endif()
@@ -9,8 +10,8 @@ set(TESTCODE_NPROCS 4 CACHE STRING "Number of MPI processes for each test")
 set(TESTCODE_NTHREADS 3 CACHE STRING "Number of OpenMP threads for each test")
 
 message("\n"
-        "Only pw and cp results from ctest are reliable, we are working on making the rest tests work reliably with ctest. "
-        "To run non-pw/cp tests, make a softlink of the bin directory to the root of QE source tree and run tests in the test-suite directory under that root.\n")
+        "Only pw results from ctest are reliable, we are working on making the rest tests work reliably with ctest. "
+        "To run non-pw tests, make a softlink of the bin directory to the root of QE source tree and run tests in the test-suite directory under that root.\n")
 find_program(BASH_PROGRAM bash)
 if(NOT BASH_PROGRAM)
   message(WARNING "bash not found! Tests under ${CMAKE_CURRENT_SOURCE_DIR} not added.")

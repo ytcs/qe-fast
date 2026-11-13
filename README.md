@@ -8,8 +8,11 @@ It is for people who run DFPT and EPW on NVIDIA GPUs for non-magnetic, norm-cons
 prepared to check what a run tells them. Outside that scope qe-fast runs Quantum ESPRESSO's own code, with no
 speedup, so upstream QE is the better choice there.
 
-This is version 0.1.0. The upstream README is kept as [README.QE.md](README.QE.md); the upstream documentation
+This is version 0.1.1. The upstream README is kept as [README.QE.md](README.QE.md); the upstream documentation
 in `Doc/` and `*/Doc/` applies to everything that qe-fast did not change.
+
+Upstream packages that neither of qe-fast's uses needs have been removed: CPV, COUPLE, GUI, GWW, KCW, PWCOND,
+QEHeat, XSpectra and the pw2qmcpack plugin, together with the `./configure` and `make` build. NOTICE lists them.
 
 > **Not affiliated.** qe-fast is an independent project. It is not affiliated with or endorsed by the Quantum
 > ESPRESSO Foundation or the EPW developers. The Quantum ESPRESSO name is used descriptively only, to say what
@@ -18,7 +21,7 @@ in `Doc/` and `*/Doc/` applies to everything that qe-fast did not change.
 
 ## Build
 
-CMake only. The fork's new sources are not wired into the `./configure` and `make` build. Clone with git:
+CMake only; the `./configure` and `make` build has been removed. Clone with git:
 CMake fetches the submodules, so GitHub's source archives will not build.
 
     git clone https://github.com/ytcs/qe-fast && cd qe-fast
@@ -168,7 +171,7 @@ End to end against `off`, median / worst over the seven held-out materials with 
   (`qefast/examples/eph-tc/bench/gen/wfcentres.py`).
 - **Evidence is limited**: two tuning systems and eight held-out materials, on A40 and H100 GPUs, with SG15
   pseudopotentials. Gate runs were GPU runs. The grids of the held-out runs were trimmed for cost.
-- One toolchain has been tested for GPU builds (NVHPC 26.5). `./configure` and `make` are not supported.
+- One toolchain has been tested for GPU builds (NVHPC 26.5).
 - CPU builds of `ph.x` and `epw.x` compile but have not been run.
 - CI covers a CPU build and a small `pw.x` test. It does not run GPU code, so the GPU results above are not
   regression-tested on each commit.
