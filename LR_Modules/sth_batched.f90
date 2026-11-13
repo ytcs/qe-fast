@@ -6,7 +6,7 @@
 ! case is supported; otherwise (or if the engine declines) the vanilla k x pert loop runs.
 !
 ! Supported: norm-conserving, collinear, nspin_mag = 1, no DFT+U, no time reversal, any q,
-! lgauss smearing (no tetrahedra, no twochem), no meta-GGA / EXX / real_space / scissor /
+! smearing or fixed occupations (no tetrahedra, no twochem), no meta-GGA / EXX / real_space / scissor /
 ! lelfield, serial FFT within the pool (nproc_bgrp = 1, no task groups), one band group.
 ! Any number of pools: each pool rank runs its own engine on its own k-points.
 !
@@ -113,7 +113,7 @@ CONTAINS
     ! shift of metals (ef_shift_new on drho, ef_shift_wfc_new on iudwf after the flush) acts
     ! outside this kernel, unchanged
     w = ' '
-    IF (.NOT. lgauss .OR. ltetra) w = 'not a smeared metal (fixed occupations or tetrahedra)'
+    IF (ltetra) w = 'tetrahedron occupations'
     IF (okvan) w = 'ultrasoft or PAW pseudopotentials'
     IF (noncolin .OR. npol /= 1) w = 'noncollinear / spin-orbit'
     IF (lsda .OR. nspin_mag /= 1) w = 'spin-polarised'
@@ -553,7 +553,7 @@ CONTAINS
     USE io_global,        ONLY : stdout
     USE fft_base,         ONLY : dffts
     USE ions_base,        ONLY : nat, ityp
-    USE klist,            ONLY : xk, wk, ngk, igk_k, degauss, ngauss
+    USE klist,            ONLY : xk, wk, ngk, igk_k, degauss, ngauss, lgauss
     USE ener,             ONLY : ef
     USE cell_base,        ONLY : omega
     USE wvfct,            ONLY : nbnd, npwx, et, g2kin
@@ -738,7 +738,14 @@ CONTAINS
       ENDIF
       CALL g2_kin(ikq)
       !
-      ! orthogonalize.f90, lgauss branch (twochem excluded)
+      ! orthogonalize.f90. Fixed occupations: ps over the nockq occupied bands of k+q, dvpsi unscaled, which is the
+      ! lgauss form with wwg = 1 on the occupied bands of k+q, 0 above, and wg1 = 1
+      IF (.NOT. lgauss) THEN
+        wg1(1:nock) = 1.d0
+        wwg(:, 1:nock) = 0.d0
+        wwg(1:nockq, 1:nock) = 1.d0
+      ELSE
+      ! lgauss branch (twochem excluded)
       DO ibnd = 1, nock
         wg1(ibnd) = wgauss((ef - et(ibnd, ikk)) / degauss, ngauss)
         w0g = w0gauss((ef - et(ibnd, ikk)) / degauss, ngauss) / degauss
@@ -756,6 +763,7 @@ CONTAINS
           ENDIF
         ENDDO
       ENDDO
+      ENDIF
       !
       IF (sth_timing) THEN
         CALL SYSTEM_CLOCK(cb); tk(3) = tk(3) + REAL(cb - ca, DP) / crate; ca = cb
