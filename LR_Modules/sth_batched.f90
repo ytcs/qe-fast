@@ -52,6 +52,13 @@ MODULE sth_batched
   ! here). QEF_STH_DVB_CHECK=1: solve_linter runs its loop too and the engine's result is compared.
   LOGICAL, SAVE :: dvb_on = .FALSE.
   INTEGER, SAVE :: dvb_tag = 0
+  ! solve_linter's own dV_bare psi loop, registered for the irrep: when the engine declines after
+  ! solve_linter skipped that loop (device memory), the loop fills the buffer and the stock path runs
+  ABSTRACT INTERFACE
+    SUBROUTINE sth_dvb_fill_t()
+    END SUBROUTINE sth_dvb_fill_t
+  END INTERFACE
+  PROCEDURE(sth_dvb_fill_t), POINTER, PUBLIC :: sth_dvb_fill => NULL()
   COMPLEX(DP), ALLOCATABLE, SAVE :: dvb_vl(:,:), dvb_u(:,:)
   TYPE(bec_type_copy), ALLOCATABLE, SAVE :: dvb_al(:,:)
   !
@@ -263,8 +270,13 @@ CONTAINS
       ENDIF
       IF (ierr /= 0) THEN
         WRITE(stdout, '(5x,"qef sth: engine declined (code ",I0,"), vanilla path")') ierr
-        IF (dvb_on) CALL errore('sth_batched_kernel', 'engine declined with QEF_STH_DVB=1 (no dV_bare buffer)', &
-             ABS(ierr))
+        IF (dvb_on) THEN
+          IF (.NOT. ASSOCIATED(sth_dvb_fill)) CALL errore('sth_batched_kernel', &
+               'engine declined with QEF_STH_DVB=1 and no dV_bare fallback registered', ABS(ierr))
+          WRITE(stdout, '(5x,"qef sth: dV_bare psi built by the stock loop instead")')
+          CALL sth_dvb_fill()
+          dvb_on = .FALSE.
+        ENDIF
         IF (sth_env_flag('QEF_STRICT')) CALL errore('sth_batched_kernel', &
              'engine declined (see the sth_engine line above) and QEF_STRICT=1', ABS(ierr))
         RETURN

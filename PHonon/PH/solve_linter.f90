@@ -73,7 +73,7 @@ SUBROUTINE solve_linter (irr, imode0, dfpt_data)
   USE dfpt_kernels,         ONLY : dfpt_kernel
   USE phus,                 ONLY : becsumort
   USE recover_mod,          ONLY : write_rec
-  USE sth_batched,          ONLY : sth_batched_dvb_ok, sth_batched_dvb_prepare, sth_env_flag
+  USE sth_batched,          ONLY : sth_batched_dvb_ok, sth_batched_dvb_prepare, sth_env_flag, sth_dvb_fill
   USE fft_base,             ONLY : dffts
   !
   IMPLICIT NONE
@@ -176,62 +176,8 @@ SUBROUTINE solve_linter (irr, imode0, dfpt_data)
   ENDIF
   CALL sth_batched_dvb_prepare(dvb_engine, npe, imode0, dvb_loc, u(:, imode0 + 1:imode0 + npe), alphap)
   DEALLOCATE(dvb_loc)
-  IF (.NOT. dvb_engine .OR. sth_env_flag('QEF_STH_DVB_CHECK')) THEN
-  DO ik = 1, nksq
-     !
-     ikk  = ikks(ik)
-     ikq  = ikqs(ik)
-     npw  = ngk(ikk)
-     npwq = ngk(ikq)
-     !
-     IF (lsda) current_spin = isk(ikk)
-     !
-     ! compute beta functions for k-point ikq
-     !
-     CALL init_us_2(npwq, igk_k(1, ikq), xk(1, ikq), vkb)
-     !
-     DO isolv = 1, nsolv
-        IF (isolv == 1) THEN
-           ikmk = ikks(ik)
-        ELSE
-           ikmk = ikmks(ik)
-        ENDIF
-        !
-        ! read unperturbed wavefunctions psi(k) and psi(k+q)
-        !
-        IF (nksq > 1 .OR. nsolv == 2) THEN
-           CALL get_buffer(evc, lrwfc, iuwfc, ikmk)
-           !$acc update device(evc)
-        ENDIF
-        !
-        DO ipert = 1, npe
-           mode = imode0 + ipert
-           nrec = (isolv-1) * npe * nksq + (ipert - 1) * nksq + ik
-           !
-           IF (isolv==1) THEN
-              !
-              CALL dvqpsi_us(ik, u(1, mode), .FAlSE., becp1, alphap)
-              !
-           ELSE
-              IF (okvan) THEN
-                 deeq_nc(:,:,:,:) = deeq_nc_save(:,:,:,:,2)
-                 !$acc update device(deeq_nc)
-                 int1_nc(:,:,:,:,:) = int1_nc_save(:,:,:,:,:,2)
-              ENDIF
-              CALL dvqpsi_us(ik, u(1, mode), .FAlSE., becpt, alphapt)
-              IF (okvan) THEN
-                 deeq_nc(:,:,:,:) = deeq_nc_save(:,:,:,:,1)
-                 !$acc update device(deeq_nc)
-                 int1_nc(:,:,:,:,:) = int1_nc_save(:,:,:,:,:,1)
-              ENDIF
-           ENDIF
-           !
-           CALL save_buffer(dvpsi, lrbar, iubar, nrec)
-           !
-        ENDDO ! ipert
-     ENDDO ! isolv
-  ENDDO ! ik
-  ENDIF ! qe-fast: dvb_engine
+  sth_dvb_fill => dvb_fill
+  IF (.NOT. dvb_engine .OR. sth_env_flag('QEF_STH_DVB_CHECK')) CALL dvb_fill()
   !
   ! Compute the change of core charge due to atomic displacement
   ! drhoc is computed only once, stored in drhoc, passed to dfpt_kernel.
@@ -320,8 +266,71 @@ SUBROUTINE solve_linter (irr, imode0, dfpt_data)
   !
   !$acc exit data delete(dfpt_data, dfpt_data%dvscfs)
 
+  NULLIFY(sth_dvb_fill)
   call stop_clock ('solve_linter')
 
   RETURN
 
+CONTAINS
+  !
+  SUBROUTINE dvb_fill()
+  !! qe-fast: dV_bare psi for every (k, pert) into iubar; also the engine's fallback (sth_dvb_fill)
+  INTEGER :: ik, ikk, ikq, isolv, ikmk, ipert, mode, nrec
+  !
+  DO ik = 1, nksq
+     !
+     ikk  = ikks(ik)
+     ikq  = ikqs(ik)
+     npw  = ngk(ikk)
+     npwq = ngk(ikq)
+     !
+     IF (lsda) current_spin = isk(ikk)
+     !
+     ! compute beta functions for k-point ikq
+     !
+     CALL init_us_2(npwq, igk_k(1, ikq), xk(1, ikq), vkb)
+     !
+     DO isolv = 1, nsolv
+        IF (isolv == 1) THEN
+           ikmk = ikks(ik)
+        ELSE
+           ikmk = ikmks(ik)
+        ENDIF
+        !
+        ! read unperturbed wavefunctions psi(k) and psi(k+q)
+        !
+        IF (nksq > 1 .OR. nsolv == 2) THEN
+           CALL get_buffer(evc, lrwfc, iuwfc, ikmk)
+           !$acc update device(evc)
+        ENDIF
+        !
+        DO ipert = 1, npe
+           mode = imode0 + ipert
+           nrec = (isolv-1) * npe * nksq + (ipert - 1) * nksq + ik
+           !
+           IF (isolv==1) THEN
+              !
+              CALL dvqpsi_us(ik, u(1, mode), .FAlSE., becp1, alphap)
+              !
+           ELSE
+              IF (okvan) THEN
+                 deeq_nc(:,:,:,:) = deeq_nc_save(:,:,:,:,2)
+                 !$acc update device(deeq_nc)
+                 int1_nc(:,:,:,:,:) = int1_nc_save(:,:,:,:,:,2)
+              ENDIF
+              CALL dvqpsi_us(ik, u(1, mode), .FAlSE., becpt, alphapt)
+              IF (okvan) THEN
+                 deeq_nc(:,:,:,:) = deeq_nc_save(:,:,:,:,1)
+                 !$acc update device(deeq_nc)
+                 int1_nc(:,:,:,:,:) = int1_nc_save(:,:,:,:,:,1)
+              ENDIF
+           ENDIF
+           !
+           CALL save_buffer(dvpsi, lrbar, iubar, nrec)
+           !
+        ENDDO ! ipert
+     ENDDO ! isolv
+  ENDDO ! ik
+  END SUBROUTINE dvb_fill
+  !
 END SUBROUTINE solve_linter
