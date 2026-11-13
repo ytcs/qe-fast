@@ -12,11 +12,15 @@
 ! Davidson (isolve = 0), one band group, serial FFT, no restart inside the nscf.
 !
 MODULE sth_nscf_batched
-  USE qef_config, ONLY : qef_getenv
+  USE qef_config, ONLY : qef_getenv, qef_note
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: nscf_batched_run
+  PUBLIC :: nscf_batched_run, nscf_batched_decline
+  ! set by the caller (ph.x) for runs whose result depends on how tightly the empty bands are converged: the
+  ! batched Davidson converges every band to ethr, QE's loop leaves empty bands looser (AHC's upper Fan moved by
+  ! up to 2.3 % on test-suite/ph_ahc_diam)
+  CHARACTER(LEN=48), SAVE :: nscf_batched_decline = ' '
   !
 CONTAINS
   !
@@ -78,6 +82,10 @@ CONTAINS
     unsup = unsup .OR. xclib_dft_is('meta') .OR. exx_is_active() .OR. real_space
     unsup = unsup .OR. nproc_bgrp /= 1 .OR. nbgrp /= 1 .OR. dffts%has_task_groups
     unsup = unsup .OR. dffts%nnr /= dffts%nr1x * dffts%nr2x * dffts%nr3x
+    IF (LEN_TRIM(nscf_batched_decline) > 0) THEN
+      CALL qef_note('batched nscf on the GPU', .FALSE., TRIM(nscf_batched_decline))
+      RETURN
+    ENDIF
     IF (unsup) THEN
       ! QEF_STRICT=1 (scored runs): no silent fallback to the per-k Davidson
       IF (strict) CALL errore('nscf_batched_run', 'case not supported by the batched nscf and QEF_STRICT=1', 1)
