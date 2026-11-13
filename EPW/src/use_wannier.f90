@@ -1131,12 +1131,13 @@
           qef_nqb = 0
         ENDIF
         qef_fused = qef_fine_ok()
-        ! qe-fast: QEF_EPW_NOVME left the velocity / dipole matrices at zero; only the fused path without any
-        ! velocity consumer may run on them
-        IF (qef_novme() .AND. (qef_need_vme .OR. .NOT. qef_fused)) &
-          CALL errore('use_wannier', 'QEF_EPW_NOVME=1 needs the fused fine path and no velocity consumer', 1)
+        ! qe-fast: QEF_EPW_NOVME left the velocity / dipole matrices at zero. Without a velocity consumer
+        ! (qef_need_vme) neither fine path reads them: vmef is filled from them but not read, and the Berry
+        ! connection is used only with lpolar / quadrupoles, which qef_novme excludes
+        IF (qef_novme() .AND. (qef_need_vme .OR. qef_lpolar .OR. qef_qrpl)) &
+          CALL errore('use_wannier', 'QEF_EPW_NOVME=1 with a velocity consumer', 1)
         ! qe-fast: epwread of files written under QEF_EPW_NOVME: the same condition
-        IF (qef_vme_absent .AND. (qef_need_vme .OR. .NOT. qef_fused)) &
+        IF (qef_vme_absent .AND. (qef_need_vme .OR. qef_lpolar .OR. qef_qrpl)) &
           CALL errore('use_wannier', 'vmedata.fmt was written with QEF_EPW_NOVME=1 (no velocity matrices); '// &
                       'redo the epwwrite run with QEF_EPW_NOVME=0', 1)
         qef_fset = .FALSE.

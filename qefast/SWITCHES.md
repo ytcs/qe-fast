@@ -61,10 +61,10 @@ Margin used on G2, G3, G5, G6: 3.8 %, 15.0 %, 0.0 %, 0.2 %.
 - **`QEF_STH_DVB=1` falls back when the engine declines at run time** (device memory at setup or irrep commit):
   `solve_linter`'s own dV_bare loop fills the buffer and the stock solver runs (`qef sth: dV_bare psi built by the
   stock loop instead`). Before 2026-11-13 such a decline stopped the run. The fallback has not yet run on a GPU.
-- **`QEF_EPW_NOVME=1` declines up front** in every case in which the fused fine path would decline later
-  (quadrupoles, images, pair-kernel shared memory bounded with `nbndsub`), so an `ephwrite` + Eliashberg run no
-  longer reaches the stop for missing velocity matrices. The stop is still there as a guard. The switch is off in
-  CPU builds and when an input flag rules out the fused path or reads velocities.
+- **`QEF_EPW_NOVME=1` no longer stops when the fused fine path declines at run time** (pair-kernel shared memory,
+  images): the stock fine path runs, and without a velocity consumer it does not read the skipped matrices.
+  The switch declines up front with quadrupoles (Berry connection), in CPU builds, and when an input flag rules out
+  the fused path or reads velocities. Not yet run on a GPU.
 - **B1's Wannierisation ends on a mirror saddle.** At the recipe's endpoint every WF centre sits on the σh plane
   and the spread has a negative curvature (θ_min −0.0021, ‖g‖ 6.5e-8), so wannier90 stops converged on a strict
   symmetry-protected saddle (Ω 7.617 Å² on the frozen chain; the minimum is Ω 7.581 Å² on the proxy chain, with

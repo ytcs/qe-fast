@@ -113,8 +113,8 @@ The batched `ph.x` engine runs when all of these hold; `LR_Modules/sth_batched.f
 Any other case takes QE's own loop automatically, with no speedup. That includes magnetic, SOC, USPP/PAW and
 DFT+U systems. `QEF_STRICT=1` turns such a fallback into a stop.
 
-`QEF_STH_DVB=1` falls back to QE's own dV_bare loop when the engine declines at run time, and `QEF_EPW_NOVME=1`
-declines before Wannierisation in every case in which the fused fine path would decline later. Before 2026-11-13
+`QEF_STH_DVB=1` falls back to QE's own dV_bare loop when the engine declines at run time, and with
+`QEF_EPW_NOVME=1` a run-time decline of the fused fine path hands the run to the stock fine path. Before 2026-11-13
 both could stop a run; the new fallbacks have not yet run on a GPU.
 
 ## Performance

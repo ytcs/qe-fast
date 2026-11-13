@@ -1522,7 +1522,7 @@ contains
 
     use w90_io, only: io_wallclocktime
     use w90_sitesym, only: ir2ik, ik2ir, nkptirr, nsymmetry, kptsym !YN: RS:
-!$   use omp_lib, only: omp_get_max_threads
+!$   use omp_lib, only: omp_get_num_procs
 
     implicit none
 
@@ -1612,10 +1612,11 @@ contains
       if (ios_nt /= 0) nthr = 1
     endif
     nthr = max(1, nthr)
-    ! never more threads than the run was given (OMP_NUM_THREADS, cores per rank); 1 without OpenMP
+    ! never more threads than processors available to this process (epw.x usually runs with OMP_NUM_THREADS=1,
+    ! which would turn the lever off); 1 without OpenMP
     ios_nt = nthr
     nthr = 1
-!$  nthr = min(ios_nt, omp_get_max_threads())
+!$  nthr = min(ios_nt, omp_get_num_procs())
 
     if (on_root) write (stdout, '(/1x,a)') &
       '                  Extraction of optimally-connected subspace                  '

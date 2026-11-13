@@ -47,20 +47,14 @@
     !! stage is the fused GPU path, nothing reads the Wannier velocity / dipole / position matrices, so the
     !! dipole matrix elements (compute_pmn_para), the formatted .mmn file, vmebloch2wan / dmebloch2wan and the
     !! vmedata / dmedata files are skipped. The switch is off in a build without CUDA (no fused path) and in a
-    !! run whose input already rules out the fused path or reads velocities. use_wannier still stops (errore)
-    !! if the fused path declines for a reason known only at run time. Default off.
+    !! run whose input already rules out the fused path or reads velocities. If the fused path declines at run
+    !! time, the stock fine path runs: it reads the matrices only for a velocity consumer, which is excluded here.
     USE input, ONLY : ephwrite, eliashberg, lpolar, epwread, lscreen, ii_g, plrn, lwfpt, scatread, &
                       shortrange, lfast_kmesh, longrange_only, eig_read, lopt_w2b, lifc, elecselfen, &
                       phonselfen, plselfen, specfun_el, specfun_ph, specfun_pl, scattering, iterative_bte, &
                       lindabs, loptabs, prtgkk, nest_fn, a2f, lsda, scissor, rand_q, filqf, etf_mem, &
                       prtvkk, explrn, int_mob, carrier, nkf1, nkf2, nkf3, nqf1, nqf2, nqf3
     USE global_var, ONLY : adapt_smearing, qrpl
-    USE input,      ONLY : nbndsub
-    USE modes,      ONLY : nmodes
-    USE mp_images,  ONLY : nimage
-#if defined(__CUDA)
-    USE epw_gpu_fine, ONLY : ef_shmem
-#endif
     LOGICAL, SAVE :: rd = .FALSE., on = .FALSE.
     CHARACTER(LEN = 16) :: ev, fine, vme
     IF (.NOT. rd) THEN
@@ -77,9 +71,8 @@
                 .OR. specfun_pl .OR. scattering .OR. iterative_bte .OR. lindabs .OR. loptabs .OR. prtgkk &
                 .OR. nest_fn .OR. a2f .OR. prtvkk .OR. int_mob .OR. carrier)
       on = on .AND. TRIM(lsda) == 'none' .AND. ABS(scissor) == 0.d0 .AND. .NOT. rand_q .AND. LEN_TRIM(filqf) == 0
-      ! the remaining declines of use_wannier's qef_fine_ok, so that the fused path cannot decline after the
-      ! velocity matrices were skipped; the band window is not known yet, nbndsub bounds it from above
-      on = on .AND. .NOT. qrpl .AND. nimage == 1 .AND. ef_shmem(nbndsub, nmodes, nbndsub) <= 48 * 1024
+      ! quadrupoles need the Berry connection (crrw) in the fine path
+      on = on .AND. .NOT. qrpl
       IF (nqf1 > 0 .AND. nqf2 > 0 .AND. nqf3 > 0) &
         on = on .AND. MOD(nkf1, nqf1) == 0 .AND. MOD(nkf2, nqf2) == 0 .AND. MOD(nkf3, nqf3) == 0
 #endif

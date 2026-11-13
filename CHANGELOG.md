@@ -42,12 +42,13 @@ All notable changes to qe-fast are recorded here. The format follows
   insulator, USPP/PAW, spin-orbit, ...) is now visible in the output.
 - `QEF_STH_DVB` falls back to the stock dV_bare loop when the engine declines at run time (device memory) instead of
   stopping the run.
-- `QEF_EPW_NOVME` declines up front for quadrupoles, images and large Wannier band counts, the cases in which the
-  fused fine path would decline later and stop the run.
+- `QEF_EPW_NOVME`: when the fused fine path declines at run time (pair-kernel shared memory, images), the stock
+  fine path now runs instead of stopping; neither path reads the skipped velocity matrices without a velocity
+  consumer. It declines up front with quadrupoles, which need the Berry connection.
 - `QEF_STH_KDEV`'s device cache must leave 4 GiB free, else it is dropped; vkb chunks are capped at 512 MiB.
   `QEF_STH_PSIR_PART` reserves room for the NL state and FDXDP's index map allocated after it.
 - `ph.x` recover with bands read from disk forgets the SYMROT plan of an earlier q.
-- `QEF_W90_NT` never exceeds `omp_get_max_threads()`, and stays serial with `timing_level > 1`.
+- `QEF_W90_NT` never exceeds `omp_get_num_procs()`, and stays serial with `timing_level > 1`.
 
 ### Removed
 
