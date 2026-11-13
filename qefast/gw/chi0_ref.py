@@ -78,6 +78,7 @@ def main():
     ap.add_argument('--emax', type=float, default=60.0); ap.add_argument('--de', type=float, default=0.02)
     ap.add_argument('--eta', type=float, default=0.1); ap.add_argument('--out', default='chi0_ref.dat')
     ap.add_argument('--nbnd', type=int, default=0, help='use only the lowest nbnd bands (convergence tests)')
+    ap.add_argument('--max-mem', type=float, default=2.0, help='refuse to run above this estimate (GB)')
     a = ap.parse_args()
     save = os.path.join(a.outdir, a.prefix + '.save')
     d = read_xml(save)
@@ -117,8 +118,14 @@ def main():
     v = 4 * np.pi / q2
     print(f'chi0_ref: {nk} k, {nbnd} bands ({nv} occupied), FFT {nr.tolist()}, {NG} G (|q+G|^2 <= {a.ecut_eps} Ry), '
           f'Q crystal {np.round(Qcr, 4).tolist()} = q {np.round(qcr, 4).tolist()} + G {GQ.tolist()}')
-    # bins
+    # bins; memory: the binned matrices plus one omega chunk of chi / eps / eps^-1, estimated before allocating
     nb = int(np.ceil(a.emax / a.de)) + 2
+    nw = len(np.arange(0.0, a.emax, a.de))
+    wc = max(1, min(nw, int(2.5e8 // (16 * NG * NG * 4 + 16 * nb))))       # ~0.25 GB per chunk
+    need = (16 * nb * NG * NG + wc * (16 * NG * NG * 4 + 16 * nb)) / 1e9
+    print(f'chi0_ref: memory estimate {need:.2f} GB ({nb} bins x {NG}^2, omega chunks of {wc})')
+    if need > a.max_mem:
+        sys.exit(f'chi0_ref: {need:.2f} GB exceeds --max-mem {a.max_mem} GB; raise --de, lower --emax or --ecut-eps')
     A = np.zeros((nb, NG, NG), complex)
     gidx = tuple((Gm % nr).T)
     for ik in range(nk):
@@ -153,18 +160,21 @@ def main():
     Db = np.arange(nb) * a.de / HA
     w = np.arange(0.0, a.emax, a.de) / HA
     eta = a.eta / HA
-    K1 = 1.0 / (w[:, None] - Db[None, :] + 1j * eta)
-    K2 = 1.0 / (w[:, None] + Db[None, :] + 1j * eta)
     pref = 2.0 / (nk * omega)
     Af = A.reshape(nb, -1)
-    chi = pref * ((K1 - K2) @ Af).reshape(len(w), NG, NG)   # time reversal: the antiresonant term has the same A
     sv = np.sqrt(v)
-    eps = np.eye(NG)[None] - sv[None, :, None] * chi * sv[None, None, :]
-    einv = np.linalg.inv(eps)
-    L_rpa = -einv[:, iQ, iQ].imag
-    L_ipa = -(1.0 / eps[:, iQ, iQ]).imag
-    im_eps0 = (eps[:, iQ, iQ]).imag      # = -v Im chi0_QQ: what turbo_eels calls the IPA loss (no Hartree term)
-    epsM = 1.0 / einv[:, iQ, iQ]
+    eQQ = np.empty(len(w), complex); einvQQ = np.empty(len(w), complex)
+    for i0 in range(0, len(w), wc):
+        ww = w[i0:i0 + wc]
+        K = 1.0 / (ww[:, None] - Db[None, :] + 1j * eta) - 1.0 / (ww[:, None] + Db[None, :] + 1j * eta)
+        chi = pref * (K @ Af).reshape(len(ww), NG, NG)   # time reversal: the antiresonant term has the same A
+        eps = np.eye(NG)[None] - sv[None, :, None] * chi * sv[None, None, :]
+        eQQ[i0:i0 + wc] = eps[:, iQ, iQ]
+        einvQQ[i0:i0 + wc] = np.linalg.inv(eps)[:, iQ, iQ]
+    L_rpa = -einvQQ.imag
+    L_ipa = -(1.0 / eQQ).imag
+    im_eps0 = eQQ.imag      # = -v Im chi0_QQ: what turbo_eels calls the IPA loss (no Hartree term)
+    epsM = 1.0 / einvQQ
     wev = w * HA
     wp2 = 4 * np.pi * d['nelec'] / omega
     np.savetxt(a.out, np.column_stack([wev, im_eps0, L_ipa, L_rpa, epsM.real, epsM.imag]),
@@ -174,7 +184,7 @@ def main():
     for name, L in (('NLF', L_ipa), ('RPA', L_rpa)):
         fs = np.trapezoid(w * L, w) / (0.5 * np.pi * wp2)
         print(f'chi0_ref: {name} loss peak {wev[np.argmax(L)]:.2f} eV ({L.max():.3f}), f-sum fraction {fs:.3f}')
-    print(f'chi0_ref: Re eps_M(w=0) RPA {epsM[0].real:.3f}, no local fields {(eps[0, iQ, iQ]).real:.3f}')
+    print(f'chi0_ref: Re eps_M(w=0) RPA {epsM[0].real:.3f}, no local fields {eQQ[0].real:.3f}')
 
 
 if __name__ == '__main__':
