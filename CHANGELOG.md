@@ -26,6 +26,10 @@ All notable changes to qe-fast are recorded here. The format follows
   there was not observed.
 - GPU (nvfortran) builds stopped at `wannier90.x`: `qef_config.mod` was not visible to the users of the patched
   wannier90 modules.
+- Upstream QE 7.6 bugs in serial (`-DQE_ENABLE_MPI=OFF`) EPW builds, found by CI: `epwread` read the
+  Wannier e-ph vertex into an unallocated `epmatwp` (segfault), and `etf_mem = 1` opened `epmatwp` with records
+  longer than the slices it reads and read past the end of the file. `test-suite/epw_base` failed 7 of 15 serially on
+  vanilla 7.6 and on the fork; it passes 15 of 15 now.
 - An `epwread` run on files written under `QEF_EPW_NOVME=1` (a GPU `safe` Eliashberg run) crashed reading the
   empty `vmedata.fmt` (`test-suite/epw_super`, GPU). The files now carry a marker line; the reader leaves the
   velocity matrices at zero and stops only if the new run needs them.

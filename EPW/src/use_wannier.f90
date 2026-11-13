@@ -139,6 +139,7 @@
 #endif
   !
   USE input,            ONLY : qef_lpolar => lpolar
+  USE input,            ONLY : qef_use_ws => use_ws
   USE global_var,       ONLY : qef_qrpl => qrpl
   IMPLICIT NONE
   !
@@ -763,7 +764,13 @@
     IF (ierr /= 0) CALL errore('use_wannier', 'error in MPI_FILE_OPEN', 1)
   ENDIF
 #else
-  lrepmatw = 2 * nbndsub * nbndsub * nrr_k * nmodes
+  ! qe-fast: one record per slice that ephwan2blochp_mem reads (3 modes of one atom with use_ws, else one mode),
+  ! as the MPI branch reads it; with nmodes per record the serial build read past the end of the file
+  IF (qef_use_ws) THEN
+    lrepmatw = 2 * nbndsub * nbndsub * nrr_k * 3
+  ELSE
+    lrepmatw = 2 * nbndsub * nbndsub * nrr_k
+  ENDIF
   filint = TRIM(tmp_dir) // TRIM(prefix)// TRIM(fnm) //'.epmatwp'
   INQUIRE(IOLENGTH = direct_io_factor) dummy(1)
   unf_recl = direct_io_factor * INT(lrepmatw, KIND = KIND(unf_recl))

@@ -630,11 +630,12 @@
       filint = TRIM(tmp_dir) // TRIM(prefix) // '.epmatwp'
       IF (TRIM(lsda) == 'down') filint = TRIM(tmp_dir) // TRIM(prefix) // '.down.epmatwp'
       !
-#if defined(__MPI)
-      !
+      ! qe-fast: allocated for both branches; the serial branch below read into an unallocated array
       ALLOCATE(epmatwp(nbndsub, nbndsub, nrr_k, nmodes, nirg_loc), STAT = ierr)
       IF (ierr /= 0) CALL errore('epw_read', 'Error allocating epmatwp', 1)
       epmatwp = czero
+      !
+#if defined(__MPI)
       !
       CALL MPI_TYPE_CONTIGUOUS((nbndsub**2) * nrr_k, MPI_DOUBLE_COMPLEX, epmatwp_block_dtype, ierr)
       IF (ierr /= 0) CALL errore('epw_read', 'Error creating epmatwp_block_dtype', 1)
