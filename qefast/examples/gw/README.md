@@ -110,7 +110,8 @@ of the zone); LDA gap on this grid 0.64 eV:
 | mean Γ_ii (s⁻¹) | 1.6×10¹¹ | 1.3×10¹² | 1.5×10¹³ | 1.3×10¹⁴ | 4.3×10¹⁴ | 7.0×10¹⁴ |
 
 - Im Σ ≤ 0 for every state, as it must be for a retarded W.
-- Below the gap energy the rate must vanish. The 1.6×10¹¹ s⁻¹ there is the Lorentzian tail of Im W below the gap.
+- Below the gap energy the rate must vanish. The 1.6×10¹¹ s⁻¹ there is the Lorentzian tail of Im W below the gap:
+  with a 0.01 eV Lorentzian it falls to 3.0×10¹⁰ s⁻¹, in proportion to the width.
 - This is a prototype grid: the conduction minimum near X is not on 4³, the LDA gap is half the measured one, and
   the q = 0 term is missing. It fixes the output and the orientation, not the numbers.
 
