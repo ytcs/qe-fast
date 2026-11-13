@@ -64,7 +64,7 @@ also carries a notice in its first line, with the dates of their changes:
   PHonon/PH/phq_readin.f90                 2026-10-31 to 2026-11-06
   PHonon/PH/phqscf.f90                     2026-10-30 to 2026-11-06
   PHonon/PH/run_nscf.f90                   2026-10-28 to 2026-11-13
-  PHonon/PH/solve_linter.f90               2026-10-29 to 2026-11-06
+  PHonon/PH/solve_linter.f90               2026-10-29 to 2026-11-13
   PW/CMakeLists.txt                        2026-10-30
   PW/src/c_bands.f90                       2026-10-30 to 2026-11-06
   test-suite/CMakeLists.txt                2026-11-12

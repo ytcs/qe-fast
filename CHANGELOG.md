@@ -35,6 +35,29 @@ All notable changes to qe-fast are recorded here. The format follows
   velocity matrices at zero and stops only if the new run needs them.
 - The `dvxc_gpu` startup line no longer says "on the device" in builds without OpenACC.
 
+### Changed
+
+- Automatic configuration: with `QEF_PRESET` unset (the default, `safe`), the run's output says so and the main
+  levers print one line each, on or declined with the reason (`qef_note`). The GPU engine's decline (an
+  insulator, USPP/PAW, spin-orbit, ...) is now visible in the output.
+- `QEF_STH_DVB` falls back to the stock dV_bare loop when the engine declines at run time (device memory) instead of
+  stopping the run.
+- `QEF_EPW_NOVME`: when the fused fine path declines at run time (pair-kernel shared memory, images), the stock
+  fine path now runs instead of stopping; neither path reads the skipped velocity matrices without a velocity
+  consumer. It declines up front with quadrupoles, which need the Berry connection.
+- `QEF_STH_KDEV`'s device cache must leave 4 GiB free, else it is dropped; vkb chunks are capped at 512 MiB.
+  `QEF_STH_PSIR_PART` reserves room for the NL state and FDXDP's index map allocated after it.
+- `ph.x` recover with bands read from disk forgets the SYMROT plan of an earlier q.
+- After a dV_bare fallback the engine can come back later in the same q: an irrep that asks for dV_bare on the
+  engine rebuilds the per-q state when it was built without it (an illegal address on the H100 forced-decline test).
+- The batched nscf engine (`QEF_STH=1`) declines `ph.x` runs with `electron_phonon = 'ahc'`, which read every
+  band up to `nbnd`. On `test-suite/ph_ahc_diam` it returned the highest band 1.15 eV above QE's loop at one k
+  (36.06 against 34.91 eV; the lower Ritz value is the better one) and postahc2 was off by up to 2.3 % on GPU
+  under every preset (H100); with the batched nscf off all 16 tests pass. The top-band error itself is open.
+- `phq_fuse_all` sizes its k-point chunks from the free device memory (at most 1.5 GB, half of what is free above
+  512 MiB); with 2 GiB free it ran out of memory at the second q-point.
+- `QEF_W90_NT` never exceeds `omp_get_num_procs()`, and stays serial with `timing_level > 1`.
+
 ### Removed
 
 - Switches that were measured and not adopted: `QEF_THRESH_G` (now fixed at 100), `QEF_MIX_Q0` (Kerker mixing,

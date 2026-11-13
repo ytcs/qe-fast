@@ -35,7 +35,7 @@
 ! the NVHPC runtime keeps after DEALLOCATE, and prints one line with the q's device-memory high-water.
 !
 MODULE sth_batched
-  USE qef_config, ONLY : qef_getenv
+  USE qef_config, ONLY : qef_getenv, qef_note
   USE kinds, ONLY : DP
   IMPLICIT NONE
   PRIVATE
@@ -52,6 +52,13 @@ MODULE sth_batched
   ! here). QEF_STH_DVB_CHECK=1: solve_linter runs its loop too and the engine's result is compared.
   LOGICAL, SAVE :: dvb_on = .FALSE.
   INTEGER, SAVE :: dvb_tag = 0
+  ! solve_linter's own dV_bare psi loop, registered for the irrep: when the engine declines after
+  ! solve_linter skipped that loop (device memory), the loop fills the buffer and the stock path runs
+  ABSTRACT INTERFACE
+    SUBROUTINE sth_dvb_fill_t()
+    END SUBROUTINE sth_dvb_fill_t
+  END INTERFACE
+  PROCEDURE(sth_dvb_fill_t), POINTER, PUBLIC :: sth_dvb_fill => NULL()
   COMPLEX(DP), ALLOCATABLE, SAVE :: dvb_vl(:,:), dvb_u(:,:)
   TYPE(bec_type_copy), ALLOCATABLE, SAVE :: dvb_al(:,:)
   !
@@ -83,7 +90,7 @@ CONTAINS
     IF (ios == 0) sth_env_flag = (TRIM(s) == '1')
   END FUNCTION sth_env_flag
   !
-  LOGICAL FUNCTION sth_case_ok(time_reversed, npert)
+  LOGICAL FUNCTION sth_case_ok(time_reversed, npert, why)
     !! the engine's supported case (v1): sth_batched_kernel runs the engine only if true
     USE fft_base,         ONLY : dffts
     USE mp_bands,         ONLY : nproc_bgrp, nbgrp
@@ -100,17 +107,27 @@ CONTAINS
     USE qpoint,           ONLY : nksq
     LOGICAL, INTENT(IN) :: time_reversed
     INTEGER, INTENT(IN) :: npert
-    sth_case_ok = .FALSE.
-    IF (time_reversed .OR. okvan .OR. noncolin .OR. lsda .OR. nspin_mag /= 1 .OR. npol /= 1) RETURN
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: why
+    CHARACTER(LEN=64) :: w
     ! q = Gamma (lgamma, evq => evc): k+q = k, so the engine gets the same psi twice; the Fermi
     ! shift of metals (ef_shift_new on drho, ef_shift_wfc_new on iudwf after the flush) acts
     ! outside this kernel, unchanged
-    IF (lda_plus_u .OR. gamma_only .OR. .NOT. lgauss .OR. ltetra .OR. twochem) RETURN
-    IF (xclib_dft_is('meta') .OR. exx_is_active() .OR. real_space .OR. scissor .OR. lelfield) RETURN
-    IF (nproc_bgrp /= 1 .OR. nbgrp /= 1 .OR. dffts%has_task_groups) RETURN
-    IF (dffts%nnr /= dffts%nr1x * dffts%nr2x * dffts%nr3x) RETURN
-    IF (nksq < 1 .OR. npert > 6) RETURN
-    sth_case_ok = .TRUE.
+    w = ' '
+    IF (.NOT. lgauss .OR. ltetra) w = 'not a smeared metal (fixed occupations or tetrahedra)'
+    IF (okvan) w = 'ultrasoft or PAW pseudopotentials'
+    IF (noncolin .OR. npol /= 1) w = 'noncollinear / spin-orbit'
+    IF (lsda .OR. nspin_mag /= 1) w = 'spin-polarised'
+    IF (time_reversed) w = 'time-reversed (magnetic) system'
+    IF (lda_plus_u) w = 'DFT+U'
+    IF (gamma_only) w = 'gamma_only'
+    IF (twochem) w = 'twochem'
+    IF (xclib_dft_is('meta') .OR. exx_is_active()) w = 'meta-GGA or hybrid functional'
+    IF (real_space .OR. scissor .OR. lelfield) w = 'real_space, scissor or lelfield'
+    IF (nproc_bgrp /= 1 .OR. nbgrp /= 1 .OR. dffts%has_task_groups) w = 'band groups or task groups'
+    IF (dffts%nnr /= dffts%nr1x * dffts%nr2x * dffts%nr3x) w = 'FFT distributed over ranks (use pools)'
+    IF (nksq < 1 .OR. npert > 6) w = 'no k points, or an irrep larger than 6'
+    sth_case_ok = (LEN_TRIM(w) == 0)
+    IF (PRESENT(why)) why = w
   END FUNCTION sth_case_ok
   !
   LOGICAL FUNCTION sth_batched_dvb_ok(time_reversed, npert)
@@ -207,6 +224,7 @@ CONTAINS
     USE eqv,              ONLY : dpsi, dvpsi
 #if defined(__CUDA)
     USE sth_engine,       ONLY : sth_engine_solve, sth_engine_get_dpsi, sth_engine_ready, sth_engine_qready, &
+                                 sth_engine_dvbq, &
                                  sth_n64, sth_n32, sth_nround, sth_t_cg64, &
                                  sth_eta, sth_defl, sth_timing, sth_prof, &
                                  sth_t_dpot, sth_t_ortho, sth_t_cg, sth_t_drho, &
@@ -225,6 +243,7 @@ CONTAINS
     LOGICAL, INTENT(OUT) :: done
     !
 #if defined(__CUDA)
+    CHARACTER(LEN=64) :: why
     INTEGER :: tot_num_iter, tot_cg_calls, nfail, ik, ipert, nrec, ierr, i
     COMPLEX(DP) :: key
     COMPLEX(DP), ALLOCATABLE :: dv(:,:), dr(:,:)
@@ -237,7 +256,10 @@ CONTAINS
 #if defined(__CUDA)
     IF (.NOT. sth_env_flag('QEF_STH')) RETURN
     ! supported case (v1); the same test decides sth_batched_dvb_ok
-    IF (.NOT. sth_case_ok(time_reversed, npert)) RETURN
+    IF (.NOT. sth_case_ok(time_reversed, npert, why)) THEN
+      CALL qef_note('GPU Sternheimer engine', .FALSE., TRIM(why))
+      RETURN
+    ENDIF
     !
     ! engine state belongs to this irrep? (re-initialised at every first iteration; otherwise the
     ! dV_bare psi of (k=1, pert=1) identifies the irrep, e.g. after a restart)
@@ -255,7 +277,9 @@ CONTAINS
       pending = .FALSE.
       have_state = .FALSE.
       ! per-q state (k, k+q data, vkb, h_diag, psi(r)) is kept across the irreps of one q
-      IF (.NOT. sth_engine_qready() .OR. ANY(xq /= st_xq) .OR. nksq /= st_nksq) THEN
+      ! a per-q state built without dV_bare (after a fallback earlier in this q) cannot serve an irrep with it
+      IF (.NOT. sth_engine_qready() .OR. ANY(xq /= st_xq) .OR. nksq /= st_nksq &
+          .OR. (dvb_on .AND. .NOT. sth_engine_dvbq())) THEN
         CALL sth_batched_init(first_iter, npert, lrdvpsi, iudvpsi, ierr)
         st_xq = xq
       ELSE
@@ -263,13 +287,21 @@ CONTAINS
       ENDIF
       IF (ierr /= 0) THEN
         WRITE(stdout, '(5x,"qef sth: engine declined (code ",I0,"), vanilla path")') ierr
-        IF (dvb_on) CALL errore('sth_batched_kernel', 'engine declined with QEF_STH_DVB=1 (no dV_bare buffer)', &
-             ABS(ierr))
+        CALL qef_note('GPU Sternheimer engine', .FALSE., 'engine setup (device memory or shape), stock solver')
+        IF (dvb_on) THEN
+          IF (.NOT. ASSOCIATED(sth_dvb_fill)) CALL errore('sth_batched_kernel', &
+               'engine declined with QEF_STH_DVB=1 and no dV_bare fallback registered', ABS(ierr))
+          WRITE(stdout, '(5x,"qef sth: dV_bare psi built by the stock loop instead")')
+          CALL sth_dvb_fill()
+          dvb_on = .FALSE.
+        ENDIF
         IF (sth_env_flag('QEF_STRICT')) CALL errore('sth_batched_kernel', &
              'engine declined (see the sth_engine line above) and QEF_STRICT=1', ABS(ierr))
         RETURN
       ENDIF
       have_state = .TRUE.
+      CALL qef_note('GPU Sternheimer engine', .TRUE.)
+      CALL qef_note('dV_bare psi on the engine (QEF_STH_DVB)', dvb_on)
       st_npert = npert; st_iudvpsi = iudvpsi; st_nksq = nksq; st_key = key
     ENDIF
     !
@@ -543,6 +575,7 @@ CONTAINS
                                  sth_engine_set_nlk, sth_qcache, sth_engine_wdev, sth_engine_set_wdev, &
                                  sth_cbsr, sth_cbsr_skip, &
                                  sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, &
+                                 sth_engine_rwf_free, &
                                  sth_engine_cbsr_plan, sth_cbsr_off, &
                                  sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op
     USE sth_nscf_symrot,  ONLY : symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
@@ -563,7 +596,7 @@ CONTAINS
     REAL(DP) :: tk(6)      ! QEF_STH_TIME: per-k loop split (get_buffer, init_us_2, g2kin+weights, set_k, dvbare/dpsi, set_wdev)
     LOGICAL :: wdev
     ! QEF_STH_KDEV: vkb by vkb_batch in chunks; evc / evq of SYMROT-mapped k rotated on the device
-    LOGICAL :: kdev, kmapped, okk, okq, fk, fq
+    LOGICAL :: kdev, kmapped, okk, okq, fk, fq, kdok
     INTEGER :: i0k, i0q, ngsk, ngsq, trk, trq, ftk, ftq, nkd, ich, nch, j, kdv, sk(3, 3), sq(3, 3), g0k(3), g0q(3)
     INTEGER, ALLOCATABLE :: mapk(:), mapq(:), ikl(:), mil(:,:)
     COMPLEX(DP), ALLOCATABLE :: phk(:), phq(:), wtmp(:,:), vkbb(:,:,:)
@@ -623,7 +656,14 @@ CONTAINS
         ALLOCATE(wtmp(npwx, nbnd), mil(3, npwx))
         DO j = sth_engine_rwf_count() + 1, symrot_cache_n()
           CALL symrot_cache_get(j, ngsk, ich, wtmp, mil)
-          CALL sth_engine_rwf_put(j, ngsk, ich, wtmp, mil)
+          CALL sth_engine_rwf_put(j, ngsk, ich, wtmp, mil, kdok)
+          IF (.NOT. kdok) THEN
+            ! the cache would crowd out the engine's state: dropped, so every k reads its psi from the
+            ! buffer (kmapped is false with an empty cache); vkb still goes to W in chunks
+            WRITE(stdout, '(5x,"qef sth: KDEV cache declined (device memory), psi from the buffer")')
+            CALL sth_engine_rwf_free()
+            EXIT
+          ENDIF
         ENDDO
         DEALLOCATE(wtmp, mil)
       ENDIF
@@ -632,7 +672,8 @@ CONTAINS
         CALL SYSTEM_CLOCK(cb); tk(1) = tk(1) + REAL(cb - ca, DP) / crate; ca = cb
       ENDIF
       ! vkb of every k+q, in chunks (bitwise init_us_2's), device-to-device into W
-      nch = MIN(nksq, 256, npwx)
+      ! chunks of at most 512 MiB of vkb (the chunk size does not change the result)
+      nch = MIN(nksq, 256, npwx, MAX(1, INT(512_8 * 1024_8**2 / (16_8 * npwx * MAX(nkb, 1)))))
       ALLOCATE(vkbb(npwx, MAX(nkb, 1), nch), ikl(nch))
       !$acc enter data create(vkbb)
       DO ich = 1, nksq, nch
@@ -832,7 +873,13 @@ CONTAINS
         ALLOCATE(wtmp(npwx, nbnd), mil(3, npwx))
         DO j = sth_engine_rwf_count() + 1, symrot_cache_n()
           CALL symrot_cache_get(j, ngs, ich, wtmp, mil)
-          CALL sth_engine_rwf_put(j, ngs, ich, wtmp, mil)
+          CALL sth_engine_rwf_put(j, ngs, ich, wtmp, mil, ok)
+          IF (.NOT. ok) THEN
+            ! cache dropped: no k is mapped below (i0 <= rwf_count fails)
+            WRITE(stdout, '(5x,"qef sth: KDEV cache declined (device memory), psi from the buffer")')
+            CALL sth_engine_rwf_free()
+            EXIT
+          ENDIF
         ENDDO
         DEALLOCATE(wtmp, mil)
       ENDIF

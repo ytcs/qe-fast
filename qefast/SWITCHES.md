@@ -8,8 +8,10 @@ Every run-time switch of qe-fast is an environment variable read through `qef_ge
 3. unset: the code's own default for that switch.
 
 `QEF_PRESET` is `off`, `safe`, `fast` or `max`. Any other value stops the run. When it is unset, the
-built-in default applies: **`safe`**. Each program prints the active preset and any table override at
-start (`qe-fast preset:`, `qe-fast override:`). `mpirun` must pass the variables on to remote ranks;
+built-in default applies: **`safe`**, reported as automatic (`qe-fast: automatic; ...`). Every lever of `safe`
+decides for itself whether it applies, from the input, the build and the device, and the main ones report it in
+one line each (`qe-fast: <lever> on` or `qe-fast: <lever> declined: <reason>`). A set `QEF_PRESET` prints
+`qe-fast preset:`, and any table override prints `qe-fast override:`. `mpirun` must pass the variables on to remote ranks;
 `qefast/examples/eph-tc/bench/run-chain.sh` runs a whole chain under one preset and passes every `QEF_*`.
 
 ## Classes
@@ -56,13 +58,15 @@ Margin used on G2, G3, G5, G6: 3.8 %, 15.0 %, 0.0 %, 0.2 %.
   `qefast/sth/fdx/sth_fftdx.cu`). They declined on 8 of 8 held-out materials. The decline is clean
   (`qef fftdx: unsupported grid/box`) and the run keeps cuFFT, but the largest lever in `safe` then does nothing:
   `safe` left the solve stage where it was on five of seven held-out materials.
-- **`QEF_STH_DVB=1` has no fallback once the engine declines at run time.** There is no dV_bare buffer to go back
-  to, so a decline, for example for lack of device memory, stops with `engine declined with QEF_STH_DVB=1`, even
-  with `QEF_STRICT=0`. `safe`, `fast` and `max` all set it. Set `QEF_STH_DVB=0` for a run that stops this way.
-- **`QEF_EPW_NOVME=1` stops if the fused fine path declines at run time** (pair-kernel shared memory, images)
-  in an `ephwrite` + Eliashberg run: the velocity matrices were never built. Set `QEF_EPW_NOVME=0` for such a
-  run. The switch turns itself off in CPU builds and when an input flag rules out the fused path or reads
-  velocities; before 2026-11-12 it stopped those runs too, including every CPU Eliashberg run under `safe`.
+- **`QEF_STH_DVB=1` falls back when the engine declines at run time** (device memory at setup or irrep commit):
+  `solve_linter`'s own dV_bare loop fills the buffer and the stock solver runs (`qef sth: dV_bare psi built by the
+  stock loop instead`). Before 2026-11-13 such a decline stopped the run. Forced on an H100 (all but 2 GiB of device
+  memory held): B1 smoke Γ matched `off` to 0.0000 cm⁻¹; with the memory released after 40 s, the engine came back and
+  all six q-points passed the gate (0.074 cm⁻¹).
+- **`QEF_EPW_NOVME=1` no longer stops when the fused fine path declines at run time** (pair-kernel shared memory,
+  images): the stock fine path runs, and without a velocity consumer it does not read the skipped matrices.
+  The switch declines up front with quadrupoles (Berry connection), in CPU builds, and when an input flag rules out
+  the fused path or reads velocities. Not yet run on a GPU.
 - **B1's Wannierisation ends on a mirror saddle.** At the recipe's endpoint every WF centre sits on the σh plane
   and the spread has a negative curvature (θ_min −0.0021, ‖g‖ 6.5e-8), so wannier90 stops converged on a strict
   symmetry-protected saddle (Ω 7.617 Å² on the frozen chain; the minimum is Ω 7.581 Å² on the proxy chain, with

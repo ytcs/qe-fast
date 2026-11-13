@@ -12,7 +12,7 @@
   !----------------------------------------------------------------------
   SUBROUTINE use_wannier(dims, dims2, nrr_k, irvec_k, ndegen_k, wslen_k, nrr_q, &
                          irvec_q, ndegen_q, wslen_q, nrr_g, irvec_g, ndegen_g, wslen_g)
-    USE qef_config, ONLY : qef_getenv
+    USE qef_config, ONLY : qef_getenv, qef_note
   !---------------------------------------------------------------------
   !!
   !! Wannier interpolation of electron-phonon vertex
@@ -1131,12 +1131,13 @@
           qef_nqb = 0
         ENDIF
         qef_fused = qef_fine_ok()
-        ! qe-fast: QEF_EPW_NOVME left the velocity / dipole matrices at zero; only the fused path without any
-        ! velocity consumer may run on them
-        IF (qef_novme() .AND. (qef_need_vme .OR. .NOT. qef_fused)) &
-          CALL errore('use_wannier', 'QEF_EPW_NOVME=1 needs the fused fine path and no velocity consumer', 1)
+        ! qe-fast: QEF_EPW_NOVME left the velocity / dipole matrices at zero. Without a velocity consumer
+        ! (qef_need_vme) neither fine path reads them: vmef is filled from them but not read, and the Berry
+        ! connection is used only with lpolar / quadrupoles, which qef_novme excludes
+        IF (qef_novme() .AND. (qef_need_vme .OR. qef_lpolar .OR. qef_qrpl)) &
+          CALL errore('use_wannier', 'QEF_EPW_NOVME=1 with a velocity consumer', 1)
         ! qe-fast: epwread of files written under QEF_EPW_NOVME: the same condition
-        IF (qef_vme_absent .AND. (qef_need_vme .OR. .NOT. qef_fused)) &
+        IF (qef_vme_absent .AND. (qef_need_vme .OR. qef_lpolar .OR. qef_qrpl)) &
           CALL errore('use_wannier', 'vmedata.fmt was written with QEF_EPW_NOVME=1 (no velocity matrices); '// &
                       'redo the epwwrite run with QEF_EPW_NOVME=0', 1)
         qef_fset = .FALSE.
@@ -2005,6 +2006,7 @@ CONTAINS
   IF (MOD(nkf1, nqf1) /= 0 .OR. MOD(nkf2, nqf2) /= 0 .OR. MOD(nkf3, nqf3) /= 0) why = 'k and q grids not commensurate'
   IF (ef_shmem(nbndsub, nmodes, nbndfst) > 48 * 1024) why = 'too many bands in the window for the pair kernel'
   qef_fine_ok = (LEN_TRIM(why) == 0)
+  CALL qef_note('EPW fused GPU fine path', qef_fine_ok, TRIM(why))
   IF (.NOT. qef_fine_ok) WRITE(stdout, '(5x, a, a)') 'qef: fused GPU fine path off: ', TRIM(why)
   IF (qef_fine_ok) WRITE(stdout, '(5x, a)') 'qef: fused GPU fine path (k-first Fourier sums, cached eigenpairs)'
 #endif
