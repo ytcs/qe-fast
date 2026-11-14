@@ -97,6 +97,29 @@ chunks from a memory budget (`max_mem`) and writes the same columns, plus the wh
   the direct sum to 2×10⁻¹⁵). On the Si 8³ case (one thread) it cut that stage from 84 to 19 CPU s and the run from
   150 to 89 CPU s; pair densities (38 s) are now the largest stage.
 
+### chi0.x on the GPU
+
+In CUDA builds `chi0.x` runs the same stages on the device (`qefast/gw/chi0_dev.f90`): pair densities for all
+conduction bands of a (k, v) in one batched cuFFT, transitions buffered on the device and binned with one cuBLAS
+ZGEMM per occupied bin, Kramers–Kronig by strided 1D cuFFTs, and batched cuBLAS LU for ε⁻¹. It falls back to the host
+path when one k-point does not fit in device memory (`device = .false.` forces the host path). H100, Si 8³ k, 60
+bands, Q = 0.25:
+
+| run | whole ε⁻¹ against chi0_ref.py | time (s) |
+|---|---|---|
+| device, 8 Ry (109 G), 400 energies | 1.7×10⁻¹³ | 8 |
+| host path in the same GPU build | 2.0×10⁻¹³ | 19 |
+| device, 8 Ry, 3000 energies to 60 eV | — | 5.4 (reading the wavefunctions 4.0) |
+| device, 16 Ry, 3000 energies | — | 8.1 |
+
+The same 8 Ry, 3000-energy case takes 89 CPU s on one desktop core with the host path. On the device, reading and
+transforming the wavefunctions on the host is now the largest stage. The PSD check of −ε⁻¹ runs on 100 energies by
+default (`check_psd`); on every energy of the 16 Ry case it took 30 s on the host.
+
+Two errors found on the way, both in the host path of GPU builds: QE's internal FFT backend (used there) scales a
+batched 1D transform differently from a single one and transforms its input in place, so the program measures the
+scalings per batch size on a fresh impulse.
+
 ## Impact-ionization rate (E-13): contraction reference
 
 `qefast/gw/gamma_ref.py` contracts Im W with pair densities, Im Σ_nk = (1/(N_k Ω)) Σ_{q≠0, n′} φ† Im W(q, ε_nk − ε_n′k−q) φ
