@@ -13,6 +13,7 @@ SUBROUTINE lax_error__( calling_routine, message, ierr )
   ! ... This is a simple routine which writes an error message to output: 
   !
   USE laxlib_parallel_include
+  USE, INTRINSIC :: iso_fortran_env, ONLY : output_unit
   IMPLICIT NONE
   !
   CHARACTER(LEN=*), INTENT(IN) :: calling_routine, message
@@ -37,6 +38,7 @@ SUBROUTINE lax_error__( calling_routine, message, ierr )
   WRITE( UNIT = *, FMT = '(1X,78("%"),/)' )
   !
   WRITE( *, '("     stopping ...")' )
+  FLUSH( output_unit )   ! qe-fast: an MPI_Abort below would drop the buffered message
   !
 #if defined(__MPI)
   !

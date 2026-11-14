@@ -13,6 +13,7 @@ SUBROUTINE upf_error( calling_routine, message, ierr )
   ! ... Writes an error message to output (unit "*") if ierr != 0 and stops
   !
   USE upf_parallel_include
+  USE, INTRINSIC :: iso_fortran_env, ONLY : output_unit
   IMPLICIT NONE
   !
   CHARACTER(LEN=*), INTENT(IN) :: calling_routine, message
@@ -33,6 +34,7 @@ SUBROUTINE upf_error( calling_routine, message, ierr )
      WRITE( UNIT = *, FMT = '(1X,78("%"),/)' )
      !
      WRITE( *, '("     stopping ...")' )
+     FLUSH( output_unit )   ! qe-fast: an MPI_Abort below would drop the buffered message
      !
 #if defined(__MPI)
      CALL mpi_abort(MPI_COMM_WORLD,ierr,info)
