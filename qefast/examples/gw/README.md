@@ -168,6 +168,11 @@ CI case (12 bands; Γ_ii to 7 digits, 1916 partial rates to 8×10⁻¹⁰ of the
 (24 spinor bands; 126 states, 7664 partial rates to 10⁻⁹ of the peak) in 4.4 s, against 114 s for the host path on
 8 cores of the same machine. CI runs the comparison on 12 bands (carriers to 2.5 eV) in `si-chi0/ci.sh`.
 
+> **Scope.** qe-fast provides the ab initio inputs for downstream rate calculations: ε⁻¹_GG′(q, ω), from which the
+> dynamic structure function follows, plus band energies and pair densities. `gamma_ii.x` goes further and computes
+> rates itself. It stays here for now as a check on those inputs and is a candidate to move to a separate package.
+> The cascade (ε_eh, F) is downstream work.
+
 ### First production runs (H100)
 
 Si, 40 bands, carriers up to 6 eV above E_cbm, 4 Ry basis, 0.02 eV grid (326 energies), q = 0 term left out,
