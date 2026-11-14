@@ -29,7 +29,7 @@ PROGRAM chi0
   USE wvfct,            ONLY : nbnd_tot => nbnd, npwx, et
   USE klist,            ONLY : xk, nks, ngk, igk_k, nelec, lgauss, ltetra
   USE wavefunctions,    ONLY : evc
-  USE gvect,            ONLY : mill
+  USE gvect,            ONLY : mill, ngm
   USE cell_base,        ONLY : at, bg, tpiba2, omega
   USE fft_base,         ONLY : dffts
   USE fft_interfaces,   ONLY : invfft, fwfft
@@ -441,7 +441,15 @@ CONTAINS
     gm = tmp(:, 1:cnt); q2 = tq(1:cnt)
     iq_head = 0
     DO k = 1, cnt
-      idx_mg(k) = box_index(-gm(:, k))
+      ! where fwfft puts -G: through QE's own map (dffts%nl of the G-vector index), not a box formula, so that it
+      ! holds for every FFT layout QE builds
+      idx_mg(k) = 0
+      DO l = 1, ngm
+        IF (ALL(mill(:, l) == -gm(:, k))) THEN
+          idx_mg(k) = dffts%nl(l); EXIT
+        ENDIF
+      ENDDO
+      IF (idx_mg(k) == 0) CALL errore('chi0', 'local-field G outside the density G sphere', k)
       IF (ALL(gm(:, k) == NINT(qc))) iq_head = k
     ENDDO
     DEALLOCATE(tmp, tq)
