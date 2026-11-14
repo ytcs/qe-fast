@@ -171,7 +171,8 @@ CI case (12 bands; Γ_ii to 7 digits, 1916 partial rates to 8×10⁻¹⁰ of the
 ### First production runs (H100)
 
 Si, 40 bands, carriers up to 6 eV above E_cbm, 4 Ry basis, 0.02 eV grid (326 energies), q = 0 term left out,
-Z = 1. Triangle broadening of half-width η, the default. Mean Γ_ii (s⁻¹) per 0.5 eV bin:
+Z = 1. Triangle broadening of half-width η, the default. Mean Γ_ii (s⁻¹) per 0.5 eV bin. Only the 10³
+gap-corrected row is from after the fix of the contraction order; at 8³ that fix moved the bin means by ≤ 15 %:
 
 | E − E_cbm (eV) | 1–1.5 | 1.5–2 | 2–2.5 | 2.5–3 | 3–3.5 | 3.5–4 | 4–4.5 | 4.5–5 | 5.5–6 | time |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -179,7 +180,7 @@ Z = 1. Triangle broadening of half-width η, the default. Mean Γ_ii (s⁻¹) pe
 | PBE gap, 10³ k | 1.4×10¹¹ | 1.1×10¹² | 6.4×10¹² | 2.0×10¹³ | 4.2×10¹³ | 9.5×10¹³ | 1.7×10¹⁴ | 2.9×10¹⁴ | 6.6×10¹⁴ | 334 s |
 | gap 1.12 eV, 8³ k | 1.2×10¹⁰ | 1.6×10¹¹ | 2.6×10¹² | 1.1×10¹³ | 2.2×10¹³ | 4.8×10¹³ | 1.1×10¹⁴ | 1.9×10¹⁴ | 4.9×10¹⁴ | 89 s |
 | same, η = 0.1 eV | 2.9×10¹⁰ | 2.7×10¹¹ | 2.2×10¹² | 9.3×10¹² | 2.2×10¹³ | 4.8×10¹³ | 1.1×10¹⁴ | 1.9×10¹⁴ | 5.0×10¹⁴ | 89 s |
-| gap 1.08 eV, 10³ k | 5.6×10⁹ | 2.5×10¹¹ | 1.6×10¹² | 6.6×10¹² | 1.9×10¹³ | 4.7×10¹³ | 1.0×10¹⁴ | 1.8×10¹⁴ | 5.1×10¹⁴ | 332 s |
+| gap 1.08 eV, 10³ k | 1.5×10¹⁰ | 1.8×10¹¹ | 1.2×10¹² | 6.0×10¹² | 1.8×10¹³ | 4.9×10¹³ | 1.1×10¹⁴ | 1.9×10¹⁴ | 5.2×10¹⁴ | 331 s |
 
 η is 0.05 eV unless stated. The gap-corrected rows add a 0.55 eV scissor to the empty bands, in both W and the
 states (PBE gap 0.57 eV at 8³ and 0.53 eV at 10³).
@@ -194,15 +195,20 @@ states (PBE gap 0.57 eV at 8³ and 0.53 eV at 10³).
   2–3 eV. Below 2 eV the few transitions a grid offers set the value, as in the published calculations. The omitted
   q = 0 term has weight 1/N_k and a finite integrand.
 - **Basis:** 8 Ry instead of 4 Ry for ε⁻¹ (6³, Lorentzian) changes every bin mean by 0.5 % or less.
-- **Against published Si rates.** These are read off Fig. 2 of Kotani and van Schilfgaarde, arXiv:0812.2923
-  (QSGW bands with the experimental gap, Z ≈ 0.8, 500 k).
-  - Over 3–5 eV the gap-corrected 10³ rates are about 4–5× above their GW values and about 2–2.5× above
-    Sano–Yoshii's, which they plot alongside.
-  - Their Z accounts for 1.25×.
-  - W itself agrees with `turbo_eels` (static ε within 0.3 %) and the contraction agrees with `gamma_ref.py`, so the
-    normalisation chain is checked except for the contraction formula, which the two share. PBE bands with a
-    scissor against QSGW bands (conduction bandwidth, hence density of final states) is the next suspect.
-  - Pin this down before the cascade relies on the rates.
+- **Against published Si rates.** The gap-corrected 10³ rates are 4.5–6× above the Kamakura fit,
+  1×10¹¹·(E − 1.1)^4.6 s⁻¹ (J. Appl. Phys. 75, 3500 (1994); coefficients as quoted in Metrologia 63, 055010 (2026)),
+  at every energy from 3 to 5.5 eV. The Cartier fit (Appl. Phys. Lett. 62, 3339 (1993)), Dinh's full-band
+  calculation (thesis, UniBw München 2010) and Kotani and van Schilfgaarde's GW rates (Phys. Rev. B 81, 125201
+  (2010)) lie within a factor of about 1.5 of Kamakura. What is checked:
+  - the formula: at lowest order the contraction equals Fermi's golden rule for the bare Coulomb matrix element to
+    10⁻¹⁵ (`qefast/gw/gamma_golden.py`, in CI); this fixed the order of the G indices;
+  - W: the dielectric function agrees with `turbo_eels`;
+  - the bands: HSE against LDA at equal gap (Si 6³) lowers the rates by a factor 0.6–0.85 over 3–6 eV.
+
+  Not included here: Z ≈ 0.8, which KvS include, and the exchange process, which lowers the rate by up to 0.75×
+  (KvS). With these and HSE-like bands, about 2–2.5× would remain. That is the size of the spread between the
+  published Monte Carlo models, whose absolute scale is calibrated through their phonon rates. The cascade gate
+  (ε_eh, F) will test the combination.
 - **Speed:** the contraction is batched over k′ within each q, one ZGEMM per grid energy, and the pair densities of
   all final bands go in one batched FFT. On 8³ this took the run from 300 s to 90 s with bit-identical rates. On 10³,
   pair densities and contraction take 150 s and 157 s.

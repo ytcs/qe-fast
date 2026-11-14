@@ -34,9 +34,9 @@ All notable changes to qe-fast are recorded here. The format follows
   threshold and dominated the first eV above it (Si 4³: 1.6×10¹¹ s⁻¹ below the gap). It stays available as
   `broadening = 'lorentzian'`.
 
-  On Si with the experimental gap, 10³ k, the rates over 3–5 eV are 4–5× above the GW rates of Kotani and van
-  Schilfgaarde and 2–2.5× above Sano–Yoshii (read off their figure). The difference is not yet explained: see
-  `qefast/examples/gw/README.md`.
+  On Si with the experimental gap, 10³ k, the rates over 3–5.5 eV are 4.5–6× above the Kamakura fit and the GW
+  rates of Kotani and van Schilfgaarde. HSE bands at equal gap lower them by 0.6–0.85×, and Z and exchange are not
+  included; see `qefast/examples/gw/README.md`.
 
 ### Fixed
 
