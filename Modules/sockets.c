@@ -1,3 +1,4 @@
+/* qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE. */
 /* A minimal wrapper for socket communication.
 
 Copyright (C) 2013, Joshua More and Michele Ceriotti

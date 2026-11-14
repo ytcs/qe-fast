@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 ! This file is part of fortran_tester
 ! Copyright 2015 Pierre de Buyl and Peter Colberg
 !           2016 Pierre de Buyl and Stefano Szaghi

@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
  PROGRAM lax_test
 #if defined(_OPENMP)
   USE omp_lib

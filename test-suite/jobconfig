@@ -1,4 +1,4 @@
-# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12 to 2026-11-14; see NOTICE.
 # Note: unless a specific oreder of execution is desired,
 # there is no need to have for each set of tests a field below
 

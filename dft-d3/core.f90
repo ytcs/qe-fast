@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 ! dftd3 program for computing the dispersion energy and forces from cart
 ! and atomic numbers as described in
 !

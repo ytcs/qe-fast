@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0)
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wno-incompatible-implicit-interfaces")
 endif()

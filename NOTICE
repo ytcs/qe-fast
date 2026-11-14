@@ -18,67 +18,249 @@ This file is a statement of the project's position. It is not legal advice.
 -----------------------------------------------------
 
 All changes were made between 2026-10-27 and 2026-11-14. The commit history of
-this repository records each one. The modified upstream files, each of which
-also carries a notice in its first line, with the dates of their changes:
+this repository records each one. Most changes from 2026-11-14 are backports of
+fixes from the upstream development branch, cherry-picked with their authors and
+upstream commit ids (see the commit history and CHANGELOG.md). The modified
+upstream files, with the dates of their changes, are listed below. Each source
+file also carries a notice in its first line; test-suite inputs and benchmark
+outputs are data read by the test harness and carry none.
 
   .gitmodules                              2026-10-27 to 2026-11-12
+  atomic/src/c6_dft.f90                    2026-11-14
+  atomic/src/c6_tfvw.f90                   2026-11-14
+  atomic/src/compute_potps_new.f90         2026-11-14
+  atomic/src/ld1_readin.f90                2026-11-14
+  cmake/GitInfo.cmake                      2026-11-14
+  cmake/LLVMFlangCompiler.cmake            2026-11-14
   CMakeLists.txt                           2026-11-12
+  dft-d3/common.f90                        2026-11-14
+  dft-d3/core.f90                          2026-11-14
   EPW/CMakeLists.txt                       2026-10-28 to 2026-11-06
   EPW/src/bloch2wannier.f90                2026-10-30 to 2026-11-06
   EPW/src/ep_coarse.f90                    2026-10-28 to 2026-11-06
   EPW/src/ep_coarse_unfolding.f90          2026-10-28 to 2026-11-06
   EPW/src/epw.f90                          2026-10-30 to 2026-11-06
+  EPW/src/expolaron.f90                    2026-11-14
   EPW/src/io/io.f90                        2026-10-29 to 2026-11-13
   EPW/src/io/io_supercond.f90              2026-10-28 to 2026-11-06
+  EPW/src/phph.f90                         2026-11-14
+  EPW/src/polaron.f90                      2026-11-14
   EPW/src/printing.f90                     2026-10-28 to 2026-11-06
-  EPW/src/pw2wan.f90                       2026-10-30 to 2026-11-06
-  EPW/src/readin.f90                       2026-10-28 to 2026-11-06
+  EPW/src/pw2wan.f90                       2026-10-30 to 2026-11-14
+  EPW/src/readin.f90                       2026-10-28 to 2026-11-14
   EPW/src/supercond.f90                    2026-10-28 to 2026-11-06
   EPW/src/supercond_aniso.f90              2026-10-28 to 2026-11-06
   EPW/src/supercond_driver.f90             2026-10-28
+  EPW/src/tdbe_mod.f90                     2026-11-14
   EPW/src/use_wannier.f90                  2026-10-28 to 2026-11-13
   EPW/src/wannier.f90                      2026-10-30 to 2026-11-06
   EPW/src/wannier2bloch.f90                2026-10-28 to 2026-11-06
   EPW/src/wannierization.f90               2026-10-30 to 2026-11-13
+  EPW/ZG/src/epsilon_Gaus.f90              2026-11-14
+  EPW/ZG/src/ZG.f90                        2026-11-14
   external/CMakeLists.txt                  2026-11-12
   external/devxlib.cmake                   2026-10-27 to 2026-11-06
   external/submodule_commit_hash_records   2026-10-27 to 2026-11-12
   external/wannier90.cmake                 2026-10-29 to 2026-11-13
+  FFTXlib/src/fft_fwinv.f90                2026-11-14
+  FFTXlib/src/fft_scalar.ESSL.f90          2026-11-14
+  FFTXlib/src/fft_scalar.FFTW.f90          2026-11-14
+  FFTXlib/src/fft_scalar.FFTW3.f90         2026-11-14
+  FFTXlib/src/fft_scalar.SX6.f90           2026-11-14
+  FFTXlib/tests/fft_test.f90               2026-11-14
+  HP/src/hp_dnsq.f90                       2026-11-14
+  LAXlib/cdiagh.f90                        2026-11-14
+  LAXlib/rdiagh.f90                        2026-11-14
+  LAXlib/test.f90                          2026-11-14
+  LAXlib/tests/test_diagh_2.f90            2026-11-14
+  LAXlib/tests/test_diaghg_2.f90           2026-11-14
+  LAXlib/tests/test_helpers.f90            2026-11-14
+  LAXlib/tests/tester.f90                  2026-11-14
   LR_Modules/c_bands_ph.f90                2026-10-28 to 2026-11-06
   LR_Modules/ccg_psi.f90                   2026-11-14
   LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-14
+  LR_Modules/Coul_cut_2D_ph.f90            2026-11-14
   LR_Modules/dfpt_kernels.f90              2026-10-28 to 2026-11-13
   LR_Modules/dgradcorr.f90                 2026-10-30 to 2026-11-06
   LR_Modules/dv_of_drho.f90                2026-10-30 to 2026-11-12
   LR_Modules/lr_sm1_psi.f90                2026-11-14
+  LR_Modules/newdq.f90                     2026-11-14
   LR_Modules/orthogonalize_omega.f90       2026-11-14
   LR_Modules/response_kernels.f90          2026-10-28 to 2026-11-14
   LR_Modules/symdvscf.f90                  2026-10-28 to 2026-11-06
-  Modules/environment.f90                  2026-11-06
+  Modules/bfgs_module.f90                  2026-11-14
+  Modules/constraints_module.f90           2026-11-14
+  Modules/environment.f90                  2026-11-06 to 2026-11-14
+  Modules/input_parameters.f90             2026-11-14
+  Modules/io_base.f90                      2026-11-14
+  Modules/io_files.f90                     2026-11-14
+  Modules/mm_dispersion.f90                2026-11-14
   Modules/qes_bcast_module.f90             2026-11-12
   Modules/qes_read_module.f90              2026-11-12
+  Modules/qexsd.f90                        2026-11-14
+  Modules/qexsd_copy.f90                   2026-11-14
+  Modules/read_namelists.f90               2026-11-14
+  Modules/sockets.c                        2026-11-14
+  Modules/xc_rVV10.f90                     2026-11-14
+  Modules/xsf.f90                          2026-11-14
+  NEB/src/compute_scf.f90                  2026-11-14
+  NEB/src/stop_run_path.f90                2026-11-14
   PHonon/CMakeLists.txt                    2026-10-30 to 2026-11-06
+  PHonon/FD/fd_ifc.f90                     2026-11-14
+  PHonon/PH/check_initial_status.f90       2026-11-14
   PHonon/PH/do_phonon.f90                  2026-10-28 to 2026-11-06
   PHonon/PH/drhodv.f90                     2026-10-28 to 2026-11-06
   PHonon/PH/dvqpsi_us.f90                  2026-10-28 to 2026-11-12
   PHonon/PH/dvqpsi_us_only.f90             2026-10-28 to 2026-11-06
+  PHonon/PH/dvscf_interpolate.f90          2026-11-14
   PHonon/PH/dynmat_us.f90                  2026-10-30 to 2026-11-06
+  PHonon/PH/dynmatrix.f90                  2026-11-14
+  PHonon/PH/elph_tetra_mod.f90             2026-11-14
+  PHonon/PH/elphon.f90                     2026-11-14
+  PHonon/PH/ep_matrix_element_wannier.f90  2026-11-14
+  PHonon/PH/matdyn.f90                     2026-11-14
   PHonon/PH/phq_init.f90                   2026-10-30 to 2026-11-06
-  PHonon/PH/phq_readin.f90                 2026-10-31 to 2026-11-06
+  PHonon/PH/phq_readin.f90                 2026-10-31 to 2026-11-14
   PHonon/PH/phqscf.f90                     2026-10-30 to 2026-11-06
+  PHonon/PH/prepare_q.f90                  2026-11-14
+  PHonon/PH/q2qstar.f90                    2026-11-14
+  PHonon/PH/q2qstar_ph.f90                 2026-11-14
+  PHonon/PH/rotate_and_add_dyn.f90         2026-11-14
   PHonon/PH/run_nscf.f90                   2026-10-28 to 2026-11-13
+  PHonon/PH/solve_e_fpol.f90               2026-11-14
   PHonon/PH/solve_linter.f90               2026-10-29 to 2026-11-13
+  PIOUD/src/compute_scf_pioud.f90          2026-11-14
+  PIOUD/src/pimd_subrout.f90               2026-11-14
+  PIOUD/src/pimd_utils.f90                 2026-11-14
+  PIOUD/src/trpmd_base.f90                 2026-11-14
   PP/CMakeLists.txt                        2026-11-13
+  PP/src/chdens_module.f90                 2026-11-14
+  PP/src/d_matrix_nc.f90                   2026-11-14
+  PP/src/d_matrix_so.f90                   2026-11-14
+  PP/src/epsilon.f90                       2026-11-14
+  PP/src/partialdos.f90                    2026-11-14
+  PP/src/projwfc_box.f90                   2026-11-14
+  PP/src/pw2gw.f90                         2026-11-14
+  PP/src/pw2wannier90.f90                  2026-11-14
+  PP/src/solvdens.f90                      2026-11-14
+  PP/src/write_p_avg.f90                   2026-11-14
   PW/CMakeLists.txt                        2026-10-30
-  PW/src/c_bands.f90                       2026-10-30 to 2026-11-06
+  PW/src/addusforce.f90                    2026-11-14
+  PW/src/c_bands.f90                       2026-10-30 to 2026-11-14
+  PW/src/clean_pw.f90                      2026-11-14
+  PW/src/dynamics_module.f90               2026-11-14
+  PW/src/exx_base.f90                      2026-11-14
+  PW/src/exx_bp.f90                        2026-11-14
+  PW/src/exx_std.f90                       2026-11-14
+  PW/src/force_hub.f90                     2026-11-14
+  PW/src/io_rho_xml.f90                    2026-11-14
+  PW/src/kpoint_grid.f90                   2026-11-14
+  PW/src/ldaU.f90                          2026-11-14
+  PW/src/mix_rho.f90                       2026-11-14
+  PW/src/new_ns.f90                        2026-11-14
+  PW/src/newd_acc.f90                      2026-11-14
+  PW/src/orbm_kubo.f90                     2026-11-14
+  PW/src/paw_onecenter.f90                 2026-11-14
+  PW/src/pwcom.f90                         2026-11-14
+  PW/src/run_driver.f90                    2026-11-14
+  PW/src/run_pwscf.f90                     2026-11-14
+  PW/src/scissor.f90                       2026-11-14
+  PW/src/setup.f90                         2026-11-14
+  PW/src/sic.f90                           2026-11-14
+  PW/src/stres_mgga.f90                    2026-11-14
+  PW/src/sum_band.f90                      2026-11-14
+  PW/src/tetra.f90                         2026-11-14
+  PW/src/update_pot.f90                    2026-11-14
+  PW/src/vloc_psi_acc.f90                  2026-11-14
+  PW/src/wfcinit.f90                       2026-11-14
+  PW/src/write_ns.f90                      2026-11-14
+  TDDFPT/src/lr_apply_liouvillian_eels.f90 2026-11-14
+  TDDFPT/src/turbo_spectrum.f90            2026-11-14
   test-suite/CMakeLists.txt                2026-11-12
-  test-suite/jobconfig                     2026-11-12
+  test-suite/epw_tdbe/benchmark.out.git.inp=epw3.in.args=3
+                                           2026-11-14
+  test-suite/jobconfig                     2026-11-12 to 2026-11-14
   test-suite/Makefile                      2026-11-12
+  test-suite/pw_b3lyp/benchmark.out.git.inp=b3lyp-h2o.in
+                                           2026-11-14
+  test-suite/pw_b3lyp/benchmark.out.git.inp=b3lyp-h2o_std.in
+                                           2026-11-14
+  test-suite/pw_gau-pbe/benchmark.out.git.inp=gau-pbe-si111.in
+                                           2026-11-14
+  test-suite/pw_gau-pbe/benchmark.out.git.inp=gau-pbe-si222.in
+                                           2026-11-14
+  test-suite/pw_gau-pbe/benchmark.out.git.inp=gau-pbe-si444.in
+                                           2026-11-14
+  test-suite/pw_hse/benchmark.out.git.inp=hse-si111.in
+                                           2026-11-14
+  test-suite/pw_hse/benchmark.out.git.inp=hse-si222.in
+                                           2026-11-14
+  test-suite/pw_hse/benchmark.out.git.inp=hse-si444.in
+                                           2026-11-14
+  test-suite/pw_hse/benchmark.out.git.inp=hse-si444_std.in
+                                           2026-11-14
+  test-suite/pw_metaGGA/benchmark.out.git.inp=metaGGA-spin.in
+                                           2026-11-14
+  test-suite/pw_pbe/benchmark.out.git.inp=pbe0-si111.in
+                                           2026-11-14
+  test-suite/pw_pbe/benchmark.out.git.inp=pbe0-si222.in
+                                           2026-11-14
+  test-suite/pw_pbe/benchmark.out.git.inp=pbe0-si444.in
+                                           2026-11-14
+  test-suite/pw_spinorbit/benchmark.out.git.inp=spinorbit-paw.in
+                                           2026-11-14
+  test-suite/pw_spinorbit/spinorbit-paw.in 2026-11-14
+  test-suite/pw_workflow_relax_relax/benchmark.out.git.inp=relax-1.in.args=1
+                                           2026-11-14
+  test-suite/pw_workflow_relax_relax/benchmark.out.git.inp=relax-2.in.args=2
+                                           2026-11-14
   test-suite/tddfpt_eels-al/benchmark.out.git.inp=Al_uspp.tddfpt-eels.in.args=5
                                            2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=acetd-dav.in.args=8
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=acetd-lan.in.args=2
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=acetd-lan_pp.in.args=3
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=acetda-dav.in.args=8
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=acetda-lan.in.args=2
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=acetda-lan_pp.in.args=3
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=pw.in.args=1
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=td-dav.in.args=8
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=td-lan.in.args=2
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=td-lan_pp.in.args=3
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=tda-dav.in.args=8
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=tda-lan.in.args=2
+                                           2026-11-14
+  test-suite/tddfpt_hyb/benchmark.out.git.inp=tda-lan_pp.in.args=3
+                                           2026-11-14
+  test-suite/tddfpt_hyb/pw.in              2026-11-14
   test-suite/userconfig.tmp                2026-11-12 to 2026-11-14
+  upflib/CMakeLists.txt                    2026-11-14
   upflib/qvan2.f90                         2026-11-14
+  upflib/rhoat_mod.f90                     2026-11-14
+  upflib/uspp.f90                          2026-11-14
+  upflib/vloc_mod.f90                      2026-11-14
+  upflib/wxml.f90                          2026-11-14
+  upflib/xmltools.f90                      2026-11-14
+  UtilXlib/clocks_handler.f90              2026-11-14
   UtilXlib/CMakeLists.txt                  2026-11-06
+  XClib/dft_setting_params.f90             2026-11-14
+  XClib/dft_setting_routines.f90           2026-11-14
+  XClib/qe_drivers_d_lda_lsda.f90          2026-11-14
+  XClib/qe_drivers_gga.f90                 2026-11-14
+  XClib/qe_drivers_lda_lsda.f90            2026-11-14
+  XClib/qe_funct_exch_gga.f90              2026-11-14
+  XClib/xc_wrapper_mgga.f90                2026-11-14
+  XClib/xclib_test.f90                     2026-11-14
 
 external/submodule_commit_hash_records lost its devxlib line (2026-10-27) and its
 pw2qmcpack line (2026-11-12); the

@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 set(src_upflib
     atom.f90
     atomic_number.f90

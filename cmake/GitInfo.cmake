@@ -1,3 +1,4 @@
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 set(GITREV_BARE_FILE git-rev.h)
 set(GITREV_BARE_TMP git-rev-tmp.h)
 set(GITREV_FILE ${qe_BINARY_DIR}/${GITREV_BARE_FILE})

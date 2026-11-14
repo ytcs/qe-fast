@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2001-2009 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
