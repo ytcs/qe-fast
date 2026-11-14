@@ -7,11 +7,11 @@
 !
 MODULE gw_common
   USE kinds,     ONLY : DP
-  USE constants, ONLY : rytoev
+  USE constants, ONLY : rytoev, pi
   IMPLICIT NONE
   PRIVATE
   REAL(DP), PARAMETER, PUBLIC :: ha = 2.0_DP * rytoev            ! eV per Hartree
-  PUBLIC :: kq_grid, gbasis_q, box_index, wfc_r, pair_row, bin_add, kk_fft, eps_invert, mem_avail_gb
+  PUBLIC :: kq_grid, gbasis_q, box_index, wfc_r, pair_row, bin_add, kk_fft, kk_kernel, eps_invert, mem_avail_gb
   !
 CONTAINS
   !
@@ -185,12 +185,38 @@ CONTAINS
     DEALLOCATE(tb, list, tw, xm, ym)
   END SUBROUTINE bin_add
   !
-  SUBROUTINE kk_fft(af, cf, ncol, nb, nw, de, eta, pref)
-    !! cf(:, i) = pref sum_b af(:, b) [K(i - b) - K(i + b)],  K(m) = 1/(m de + i eta) (de, eta in eV; K in 1/Hartree),
-    !! on the uniform grid w_i = (i-1) de: a zero-padded convolution and a correlation along b, by QE's 1D FFTs
+  COMPLEX(DP) FUNCTION kk_kernel(x, eta, tri)
+    !! K(x) = int phi(y) / (x - y + i0) dy for a normalised broadening phi of width eta (x, eta in one energy unit; K
+    !! in its inverse). tri: phi a triangle of half-width eta, K = [f(x/eta) - i pi max(0, 1 - |x|/eta)] / eta with
+    !! f(u) = (u+1) ln|u+1| - 2u ln|u| + (u-1) ln|u-1| its Hilbert transform: Im K vanishes beyond eta, so Im chi0 and
+    !! Im W vanish below the lowest transition minus eta (minus the bin width), and K stays causal. Otherwise the
+    !! Lorentzian K = 1/(x + i eta), whose Im tail reaches below the gap.
+    REAL(DP), INTENT(IN) :: x, eta
+    LOGICAL, INTENT(IN) :: tri
+    REAL(DP) :: u
+    IF (tri) THEN
+      u = x / eta
+      kk_kernel = CMPLX(xlx(u + 1.0_DP) - 2.0_DP * xlx(u) + xlx(u - 1.0_DP), &
+                        -pi * MAX(0.0_DP, 1.0_DP - ABS(u)), KIND=DP) / eta
+    ELSE
+      kk_kernel = 1.0_DP / CMPLX(x, eta, KIND=DP)
+    ENDIF
+  CONTAINS
+    REAL(DP) FUNCTION xlx(t)
+      REAL(DP), INTENT(IN) :: t
+      xlx = 0.0_DP
+      IF (t /= 0.0_DP) xlx = t * LOG(ABS(t))
+    END FUNCTION xlx
+  END FUNCTION kk_kernel
+  !
+  SUBROUTINE kk_fft(af, cf, ncol, nb, nw, de, eta, pref, tri)
+    !! cf(:, i) = pref sum_b af(:, b) [K(i - b) - K(i + b)],  K(m) = kk_kernel(m de, eta, tri) (de, eta in eV; K in
+    !! 1/Hartree), on the uniform grid w_i = (i-1) de: a zero-padded convolution and a correlation along b, by QE's
+    !! 1D FFTs
     USE fft_scalar, ONLY : cft_1z
     INTEGER, INTENT(IN) :: ncol, nb, nw
     REAL(DP), INTENT(IN) :: de, eta, pref
+    LOGICAL, INTENT(IN) :: tri
     COMPLEX(DP), INTENT(IN) :: af(ncol, nb)
     COMPLEX(DP), INTENT(OUT) :: cf(ncol, nw)
     INTEGER :: l, m, c0, nbl, c, jj, mlast
@@ -204,9 +230,9 @@ CONTAINS
     k1 = (0.0_DP, 0.0_DP); k2 = (0.0_DP, 0.0_DP)
     DO jj = 1, nw + nb - 1
       m = (jj - 1) - (nb - 1)                         ! w_i - D_b = (i - b) de
-      k1(jj) = 1.0_DP / CMPLX(m * de / ha, eta / ha, KIND=DP)
+      k1(jj) = kk_kernel(m * de / ha, eta / ha, tri)
       m = jj - 1                                      ! w_i + D_b = (i + b) de
-      k2(jj) = 1.0_DP / CMPLX(m * de / ha, eta / ha, KIND=DP)
+      k2(jj) = kk_kernel(m * de / ha, eta / ha, tri)
     ENDDO
     CALL cft_1z(k1, 1, l, l, -1, k1f)
     CALL cft_1z(k2, 1, l, l, -1, k2f)

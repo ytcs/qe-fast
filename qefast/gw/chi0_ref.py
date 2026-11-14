@@ -175,13 +175,26 @@ def binned_A(sy, qcr, Gm, emax, de, log=True):
     return A
 
 
-def eps_inv(sy, A, q2, de, w_ev, eta_ev):
-    """eps and eps^-1 (local fields, RPA) at the energies w_ev (eV); returns (eps, eps^-1), each (nw, NG, NG)."""
+def kk_kernel(x, eta, tri=False):
+    """K(x) = int phi(y) / (x - y + i0) dy for a normalised broadening of width eta (x, eta in one unit). tri: a
+    triangle of half-width eta, K = [f(x/eta) - i pi max(0, 1 - |x|/eta)] / eta, f(u) = (u+1)ln|u+1| - 2u ln|u| +
+    (u-1)ln|u-1| (Im K vanishes beyond eta; K stays causal); otherwise the Lorentzian 1/(x + i eta)."""
+    x = np.asarray(x, float)
+    if not tri:
+        return 1.0 / (x + 1j * eta)
+    u = x / eta
+    xlx = lambda t: np.where(t == 0, 0.0, t * np.log(np.abs(np.where(t == 0, 1.0, t))))
+    return (xlx(u + 1) - 2 * xlx(u) + xlx(u - 1) - 1j * np.pi * np.maximum(0.0, 1 - np.abs(u))) / eta
+
+
+def eps_inv(sy, A, q2, de, w_ev, eta_ev, tri=False):
+    """eps and eps^-1 (local fields, RPA) at the energies w_ev (eV); returns (eps, eps^-1), each (nw, NG, NG).
+    tri: triangle broadening of half-width eta (see kk_kernel); default Lorentzian."""
     nb = A.shape[0]
     Db = np.arange(nb) * de / HA
     w = np.asarray(w_ev) / HA
     eta = eta_ev / HA
-    K = 1.0 / (w[:, None] - Db[None, :] + 1j * eta) - 1.0 / (w[:, None] + Db[None, :] + 1j * eta)
+    K = kk_kernel(w[:, None] - Db[None, :], eta, tri) - kk_kernel(w[:, None] + Db[None, :], eta, tri)
     chi = (sy.spin / (sy.nk * sy.omega)) * (K @ A.reshape(nb, -1)).reshape(len(w), *A.shape[1:])  # same A both terms
     sv = np.sqrt(4 * np.pi / q2)
     eps = np.eye(len(q2))[None] - sv[None, :, None] * chi * sv[None, None, :]

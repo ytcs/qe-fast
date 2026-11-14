@@ -11,12 +11,15 @@
 !
 ! Initial states: every conduction state up to emax_carrier above the conduction minimum; final states: the empty
 ! states between the conduction minimum and the initial energy. Im W is interpolated linearly between grid
-! energies. The q = 0 term (head and wings of W) is left out; its weight is 1/Nk.
+! energies. Broadening (eta): a triangle of half-width eta by default, whose Im part has compact support, so Im W
+! and the rate vanish below the threshold (a Lorentzian tail would put a rate proportional to eta there, dominating
+! the first eV above it); 'lorentzian' keeps chi0.x's 1/(w - D + i eta). The q = 0 term (head and wings of W) is left out; its weight is 1/Nk.
 !
 ! Supported: as chi0.x (norm-conserving, fixed occupations, no spin polarisation or magnetisation, a pw.x nscf on
 ! a full k grid without symmetry, one MPI process).
 !
-! Input namelist &inputgii: prefix, outdir, emax_carrier (eV), ecut_eps (Ry), de, eta (eV), scissor (eV),
+! Input namelist &inputgii: prefix, outdir, emax_carrier (eV), ecut_eps (Ry), de, eta (eV), broadening ('triangle' or
+! 'lorentzian'), scissor (eV),
 ! fileout (n, k, E - E_cbm, Im Sigma, Gamma per initial state), filpart ('': none; the rate into every final state
 ! (n', k'), whose sum over final states is Gamma: the cascade draws the scattered carrier from it), max_mem (GB, host
 ! path; 0: half the available), device (GPU path in CUDA builds: the coefficients of every k stay on the device),
@@ -56,12 +59,12 @@ PROGRAM gamma_ii
 #endif
   IMPLICIT NONE
   REAL(DP), PARAMETER :: hbar_ha = 2.4188843265857d-17   ! s, hbar / E_h
-  CHARACTER(LEN=256) :: outdir, fileout, filpart
+  CHARACTER(LEN=256) :: outdir, fileout, filpart, broadening
   REAL(DP) :: emax_carrier, ecut_eps, de, eta, scissor, max_mem, dev_reserve
   INTEGER :: ios
-  LOGICAL :: device
+  LOGICAL :: device, tri
   NAMELIST / inputgii / prefix, outdir, emax_carrier, ecut_eps, de, eta, scissor, fileout, filpart, max_mem, &
-                        device, dev_reserve
+                        device, dev_reserve, broadening
   !
   INTEGER :: nv, nc, ni, nmax, ik, jk, iq, nq, iv, ic, n, jn, iw, nb, nw, ng, ihead, np, p, j0, cnt, ne, ie, cap, &
              ecap, pcap, ik0, ik1, t
@@ -79,6 +82,7 @@ PROGRAM gamma_ii
   CALL environment_start('GAMMA_II')
   prefix = 'pwscf'; outdir = './'; emax_carrier = 6.0_DP; ecut_eps = 4.0_DP; de = 0.05_DP; eta = 0.05_DP
   scissor = 0.0_DP; fileout = 'gamma_ii.dat'; filpart = ' '; max_mem = 0.0_DP; device = .TRUE.; dev_reserve = 2.0_DP
+  broadening = 'triangle'
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputgii, IOSTAT=ios)
@@ -91,6 +95,10 @@ PROGRAM gamma_ii
   CALL mp_bcast(scissor, ionode_id, intra_image_comm); CALL mp_bcast(fileout, ionode_id, intra_image_comm)
   CALL mp_bcast(filpart, ionode_id, intra_image_comm); CALL mp_bcast(max_mem, ionode_id, intra_image_comm)
   CALL mp_bcast(device, ionode_id, intra_image_comm); CALL mp_bcast(dev_reserve, ionode_id, intra_image_comm)
+  CALL mp_bcast(broadening, ionode_id, intra_image_comm)
+  tri = TRIM(broadening) == 'triangle'
+  IF (.NOT. tri .AND. TRIM(broadening) /= 'lorentzian') &
+    CALL errore('gamma_ii', 'broadening must be ''triangle'' or ''lorentzian''', 1)
 #if !defined(__CUDA)
   device = .FALSE.
 #endif
@@ -202,7 +210,7 @@ PROGRAM gamma_ii
       ENDDO
       CALL stop_clock('gii_pairs')
       CALL start_clock('gii_kk')
-      CALL dev_kk(spin / (nks * omega), de / ha, eta / ha, nw)
+      CALL dev_kk(spin / (nks * omega), de / ha, eta / ha, nw, tri)
       CALL stop_clock('gii_kk')
       CALL start_clock('gii_w')
       CALL dev_imw(sv, nw)
@@ -235,7 +243,7 @@ PROGRAM gamma_ii
     DEALLOCATE(rho)
     ALLOCATE(chi(ng, ng, nw), epsm(ng, ng))
     CALL start_clock('gii_kk')
-    CALL kk_fft(a, chi, ng * ng, nb, nw, de, eta, spin / (nks * omega))
+    CALL kk_fft(a, chi, ng * ng, nb, nw, de, eta, spin / (nks * omega), tri)
     CALL stop_clock('gii_kk')
     DEALLOCATE(a)
     CALL start_clock('gii_w')

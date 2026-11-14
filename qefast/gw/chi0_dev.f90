@@ -264,9 +264,12 @@ CONTAINS
     ENDIF
   END SUBROUTINE k_store
   !
-  SUBROUTINE dev_kk(pref, de_ha, eta_ha, nw)
-    !! d_chi(:, i) = pref * sum_b d_a(:, b) [K(i - b) - K(i + b)],  K(m) = 1/(m de + i eta), by strided 1D cuFFTs
+  SUBROUTINE dev_kk(pref, de_ha, eta_ha, nw, tri)
+    !! d_chi(:, i) = pref * sum_b d_a(:, b) [K(i - b) - K(i + b)],  K(m) = kk_kernel(m de, eta, tri), by strided 1D
+    !! cuFFTs
+    USE gw_common, ONLY : kk_kernel
     REAL(dp), INTENT(IN) :: pref, de_ha, eta_ha
+    LOGICAL, INTENT(IN) :: tri
     INTEGER, INTENT(IN) :: nw
     COMPLEX(dp), ALLOCATABLE :: k1(:), k2(:)
     COMPLEX(dp), DEVICE, ALLOCATABLE :: d_k1(:), d_k2(:), d_p(:,:)
@@ -282,8 +285,8 @@ CONTAINS
     ALLOCATE(k1(l), k2(l), d_k1(l), d_k2(l))
     k1 = (0.0_dp, 0.0_dp); k2 = (0.0_dp, 0.0_dp)
     DO jj = 1, nw + nb - 1
-      k1(jj) = 1.0_dp / CMPLX(((jj - 1) - (nb - 1)) * de_ha, eta_ha, KIND=dp)
-      k2(jj) = 1.0_dp / CMPLX((jj - 1) * de_ha, eta_ha, KIND=dp)
+      k1(jj) = kk_kernel(((jj - 1) - (nb - 1)) * de_ha, eta_ha, tri)
+      k2(jj) = kk_kernel((jj - 1) * de_ha, eta_ha, tri)
     ENDDO
     d_k1 = k1; d_k2 = k2
     istat = cufftPlan1d(p1, l, CUFFT_Z2Z, 1); CALL chk(istat, 'cufftPlan1d')

@@ -14,6 +14,7 @@ bands through Im W). Im W is built for each q on an energy grid and interpolated
 (head and wings of W) is left out here: the run reports the weight it leaves out, 1/Nk.
 
   gamma_ref.py <outdir> <prefix> [--emax-carrier eV] [--ecut-eps Ry] [--de eV] [--eta eV] [--scissor eV]
+                [--broadening triangle|lorentzian]
                [--out file] [--partial file.npz]
 Writes n, k, E - E_cbm (eV), Im Sigma (eV), Gamma (1/s); prints Gamma averaged in 0.5 eV bins. --partial writes the
 rate into every final state (n', k'), whose sum over final states is Gamma: the cascade draws the scattered carrier
@@ -39,6 +40,8 @@ def main():
     ap.add_argument('--ecut-eps', type=float, default=4.0)
     ap.add_argument('--de', type=float, default=0.05)
     ap.add_argument('--eta', type=float, default=0.05)
+    ap.add_argument('--broadening', choices=('triangle', 'lorentzian'), default='triangle',
+                    help='triangle of half-width eta (no rate below threshold) or the Lorentzian of chi0_ref')
     ap.add_argument('--out', default='gamma_ref.dat')
     ap.add_argument('--max-mem', type=float, default=2.0)
     ap.add_argument('--scissor', type=float, default=0.0, help='shift of the empty bands (eV), in W and the states')
@@ -70,7 +73,7 @@ def main():
         if need > a.max_mem:
             sys.exit(f'gamma_ref: {need:.2f} GB exceeds --max-mem {a.max_mem}')
         A = binned_A(sy, qcr, Gm, wmax, a.de, log=False)
-        _, einv = eps_inv(sy, A, q2, a.de, wgrid, a.eta)
+        _, einv = eps_inv(sy, A, q2, a.de, wgrid, a.eta, tri=a.broadening == 'triangle')
         sv = np.sqrt(4 * np.pi / q2)
         imW = sv[None, :, None] * ((einv - np.conj(np.swapaxes(einv, 1, 2))) / 2j) * sv[None, None, :]
         del einv, A

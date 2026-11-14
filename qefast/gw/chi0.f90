@@ -189,7 +189,7 @@ PROGRAM chi0
   ! ---- chi0 on the energy grid by FFT (Kramers-Kronig as a convolution and a correlation), then eps^-1 per energy
   ALLOCATE(chi(ng_max, ng_max, nw))
   CALL start_clock('chi0_kk')
-  CALL kk_fft(a, chi, ng_max * ng_max, nb, nw, de, eta, spin / (nks * omega))
+  CALL kk_fft(a, chi, ng_max * ng_max, nb, nw, de, eta, spin / (nks * omega), .FALSE.)
   CALL stop_clock('chi0_kk')
   DEALLOCATE(a)
   CALL open_full()
@@ -284,7 +284,7 @@ CONTAINS
     ENDDO
     DEALLOCATE(ukk, uqq, xb, idx_pg)
     CALL start_clock('chi0_kk')
-    CALL dev_kk(spin / (nks * omega), de / ha, eta / ha, nw)
+    CALL dev_kk(spin / (nks * omega), de / ha, eta / ha, nw, .FALSE.)
     CALL stop_clock('chi0_kk')
     CALL open_full()
     nch = MAX(1, MIN(nw, INT(2.5d8 / (32.0_DP * ng_max * ng_max))))
