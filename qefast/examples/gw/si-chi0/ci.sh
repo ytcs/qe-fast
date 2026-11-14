@@ -17,7 +17,7 @@ sed -e "s/calculation = 'scf'/calculation = 'nscf'/" \
 "$BIN/pw.x" -in nscf.in > nscf.out
 cat > chi0.in <<EOI
 &inputchi0
-  prefix = 'si', outdir = './out', q = 0.5, 0.0, 0.0, ecut_eps = 4.0, emax = 20.0, de = 0.05, eta = 0.1
+  prefix = 'si', outdir = './out', q = 0.5, 0.0, 0.0, ecut_eps = 4.0, device = .false., emax = 20.0, de = 0.05, eta = 0.1
   fileout = 'chi0-f90.dat', filfull = 'einv-f90.bin'
 /
 EOI

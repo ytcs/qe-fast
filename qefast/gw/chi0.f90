@@ -350,9 +350,9 @@ CONTAINS
     INTEGER, INTENT(IN) :: ncol
     COMPLEX(DP), INTENT(IN) :: af(ncol, nb)
     COMPLEX(DP), INTENT(OUT) :: cf(ncol, nw)
-    INTEGER :: l, m, c0, nbl, c, jj
+    INTEGER :: l, m, c0, nbl, c, jj, mlast
     COMPLEX(DP), ALLOCATABLE :: k1(:), k2(:), k1f(:), k2f(:), buf(:), bf(:), d(:), df(:)
-    REAL(DP) :: sf, sb, scal
+    REAL(DP) :: sf, sb, sf1, scal
     l = 1
     DO WHILE (l < 2 * nb + nw)
       l = 2 * l
@@ -367,15 +367,22 @@ CONTAINS
     ENDDO
     CALL cft_1z(k1, 1, l, l, -1, k1f)
     CALL cft_1z(k2, 1, l, l, -1, k2f)
-    ! the scalings of this FFT backend: forward and backward of a unit impulse
     d = (0.0_DP, 0.0_DP); d(1) = (1.0_DP, 0.0_DP)
-    CALL cft_1z(d, 1, l, l, -1, df); sf = REAL(df(1))
-    CALL cft_1z(d, 1, l, l, +1, df); sb = REAL(df(1))
-    scal = spin / (nks * omega) / (sb * sf * sf * l)
+    CALL cft_1z(d, 1, l, l, -1, df); sf1 = REAL(df(1))      ! forward scaling of the single (kernel) transforms
     nbl = MAX(1, MIN(ncol, INT(2.0d6 / l)))          ! two block buffers of <= ~32 MB each (column c at (c-1) l)
     ALLOCATE(buf(l * nbl), bf(l * nbl))
+    mlast = -1
     DO c0 = 1, ncol, nbl
       m = MIN(nbl, ncol - c0 + 1)
+      IF (m /= mlast) THEN
+        ! the scalings of this FFT backend, measured with the batch size of the block: QE's internal backend (GPU
+        ! builds) scales a batched call differently from a single transform
+        buf = (0.0_DP, 0.0_DP); buf(1) = (1.0_DP, 0.0_DP)
+        CALL cft_1z(buf, m, l, l, -1, bf); sf = REAL(bf(1))
+        CALL cft_1z(buf, m, l, l, +1, bf); sb = REAL(bf(1))
+        scal = spin / (nks * omega) / (sb * sf * sf1 * l)
+        mlast = m
+      ENDIF
       ! convolution term
       buf = (0.0_DP, 0.0_DP)
       DO c = 1, m
