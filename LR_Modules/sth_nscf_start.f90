@@ -5,11 +5,11 @@
 ! wavefunctions in the restart directory, instead of random vectors.
 !
 ! On by default; QEF_NSCF_ROT=0 gives vanilla's random start. Davidson then runs exactly as in vanilla, to the
-! same threshold (ethr_nscf = 1e-9/nelec), from a much better start. The start only changes how
-! many Davidson iterations are needed; it cannot change what Davidson converges to beyond ethr
-! (vanilla's own result already depends on its random start at that level). If no symmetry image
-! is found for a k-point, or the rotated vector does not cover the k+G sphere, that k-point uses
-! vanilla's init_wfc.
+! same threshold (ethr_nscf = 1e-9/nelec), from a much better start. Eigenvalues agree to ethr; the vectors of a
+! degenerate set come out in a different basis, as they do in vanilla with a different random start. Quantities
+! must not depend on that basis: ph.x's interpolated electron-phonon sum did (by up to 8% on test-suite
+! ph_metal) until elphsum averaged over degenerate sets. If no symmetry image is found for a k-point, or the
+! rotated vector does not cover the k+G sphere, that k-point uses vanilla's init_wfc.
 !
 ! For a target k' (crystal coordinates of bg) the code looks for a stored k, a crystal symmetry
 ! S (s(:,:,isym), isym <= nsym, with zero fractional translation) and tr = +1 or -1 (time reversal)
