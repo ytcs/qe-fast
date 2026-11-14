@@ -6,6 +6,15 @@ All notable changes to qe-fast are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `chi0.x` (`qefast/gw/chi0.f90`, issue #1): the inverse dielectric matrix ε⁻¹_GG′(q, ω) by sum over bands with
+  local fields (RPA), for norm-conserving insulators; Kramers–Kronig by FFT on the energy grid; full-matrix output.
+  CUDA builds run it on the GPU (`chi0_dev.f90`): Si 8³, 60 bands, 3000 energies in 5.4 s on an H100. Both paths equal
+  the Python reference `qefast/gw/chi0_ref.py` element-wise to 2×10⁻¹³; the reference agrees with `turbo_eels` on Si
+  (static ε within 0.2 %, loss peaks within 0.1 eV). CI checks the host path against the reference.
+- `qefast/gw/gamma_ref.py`: reference contraction of Im W with pair densities for the impact-ionization rate (E-13).
+
 ### Fixed
 
 - XML read of `pseudo_file`: the `l` attribute was read and broadcast without being allocated. FoX builds crashed on
