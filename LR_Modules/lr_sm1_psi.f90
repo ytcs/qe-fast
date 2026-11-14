@@ -175,7 +175,9 @@ CONTAINS
     !
     ! Calculate beta-functions vkb for a given k+q point.
     !
-    CALL init_us_2 (n, igk_k(1,ikq), xk(1,ikq), vkb, .true.)
+    ! qe-fast: also on the host (no run_on_gpu): calbec below is the host routine, and the host vkb was left
+    ! at the last k+q by lr_sm1_initialize; with run_on_gpu only the device copy was refreshed
+    CALL init_us_2 (n, igk_k(1,ikq), xk(1,ikq), vkb)
     !
     ! Compute the product of the beta-functions vkb with the functions psi
     ! at point k+q, and put the result in becp%k.
