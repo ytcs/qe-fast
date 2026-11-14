@@ -808,6 +808,11 @@ SUBROUTINE elphsum()
 
   COMPLEX(DP), POINTER :: el_ph_mat_collect(:,:,:,:)
   REAL(DP), ALLOCATABLE :: xk_collect(:,:)
+  ! qe-fast: coarse-grid eigenvalues (collected) and the degenerate sets of each band at k and k+q
+  REAL(DP), ALLOCATABLE :: et_collect(:,:)
+  INTEGER, ALLOCATABLE :: dlo_k(:,:), dhi_k(:,:), dlo_q(:,:), dhi_q(:,:)
+  INTEGER :: ikk_c, ikq_c, ib2, jb2
+  REAL(DP), PARAMETER :: eps_deg = 1.0d-6     ! Ry
   REAL(DP), POINTER :: wkfit_dist(:), etfit_dist(:,:)
   INTEGER :: nksfit_dist, rest, kunit_save
   INTEGER :: nks_real, ispin, nksqtot, irr, ierr
@@ -830,7 +835,7 @@ SUBROUTINE elphsum()
   WRITE (6, '(5x,"Electron-phonon interaction  ..."/)')
   ngauss1 = 0
 
-  ALLOCATE(xk_collect(3,nkstot))
+  ALLOCATE(xk_collect(3,nkstot), et_collect(nbnd,nkstot))
 
   ALLOCATE(deg(el_ph_nsigma))
   ALLOCATE(effit(el_ph_nsigma))
@@ -842,6 +847,7 @@ SUBROUTINE elphsum()
 !
      nksqtot=nksq
      xk_collect(:,1:nks) = xk(:,1:nks)
+     et_collect(:,1:nks) = et(:,1:nks)
      el_ph_mat_collect => el_ph_mat
   ELSE
 !
@@ -854,6 +860,7 @@ SUBROUTINE elphsum()
         nksqtot=nkstot/2
      ENDIF
      CALL poolcollect(3, nks, xk, nkstot, xk_collect)
+     CALL poolcollect(nbnd, nks, et, nkstot, et_collect)
      ALLOCATE(el_ph_mat_collect(nbnd,nbnd,nksqtot,3*nat))
      ! FIXME: this routine should be replaced by a generic routine
      CALL el_ph_collect(3*nat,el_ph_mat,el_ph_mat_collect,nksqtot,nksq)
@@ -995,6 +1002,22 @@ SUBROUTINE elphsum()
           nk1,nk2,nk3, nks_real, xk_collect, 2, nkBZ, eqBZ, sBZ)
   END IF
   !
+  ! qe-fast: |g_mn|^2 is averaged over the degenerate set of m at k and of n at k+q before it is unfolded
+  ! and interpolated. Each band pair is weighted below with its own dense-grid eigenvalues, and within a
+  ! degenerate set the individual |g_mn|^2 depend on the basis the diagonalization returned; only their
+  ! sum is invariant. Without the average the result depended on the nscf starting vectors by several
+  ! percent (Al, test-suite ph_metal); with it the gauge drops out.
+  ALLOCATE(dlo_k(nbnd,nksqtot), dhi_k(nbnd,nksqtot), dlo_q(nbnd,nksqtot), dhi_q(nbnd,nksqtot))
+  DO ik = 1, nksqtot
+     IF (lgamma) THEN
+        ikk_c = ik; ikq_c = ik
+     ELSE
+        ikk_c = 2 * ik - 1; ikq_c = 2 * ik
+     ENDIF
+     CALL deg_sets(et_collect(:,ikk_c), dlo_k(:,ik), dhi_k(:,ik))
+     CALL deg_sets(et_collect(:,ikq_c), dlo_q(:,ik), dhi_q(:,ik))
+  ENDDO
+  !
   allocate (gf(3*nat,3*nat,el_ph_nsigma))
   gf = (0.0d0,0.0d0)
   !
@@ -1010,12 +1033,19 @@ SUBROUTINE elphsum()
         allocate (g2(nkBZ*nspin_lsda,3*nat,3*nat))
         allocate (g1(nksqtot,3*nat,3*nat))
         do ik = 1, nksqtot
-           do ii = 1, 3*nat
-              do jj = 1, 3*nat
-                 g1(ik,ii,jj)=CONJG(el_ph_mat_collect(jbnd,ibnd,ik,ii))* &
-                      el_ph_mat_collect(jbnd,ibnd,ik,jj)
-              enddo    ! ipert
-           enddo    !jpert
+           g1(ik,:,:) = (0.0d0, 0.0d0)
+           do ib2 = dlo_k(ibnd,ik), dhi_k(ibnd,ik)
+              do jb2 = dlo_q(jbnd,ik), dhi_q(jbnd,ik)
+                 do ii = 1, 3*nat
+                    do jj = 1, 3*nat
+                       g1(ik,ii,jj) = g1(ik,ii,jj) + CONJG(el_ph_mat_collect(jb2,ib2,ik,ii))* &
+                            el_ph_mat_collect(jb2,ib2,ik,jj)
+                    enddo    ! ipert
+                 enddo    !jpert
+              enddo
+           enddo
+           g1(ik,:,:) = g1(ik,:,:) / DBLE((dhi_k(ibnd,ik) - dlo_k(ibnd,ik) + 1) * &
+                                          (dhi_q(jbnd,ik) - dlo_q(jbnd,ik) + 1))
         enddo   ! ik
         !
         allocate (g0(3*nat,3*nat))
@@ -1116,6 +1146,22 @@ SUBROUTINE elphsum()
         endif
         gam(nu,isig) = gam(nu,isig)*ry_to_ghz
      enddo  !nu
+     ! qe-fast: modes degenerate in frequency (within 1e-3 cm^-1) share their gamma and lambda. Inside a
+     ! degenerate set the per-mode values depend on the eigenvector basis dyndia returned; only the trace is
+     ! basis independent (and symmetry requires equal values for the partners of an irrep).
+     nu = 1
+     do while (nu <= 3*nat)
+        mu = nu
+        do while (mu < 3*nat)
+           if (ABS(SQRT(ABS(w2(mu+1))) - SQRT(ABS(w2(nu)))) * ry_to_cmm1 > 1.0d-3) exit
+           mu = mu + 1
+        enddo
+        if (mu > nu) then
+           gam(nu:mu,isig) = SUM(gam(nu:mu,isig)) / DBLE(mu - nu + 1)
+           lamb(nu:mu,isig) = SUM(lamb(nu:mu,isig)) / DBLE(mu - nu + 1)
+        endif
+        nu = mu + 1
+     enddo
   enddo  ! isig
   !
   do isig= 1,el_ph_nsigma
@@ -1186,6 +1232,7 @@ SUBROUTINE elphsum()
   enddo
   deallocate (gf)
   DEALLOCATE( deg )
+  DEALLOCATE( dlo_k, dhi_k, dlo_q, dhi_q, et_collect )
   DEALLOCATE( effit )
   DEALLOCATE( dosfit )
   DEALLOCATE( xk_collect )
@@ -1201,6 +1248,27 @@ SUBROUTINE elphsum()
 9010 FORMAT(5x,'lambda(',i5,')=',f8.4,'   gamma=',f8.2,' GHz')
   !
   RETURN
+  !
+CONTAINS
+  !
+  SUBROUTINE deg_sets(e, lo, hi)
+    !! qe-fast: lo(i):hi(i) = the bands degenerate with band i (within eps_deg); e is sorted ascending
+    REAL(DP), INTENT(IN) :: e(:)
+    INTEGER, INTENT(OUT) :: lo(:), hi(:)
+    INTEGER :: i0, i1, n
+    n = SIZE(e)
+    i0 = 1
+    DO WHILE (i0 <= n)
+       i1 = i0
+       DO WHILE (i1 < n)
+          IF (e(i1 + 1) - e(i0) > eps_deg) EXIT
+          i1 = i1 + 1
+       ENDDO
+       lo(i0:i1) = i0; hi(i0:i1) = i1
+       i0 = i1 + 1
+    ENDDO
+  END SUBROUTINE deg_sets
+  !
 END SUBROUTINE elphsum
 
 !-----------------------------------------------------------------------
