@@ -1,8 +1,8 @@
 ! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO; see NOTICE.
 ! SPDX-License-Identifier: GPL-2.0-or-later
 !
-! gw_common -- the host stages shared by chi0.x and gamma_ii.x (issue #1): k + q on the grid, the local-field
-! G basis of one q, periodic parts on the FFT box, pair densities, binning in energy, Kramers-Kronig by FFT,
+! gw_common -- the host GW stages (library qe_gw, used by chi0.x and by application programs): k + q on the grid,
+! the local-field G basis of one q, periodic parts on the FFT box, pair densities, binning in energy, Kramers-Kronig by FFT,
 ! eps^-1 per energy. Serial FFT box, one MPI process.
 !
 MODULE gw_common

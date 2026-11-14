@@ -1,15 +1,14 @@
 ! Copyright (C) 2026 The qe-fast authors. Portions derive from Quantum ESPRESSO; see NOTICE.
 ! SPDX-License-Identifier: GPL-2.0-or-later
 !
-! chi0_dev -- device path of chi0.x and gamma_ii.x (CUDA builds only). The stages of the host path, on plain arrays:
+! chi0_dev -- device path of the GW stages (CUDA builds only). The stages of the host path, on plain arrays:
 !   pairs   rho_t(G) for all conduction bands of one (k, v) by one batched cuFFT, kept in a device buffer
 !   bin     buffered transitions sorted by energy bin on the host, one cuBLAS ZGEMM per occupied bin into A_b
 !   kk      chi0 on the energy grid: zero-padded convolution and correlation along the bins, strided 1D cuFFT
 !   inv     eps = 1 - v^1/2 chi0 v^1/2 and eps^-1, batched LU and inverse (cuBLAS), returned in chunks
-! gamma_ii.x keeps the plane-wave coefficients of every k on the device (read once) and builds the periodic parts
-! there; per q it turns eps^-1 into Im W in place (imw) and contracts it with the pair densities of the hot
-! carriers (contract): one cuBLAS ZGEMM per energy of the grid over the pairs that interpolate at it.
-! The host paths in chi0.f90 and gamma_ii.f90 are the reference for every stage.
+! All-q drivers keep the plane-wave coefficients of every k on the device (read once, dev_wfc_*) and build the
+! periodic parts and the pair densities there (dev_box, dev_add_kq); per q, dev_imw turns eps^-1 into Im W in place.
+! The host path in chi0.f90 and gw_common.f90 is the reference for every stage.
 !
 MODULE chi0_dev
   USE cudafor
@@ -20,8 +19,11 @@ MODULE chi0_dev
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200)
   INTEGER, PARAMETER :: TPB = 256
   PUBLIC :: dev_init, dev_add_k, dev_flush, dev_kk, dev_inv_chunk, dev_free, dev_cap
-  PUBLIC :: dev_free_gb, dev_wfc_init, dev_wfc_put, dev_wfc_free, dev_add_kq, dev_imw, dev_ctr_cap, &
-            dev_ctr_begin, dev_ctr_pairs, dev_ctr_eval
+  PUBLIC :: dev_free_gb, dev_wfc_init, dev_wfc_put, dev_wfc_free, dev_add_kq, dev_imw
+  ! for device code built on these stages outside this tree (it reads, never reallocates, them): the kind, block
+  ! size and error check, the FFT box and basis dimensions, the cuBLAS handle, the G index map, Im W on the energy
+  ! grid (after dev_imw), and the box and plan helpers
+  PUBLIC :: dp, TPB, chk, nr, nnr, npol, nc, ng, hb, d_idx, d_chi, dev_box, plan_for, k_gather
   !
   INTEGER, SAVE :: nr(3), nrx(3), nnr, npol, nc, ng, nb, cap, nt, ntot
   INTEGER, SAVE :: plan3 = 0, nplan3 = 0
@@ -29,15 +31,11 @@ MODULE chi0_dev
   INTEGER, DEVICE, ALLOCATABLE, SAVE :: d_idx(:)
   COMPLEX(dp), DEVICE, ALLOCATABLE, SAVE :: d_uk(:,:,:), d_uq(:,:,:), d_f(:,:), d_r(:,:), d_a(:,:), d_chi(:,:)
   REAL(dp), ALLOCATABLE, SAVE :: h_x(:)
-  ! gamma_ii.x: coefficients of every k (npwx npol, nbnd, nks), their Miller indices, cuFFT plans by batch size
+  ! all-q drivers: coefficients of every k (npwx npol, nbnd, nks), their Miller indices, cuFFT plans by batch size
   INTEGER, SAVE :: npwc = 0, nbndc = 0, nksc = 0
   INTEGER, DEVICE, ALLOCATABLE, SAVE :: d_mill(:,:,:), d_ngk(:)
-  COMPLEX(dp), DEVICE, ALLOCATABLE, SAVE :: d_coef(:,:,:), d_bf(:,:,:), d_bi(:,:,:), d_ff(:,:), d_phi(:,:)
+  COMPLEX(dp), DEVICE, ALLOCATABLE, SAVE :: d_coef(:,:,:)
   INTEGER, SAVE :: pl_batch(8) = 0, pl_plan(8) = 0
-  ! gamma_ii.x contraction chunk: entry columns, positions, weights, results; gathered pairs and Im W times them
-  INTEGER, DEVICE, ALLOCATABLE, SAVE :: d_ccol(:), d_cpos(:)
-  REAL(dp), DEVICE, ALLOCATABLE, SAVE :: d_cwt(:), d_cout(:)
-  COMPLEX(dp), DEVICE, ALLOCATABLE, SAVE :: d_cx(:,:), d_cy(:,:)
   !
 CONTAINS
   !
@@ -93,23 +91,6 @@ CONTAINS
     ENDDO
     f(r, c) = t
   END SUBROUTINE k_prod
-  !
-  ATTRIBUTES(GLOBAL) SUBROUTINE k_prod_all(f, ui, uf, nnr, npol, ni, nc, j1)
-    ! f(r, b, j) = sum_s conj(ui(r, s, b)) uf(r, s, j1 + j - 1)
-    INTEGER, VALUE :: nnr, npol, ni, nc, j1
-    COMPLEX(dp) :: f(nnr, ni, *), ui(nnr, npol, ni), uf(nnr, npol, nc)
-    INTEGER :: r, b, j, s
-    COMPLEX(dp) :: t
-    r = (blockIdx%x - 1) * blockDim%x + threadIdx%x
-    b = blockIdx%y
-    j = blockIdx%z
-    IF (r > nnr) RETURN
-    t = (0.0_dp, 0.0_dp)
-    DO s = 1, npol
-      t = t + CONJG(ui(r, s, b)) * uf(r, s, j1 + j - 1)
-    ENDDO
-    f(r, b, j) = t
-  END SUBROUTINE k_prod_all
   !
   ATTRIBUTES(GLOBAL) SUBROUTINE k_gather(rr, f, idx, ng, nnr, nc, off, scal)
     ! rr(ig, off + c) = f(idx(ig), c) * scal
@@ -374,12 +355,11 @@ CONTAINS
     IF (ALLOCATED(d_a)) DEALLOCATE(d_a)
     IF (ALLOCATED(d_uk)) DEALLOCATE(d_uk, d_uq, d_f, d_r)
     IF (ALLOCATED(d_idx)) DEALLOCATE(d_idx, h_x)
-    IF (ALLOCATED(d_bf)) DEALLOCATE(d_bf, d_bi, d_ff, d_phi)
     istat = cufftDestroy(plan3)
     istat = cublasDestroy(hb)
   END SUBROUTINE dev_free
   !
-  ! ---------------------------------------------------------------- gamma_ii.x
+  ! ---------------------------------------------------------------- all-q drivers
   !
   REAL(dp) FUNCTION dev_free_gb()
     INTEGER(8) :: freeb, totb
@@ -528,110 +508,5 @@ CONTAINS
     ENDDO
     DEALLOCATE(d_sv, d_e, d_c, d_piv, d_info, pa, pc, d_pa, d_pc, info)
   END SUBROUTINE dev_imw
-  !
-  ATTRIBUTES(GLOBAL) SUBROUTINE k_scols(x, phi, col, pos, ng, e0, n)
-    ! x(:, pos(e)) = conj(phi(:, col(e))) for e = e0 + 1 .. e0 + n (the contraction is phi^T Im W phi^*)
-    INTEGER, VALUE :: ng, e0, n
-    COMPLEX(dp) :: x(ng, *), phi(ng, *)
-    INTEGER :: col(*), pos(*)
-    INTEGER :: ig, e
-    INTEGER(8) :: t
-    t = INT(blockIdx%x - 1, 8) * blockDim%x + threadIdx%x
-    IF (t > INT(ng, 8) * n) RETURN
-    e = INT((t - 1) / ng) + 1
-    ig = INT(t - INT(e - 1, 8) * ng)
-    x(ig, pos(e0 + e)) = CONJG(phi(ig, col(e0 + e)))
-  END SUBROUTINE k_scols
-  !
-  ATTRIBUTES(GLOBAL) SUBROUTINE k_dot(out, x, y, wt, ng, ne)
-    ! out(e) = wt(e) Re sum_G conj(x(G, e)) y(G, e); one block of 128 threads per entry
-    INTEGER, VALUE :: ng, ne
-    REAL(dp) :: out(ne), wt(ne)
-    COMPLEX(dp) :: x(ng, ne), y(ng, ne)
-    REAL(dp), SHARED :: s(128)
-    INTEGER :: e, i, t, h
-    e = blockIdx%x
-    t = threadIdx%x
-    s(t) = 0.0_dp
-    DO i = t, ng, 128
-      s(t) = s(t) + REAL(CONJG(x(i, e)) * y(i, e), dp)
-    ENDDO
-    CALL syncthreads()
-    h = 64
-    DO WHILE (h >= 1)
-      IF (t <= h) s(t) = s(t) + s(t + h)
-      CALL syncthreads()
-      h = h / 2
-    ENDDO
-    IF (t == 1) out(e) = wt(e) * s(1)
-  END SUBROUTINE k_dot
-  !
-  INTEGER FUNCTION pgrp(ni)
-    !! final bands per batched pair transform: all of them, or as many as fit in 2 GB of boxes
-    INTEGER, INTENT(IN) :: ni
-    pgrp = INT(MAX(1_8, MIN(INT(nc, 8), 2000000000_8 / (16_8 * nnr * ni))))
-  END FUNCTION pgrp
-  !
-  INTEGER FUNCTION dev_ctr_cap(ni, reserve_gb)
-    !! contraction entries that one chunk can hold on the device (after dev_imw; the pair buffers counted)
-    INTEGER, INTENT(IN) :: ni
-    REAL(dp), INTENT(IN) :: reserve_gb
-    INTEGER(8) :: freeb, totb, bufs
-    INTEGER :: istat
-    istat = cudaMemGetInfo(freeb, totb)
-    bufs = 0
-    IF (.NOT. ALLOCATED(d_bf)) bufs = 16_8 * nnr * (npol * (nc + ni) + ni * pgrp(ni)) + 16_8 * ng * ni * nc
-    dev_ctr_cap = INT(MIN(4_8 * 1024 * 1024, MAX(0_8, (freeb - bufs - INT(reserve_gb * 1.0d9, 8)) / (32_8 * ng + 24))))
-  END FUNCTION dev_ctr_cap
-  !
-  SUBROUTINE dev_ctr_begin(ne, col, pos, wt)
-    !! a chunk of contraction entries (several k' of one q), listed k' by k': entry t takes column col(t) of the
-    !! pair block of its k' and lands at position pos(t) of the chunk, where entries are grouped by grid energy;
-    !! wt is indexed by position
-    INTEGER, INTENT(IN) :: ne, col(ne), pos(ne)
-    REAL(dp), INTENT(IN) :: wt(ne)
-    ALLOCATE(d_ccol(ne), d_cpos(ne), d_cwt(ne), d_cout(ne), d_cx(ng, ne), d_cy(ng, ne))
-    d_ccol = col; d_cpos = pos; d_cwt = wt
-  END SUBROUTINE dev_ctr_begin
-  !
-  SUBROUTINE dev_ctr_pairs(ik, jk, g0, nv, ni, e0, n)
-    !! phi(G, b, n') = <initial b (jk + g0)| e^{i(q+G)r} |final n' (ik)> for b = 1..ni (bands nv + b) and n' = 1..nc
-    !! (bands nv + n'), column (n' - 1) ni + b; the columns of chunk entries e0 + 1 .. e0 + n go to their positions
-    INTEGER, INTENT(IN) :: ik, jk, g0(3), nv, ni, e0, n
-    INTEGER :: j1, nj, istat, pl
-    TYPE(dim3) :: g
-    IF (.NOT. ALLOCATED(d_bf)) ALLOCATE(d_bf(nnr, npol, nc), d_bi(nnr, npol, ni), d_ff(nnr, ni * pgrp(ni)), &
-                                        d_phi(ng, ni * nc))
-    CALL dev_box(ik, nv + 1, nc, (/0, 0, 0/), d_bf)
-    CALL dev_box(jk, nv + 1, ni, g0, d_bi)
-    DO j1 = 1, nc, pgrp(ni)                          ! final bands j1 .. j1 + nj - 1 in one batched transform
-      nj = MIN(pgrp(ni), nc - j1 + 1)
-      pl = plan_for(ni * nj)
-      g = dim3((nnr + TPB - 1) / TPB, ni, nj)
-      CALL k_prod_all<<<g, TPB>>>(d_ff, d_bi, d_bf, nnr, npol, ni, nc, j1)
-      istat = cufftExecZ2Z(pl, d_ff, d_ff, CUFFT_INVERSE); CALL chk(istat, 'cufftExecZ2Z contraction pairs')
-      g = dim3((ng + TPB - 1) / TPB, ni * nj, 1)
-      CALL k_gather<<<g, TPB>>>(d_phi, d_ff, d_idx, ng, nnr, ni * nj, (j1 - 1) * ni, 1.0_dp / (nr(1) * nr(2) * nr(3)))
-    ENDDO
-    IF (n == 0) RETURN
-    CALL k_scols<<<INT((INT(ng, 8) * n + TPB - 1) / TPB), TPB>>>(d_cx, d_phi, d_ccol, d_cpos, ng, e0, n)
-  END SUBROUTINE dev_ctr_pairs
-  !
-  SUBROUTINE dev_ctr_eval(nw, cnt, off, ne, out)
-    !! out(e) = wt(e) x_e^H Im W(w) x_e for the chunk, one ZGEMM per grid energy w over entries off(w) + 1 ..
-    !! off(w) + cnt(w); frees the chunk
-    INTEGER, INTENT(IN) :: nw, cnt(nw), off(nw), ne
-    REAL(dp), INTENT(OUT) :: out(ne)
-    INTEGER :: w, istat
-    DO w = 1, nw
-      IF (cnt(w) == 0) CYCLE
-      istat = cublasZgemm(hb, CUBLAS_OP_N, CUBLAS_OP_N, ng, cnt(w), ng, (1.0_dp, 0.0_dp), d_chi(1, w), ng, &
-                          d_cx(1, off(w) + 1), ng, (0.0_dp, 0.0_dp), d_cy(1, off(w) + 1), ng)
-      CALL chk(istat, 'cublasZgemm contraction')
-    ENDDO
-    CALL k_dot<<<ne, 128>>>(d_cout, d_cx, d_cy, d_cwt, ng, ne)
-    out = d_cout
-    DEALLOCATE(d_ccol, d_cpos, d_cwt, d_cout, d_cx, d_cy)
-  END SUBROUTINE dev_ctr_eval
   !
 END MODULE chi0_dev

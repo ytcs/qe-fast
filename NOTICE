@@ -135,7 +135,6 @@ outputs are data read by the test harness and carry none.
   PIOUD/src/pimd_subrout.f90               2026-11-14
   PIOUD/src/pimd_utils.f90                 2026-11-14
   PIOUD/src/trpmd_base.f90                 2026-11-14
-  PP/CMakeLists.txt                        2026-11-13
   PP/src/chdens_module.f90                 2026-11-14
   PP/src/d_matrix_nc.f90                   2026-11-14
   PP/src/d_matrix_so.f90                   2026-11-14
@@ -400,11 +399,6 @@ Not in this repository, fetched by scripts at the user's request:
   with the GPL; keep its notice with anything you distribute.
 
 - NVIDIA MathDx (cuFFTDx) 25.6.0: see section 3.
-
-- For the examples under qefast/examples/eph-tc/funnel only: the Python packages
-  pymatgen, ase, jarvis-tools, mace-torch and mattersim, the machine-learned
-  potentials they download, and the JARVIS datasets. None are in this
-  repository. Check their terms before use.
 
 
 3. NVIDIA MathDx / cuFFTDx, and GPU builds
