@@ -170,23 +170,42 @@ CI case (12 bands; Γ_ii to 7 digits, 1916 partial rates to 8×10⁻¹⁰ of the
 
 ### First production runs (H100)
 
-Si, 40 bands, carriers up to 6 eV above E_cbm, 4 Ry basis, 0.02 eV grid (326 energies), 0.05 eV Lorentzian,
-q = 0 term left out. Mean Γ_ii (s⁻¹) per 0.5 eV bin:
+Si, 40 bands, carriers up to 6 eV above E_cbm, 4 Ry basis, 0.02 eV grid (326 energies), q = 0 term left out,
+Z = 1. Triangle broadening of half-width η, the default. Mean Γ_ii (s⁻¹) per 0.5 eV bin:
 
-| E − E_cbm (eV) | 0.5–1 | 1.5–2 | 2.5–3 | 3.5–4 | 4.5–5 | 5.5–6 | time |
-|---|---|---|---|---|---|---|---|
-| 6³ k (215 q) | 8.6×10¹¹ | 6.4×10¹² | 4.2×10¹³ | 1.27×10¹⁴ | 3.1×10¹⁴ | 7.2×10¹⁴ | 41 s |
-| 8³ k (511 q) | 5.8×10¹¹ | 4.2×10¹² | 3.2×10¹³ | 1.09×10¹⁴ | 3.2×10¹⁴ | 6.9×10¹⁴ | 90 s |
-| 10³ k (999 q) | 7.0×10¹¹ | 3.5×10¹² | 2.8×10¹³ | 1.05×10¹⁴ | 2.9×10¹⁴ | 6.8×10¹⁴ | 348 s |
+| E − E_cbm (eV) | 1–1.5 | 1.5–2 | 2–2.5 | 2.5–3 | 3–3.5 | 3.5–4 | 4–4.5 | 4.5–5 | 5.5–6 | time |
+|---|---|---|---|---|---|---|---|---|---|---|
+| PBE gap, 8³ k | 2.8×10¹¹ | 1.5×10¹² | 5.7×10¹² | 2.3×10¹³ | 4.3×10¹³ | 9.9×10¹³ | 2.0×10¹⁴ | 3.0×10¹⁴ | 6.9×10¹⁴ | 92 s |
+| PBE gap, 10³ k | 1.4×10¹¹ | 1.1×10¹² | 6.4×10¹² | 2.0×10¹³ | 4.2×10¹³ | 9.5×10¹³ | 1.7×10¹⁴ | 2.9×10¹⁴ | 6.6×10¹⁴ | 334 s |
+| gap 1.12 eV, 8³ k | 1.2×10¹⁰ | 1.6×10¹¹ | 2.6×10¹² | 1.1×10¹³ | 2.2×10¹³ | 4.8×10¹³ | 1.1×10¹⁴ | 1.9×10¹⁴ | 4.9×10¹⁴ | 89 s |
+| same, η = 0.1 eV | 2.9×10¹⁰ | 2.7×10¹¹ | 2.2×10¹² | 9.3×10¹² | 2.2×10¹³ | 4.8×10¹³ | 1.1×10¹⁴ | 1.9×10¹⁴ | 5.0×10¹⁴ | 89 s |
+| gap 1.08 eV, 10³ k | 5.6×10⁹ | 2.5×10¹¹ | 1.6×10¹² | 6.6×10¹² | 1.9×10¹³ | 4.7×10¹³ | 1.0×10¹⁴ | 1.8×10¹⁴ | 5.1×10¹⁴ | 332 s |
 
-- Above about 5 eV the 8³ and 10³ grids agree within a few percent; between 1 and 3 eV the bin means still move by
-  13–27 %. The omitted q = 0 term (weight 1/N_k) and the coarse sampling near threshold both contribute. Each bin
-  mean averages over the states that fall in it, which differ between grids.
-- Basis: 8 Ry instead of 4 Ry for ε⁻¹ (6³) changes every bin mean by 0.5 % or less.
-- The 6³ time is from before the batching below.
-- Speed: the contraction is batched over k′ within each q, one ZGEMM per grid energy, and the pair densities of all
-  final bands go in one batched FFT. On 8³ this took the run from 300 s to 90 s with bit-identical rates. On 10³,
-  pair densities and contraction take 152 s and 165 s.
+η is 0.05 eV unless stated. The gap-corrected rows add a 0.55 eV scissor to the empty bands, in both W and the
+states (PBE gap 0.57 eV at 8³ and 0.53 eV at 10³).
+
+- **Broadening.** A Lorentzian tail of Im χ₀ puts a rate proportional to η below the threshold (E − E_cbm < E_g),
+  where no impact ionisation is possible. On Si 4³ that rate was 1.6×10¹¹ s⁻¹ at η = 0.05 eV and halved with η. The
+  same tail dominated the first eV above threshold. An earlier version of this table used the Lorentzian; its
+  numbers below 3 eV were that artifact. The triangle's Im part has compact support and its real part is its exact
+  Hilbert transform. Below threshold the rate is now 10⁻² s⁻¹, i.e. rounding. Above 2.5 eV η = 0.05 and 0.1 eV agree
+  within about 10 %.
+- **k convergence**, gap-corrected: 8³ and 10³ agree within about 10 % above 3.5 eV, 16 % at 3–3.5 eV and 40 % at
+  2–3 eV. Below 2 eV the few transitions a grid offers set the value, as in the published calculations. The omitted
+  q = 0 term has weight 1/N_k and a finite integrand.
+- **Basis:** 8 Ry instead of 4 Ry for ε⁻¹ (6³, Lorentzian) changes every bin mean by 0.5 % or less.
+- **Against published Si rates.** These are read off Fig. 2 of Kotani and van Schilfgaarde, arXiv:0812.2923
+  (QSGW bands with the experimental gap, Z ≈ 0.8, 500 k).
+  - Over 3–5 eV the gap-corrected 10³ rates are about 4–5× above their GW values and about 2–2.5× above
+    Sano–Yoshii's, which they plot alongside.
+  - Their Z accounts for 1.25×.
+  - W itself agrees with `turbo_eels` (static ε within 0.3 %) and the contraction agrees with `gamma_ref.py`, so the
+    normalisation chain is checked except for the contraction formula, which the two share. PBE bands with a
+    scissor against QSGW bands (conduction bandwidth, hence density of final states) is the next suspect.
+  - Pin this down before the cascade relies on the rates.
+- **Speed:** the contraction is batched over k′ within each q, one ZGEMM per grid energy, and the pair densities of
+  all final bands go in one batched FFT. On 8³ this took the run from 300 s to 90 s with bit-identical rates. On 10³,
+  pair densities and contraction take 150 s and 157 s.
 
 Stages from here to the issue's gate, each with its own check:
 
