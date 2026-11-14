@@ -34,6 +34,42 @@ All notable changes to qe-fast are recorded here. The format follows
   Ultrasoft with and without spin–orbit, collinear and noncollinear, now equal the CPU on the H100 to 4×10⁻⁶ (ε⁻¹ at
   1.44 eV); the norm-conserving case was right before and is unchanged. The same upstream commit (QE 4aead329) fixes
   host/device mixing in `lr_sm1_psi`, used by the Lanczos solver; that path has no GPU measurement yet.
+- Every bug fix upstream QE has made since the 7.6 release, about 90 commits from the development branch, is
+  backported. Each is cherry-picked with its upstream author and commit id; the commit history lists them. Among
+  those that change results:
+  - hybrid-functional stress (the q = 0 term was missing, the normalisation was wrong) and the Gau-PBE density
+    derivative;
+  - averaging of fully relativistic pseudopotentials used without spin–orbit;
+  - meta-GGA: the stress for ecutrho > 4 ecutwfc, Libxc's sigma floor, and the density thresholds;
+  - magnetic noncollinear phonon symmetrisation;
+  - tetrahedra with fixed magnetisation under MPI, and eigenvectors of the "direct" LAXlib diagonalisation;
+  - BFGS (s·y after Powell damping, trust radius in the line search), velocity-Verlet MD, and the vc-relax charge
+    extrapolation;
+  - DFT+U: noncollinear symmetrisation, orbital-resolved U, `read_ns`, and HP with one k-point per pool;
+  - epsilon.x (χ was 4× too large for nspin = 1), the pw2wannier90 `CONJG` and spinor factors, and pw2wannier90's
+    hydrogenic radial integral (up to 99 % off for r = 3);
+  - `adddvscf` called with two of its three arguments (EELS and el-ph with ultrasoft pseudopotentials).
+
+  GPU data-synchronisation fixes cover CG eigenvalues, `vloc_psi`, the Hubbard forces, PAW noncollinear and
+  `doverlap_inv`. Crash and hang fixes cover species labels longer than 3 characters, `read_rhog`, `wfcinit`,
+  concurrent runs in one directory, and re-initialisation after `clean_pw`. Two local corrections were needed:
+  - `rotate_and_add_dyn` keeps its 7.6 interface for the d3q plugin, which calls it without the new time-reversal
+    flags;
+  - `q2qstar.x` passes `t_rev` in the right position (upstream passes it after `rtau`).
+
+  Benchmarks were taken from upstream only where our build reproduces them: the hybrid, meta-GGA, relax, constraint,
+  tddfpt_hyb, pw_irrbz and EPW sets. `pw_workflow_vc-relax_dos` is regenerated here, since the BFGS fix changes the
+  path and both endpoints are converged. On the serial CPU build, 72 of the 73 pw, ph, hp, pp and tddfpt test
+  directories pass against the updated benchmarks. `ph_multipole` needs `spglib` in the environment. `tddfpt_hyb`
+  failed on vanilla 7.6 too; it now passes.
+- ph.x, `electron_phonon='interpolated'`: the linewidths depended on the basis the nscf diagonalisation returned
+  within degenerate sets, and on the eigenvector basis of degenerate phonon modes. Upstream has the same dependence.
+  On `ph_metal` (Al, q at X) γ moved by up to 8 % with the nscf starting vectors, even with both starts converged to
+  ethr = 3×10⁻¹⁴. |g|² is now averaged over the degenerate bands at k and k+q before interpolation, and γ, λ over
+  frequency-degenerate modes. The two starts agree to the printed 0.01 GHz and the benchmark to 0.57 GHz.
+- EPW `pw2wan`: hydrogenic radial integrals. The logarithmic mesh cut at 10/α truncated the r = 2 and r = 3 guiding
+  functions, the bug upstream fixed in pw2wannier90 but not in EPW's copy. The r = 3 function also had the wrong
+  normalisation exponent (2/3 for 3/2) and linear coefficient (1.5 for 2/3). Both radial routines are fixed.
 
 - XML read of `pseudo_file`: the `l` attribute was read and broadcast without being allocated. FoX builds crashed on
   every read of a saved run (`ph.x`, `gipaw.x`, ...); other builds silently dropped it.
