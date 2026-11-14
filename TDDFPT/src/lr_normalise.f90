@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2001-2016 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -25,7 +26,7 @@ SUBROUTINE lr_normalise (evc1, norm)
   USE wvfct,                ONLY : nbnd, npwx, wg
   USE control_flags,        ONLY : gamma_only
   USE lr_variables,         ONLY : lr_verbosity, eels
-  USE noncollin_module,     ONLY : npol
+  USE noncollin_module,     ONLY : npol, noncolin
   USE qpoint,               ONLY : nksq
   !
   IMPLICIT NONE
@@ -99,6 +100,7 @@ CONTAINS
           ! Non real_space & nkb > 0 case
           !
           CALL calbec(ngk(1),vkb,evc1(:,:,1),becp)
+          !$acc update device(becp%r)   ! qe-fast: s_psi reads the device copy (GPU builds)
           CALL s_psi(npwx,ngk(1),nbnd,evc1(1,1,1),spsi)
           !
        ENDIF
@@ -141,6 +143,12 @@ CONTAINS
           !
           CALL init_us_2(ngk(ik),igk_k(1,ik),xk(1,ik),vkb)
           CALL calbec(ngk(ik),vkb,evc1(:,:,ik),becp)
+          ! qe-fast: s_psi reads the device copy of becp (GPU builds)
+          IF (noncolin) THEN
+             !$acc update device(becp%nc)
+          ELSE
+             !$acc update device(becp%k)
+          ENDIF
           !
        ENDIF
        !
@@ -197,6 +205,12 @@ CONTAINS
           ! the response orbitals evc1 : becp%k = <vkb|evc1>
           !
           CALL calbec(npwq, vkb, evc1(:,:,ik), becp, nbnd_occ(ikk))
+          ! qe-fast: s_psi reads the device copy of becp (GPU builds)
+          IF (noncolin) THEN
+             !$acc update device(becp%nc)
+          ELSE
+             !$acc update device(becp%k)
+          ENDIF
           !
        ENDIF
        !
