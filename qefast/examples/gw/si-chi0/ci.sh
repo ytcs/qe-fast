@@ -55,11 +55,13 @@ same = a.shape == b.shape and np.array_equal(a[:, :2], b[:, :2])
 pk = a[:, 4].max(); m = a[:, 4] > 1e-6 * pk                 # below that the Lorentzian tail sits at print precision
 d_rel = (np.abs(a[m, 4] - b[m, 4]) / a[m, 4]).max(); d_abs = np.abs(a[:, 4] - b[:, 4]).max() / pk
 p, f = np.load('part-py.npz'), np.loadtxt('part-f90.txt')
-kp = np.stack([p['n'], p['k'], p['nf'], p['kf']], 1); kf = f[:, :4].astype(int)
-op, of = np.lexsort(kp.T[::-1]), np.lexsort(kf.T[::-1])
-same_p = np.array_equal(kp[op], kf[of])
-d_p = np.abs(p['gamma'][op] - f[of, 4]).max() / p['gamma'].max() if same_p else np.inf
+# partial rates over the union of keys, a missing entry counting as 0: a pair whose transfer sits at the 1 ueV cut
+# can fall on either side of it in the two codes, with a negligible rate
+gp = {k: g for k, g in zip(zip(p['n'], p['k'], p['nf'], p['kf']), p['gamma'])}
+gf = {tuple(int(v) for v in r[:4]): r[4] for r in f}
+keys = set(gp) | set(gf)
+d_p = max(abs(gp.get(k, 0.0) - gf.get(k, 0.0)) for k in keys) / max(gp.values())
 print(f'gamma gate: {m.sum()} of {len(a)} states, Gamma rel |diff| {d_rel:.2e} (all: {d_abs:.2e} of the peak), '
-      f'{len(kf)} partial rates, |diff| {d_p:.2e} of the peak, same keys {same and same_p}')
-sys.exit(0 if (same and same_p and d_rel < 1e-5 and d_abs < 1e-8 and d_p < 1e-7) else 1)
+      f'partial rates {len(gp)} / {len(gf)} ({len(set(gp) ^ set(gf))} keys in one only), |diff| {d_p:.2e} of the peak')
+sys.exit(0 if (same and d_rel < 1e-5 and d_abs < 1e-8 and d_p < 1e-7) else 1)
 EOP
