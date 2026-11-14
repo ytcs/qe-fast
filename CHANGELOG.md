@@ -13,6 +13,9 @@ All notable changes to qe-fast are recorded here. The format follows
   CUDA builds run it on the GPU (`chi0_dev.f90`): Si 8³, 60 bands, 3000 energies in 5.4 s on an H100. Both paths equal
   the Python reference `qefast/gw/chi0_ref.py` element-wise to 2×10⁻¹³; the reference agrees with `turbo_eels` on Si
   (static ε within 0.3 %, loss peaks within 0.1 eV). CI checks the host path against the reference.
+- `qefast/lint/acc_generic.py`, run in CI: flags a generic call (`invfft`, `fwfft`, `mp_sum`, ...) on an array named
+  in an enclosing OpenACC data clause outside `host_data`. nvfortran resolves such calls to the device routine. This
+  is how `lr_calc_dens` lost the ultrasoft term on GPU builds. The tree is clean.
 - `qefast/gw/gamma_ref.py`: reference contraction of Im W with pair densities for the impact-ionization rate (E-13).
 - `gamma_ii.x` (`qefast/gw/gamma_ii.f90`, issue #1): the impact-ionisation rate Γ_ii = 2|Im Σ|/ħ of every hot
   electron up to a carrier cutoff, from the RPA Im W of every q on the grid, and the partial rate into every final

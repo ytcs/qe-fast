@@ -32,6 +32,8 @@ jobs:
             echo "::error::old project name found"
             exit 1
           fi
+      - name: No generic call on an OpenACC data-clause array outside host_data
+        run: python3 qefast/lint/acc_generic.py
       - name: Sources carry a licence tag
         run: |
           missing=$(git ls-files 'qefast/*.sh' 'qefast/*.py' 'qefast/*.f90' 'qefast/*.cu' 'qefast/*.c' \
