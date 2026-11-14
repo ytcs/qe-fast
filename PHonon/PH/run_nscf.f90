@@ -49,7 +49,6 @@ SUBROUTINE run_nscf(do_band, iq)
   USE mp_images,       ONLY : intra_image_comm
   USE mp,              ONLY : mp_barrier
   USE sth_nscf_symrot, ONLY : symrot_forget_plan
-  USE sth_nscf_batched, ONLY : nscf_batched_decline
   USE rism_module,     ONLY : lrism, rism_set_restart
   USE two_chem,        ONLY : twochem
   USE input_parameters, ONLY : occupations
@@ -64,10 +63,6 @@ SUBROUTINE run_nscf(do_band, iq)
   INTEGER, INTENT(IN) :: iq
   !
   LOGICAL :: exst
-  !
-  ! qe-fast: AHC reads every band up to nbnd, and the batched nscf can miss the highest one
-  nscf_batched_decline = ' '
-  IF (elph_ahc) nscf_batched_decline = 'AHC reads all bands up to nbnd'
   !
   CALL start_clock( 'PWSCF' )
   !
