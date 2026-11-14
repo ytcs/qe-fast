@@ -313,7 +313,6 @@ CONTAINS
   !
   SUBROUTINE dev_inv_chunk(sv, i0, n, eps_h, einv_h)
     !! eps and eps^-1 for energies i0 .. i0+n-1, returned to the host; batched LU and inverse (cuBLAS)
-    USE iso_c_binding, ONLY : c_devptr, c_devloc
     REAL(dp), INTENT(IN) :: sv(ng)
     INTEGER, INTENT(IN) :: i0, n
     COMPLEX(dp), INTENT(OUT) :: eps_h(ng, ng, n), einv_h(ng, ng, n)
