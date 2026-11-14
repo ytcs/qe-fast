@@ -33,7 +33,17 @@ All notable changes to qe-fast are recorded here. The format follows
   copy; `ccg_psi`, the preconditioner of the frequency-dependent solver, ran on host copies the solver never used.
   Ultrasoft with and without spin–orbit, collinear and noncollinear, now equal the CPU on the H100 to 4×10⁻⁶ (ε⁻¹ at
   1.44 eV); the norm-conserving case was right before and is unchanged. The same upstream commit (QE 4aead329) fixes
-  host/device mixing in `lr_sm1_psi`, used by the Lanczos solver; that path has no GPU measurement yet.
+  host/device mixing in `lr_sm1_psi`, used by the Lanczos solver.
+- Known issue: ultrasoft Lanczos EELS on GPU still differs from the CPU (Al, collinear: β₁ 0.5962 against 0.5940
+  after the fixes below; norm-conserving agrees to 10⁻⁶). Being traced.
+- TDDFPT on GPU with ultrasoft pseudopotentials: several routines filled `becp` with the host `calbec` and then
+  called the offloaded `s_psi`, which read the stale device copy. Affected: `lr_apply_s`, which applies S to every new
+  Lanczos vector, plus `sd0psi`, `lr_read_wf`, `lr_dvpsi_e` and `lr_normalise`. `becp` now goes to the device in
+  between. `lr_sm1_psi` built the k+q projectors on the device only and then used the host copy. Not yet measured.
+- EPW iterative BTE in non-MPI builds: `transport_ibte` opened the merged sparse-matrix files without their image
+  suffix, created empty files and stopped ('error in reading sparse_q'). Upstream development has the same lines.
+- XClib, LAXlib and upflib error routines flush the message before `MPI_Abort`. On MPI builds an input error such as
+  SCAN without Libxc used to end with an empty output.
 - Every bug fix upstream QE has made since the 7.6 release, about 90 commits from the development branch, is
   backported. Each is cherry-picked with its upstream author and commit id; the commit history lists them. Among
   those that change results:
@@ -59,9 +69,12 @@ All notable changes to qe-fast are recorded here. The format follows
 
   Benchmarks were taken from upstream only where our build reproduces them: the hybrid, meta-GGA, relax, constraint,
   tddfpt_hyb, pw_irrbz and EPW sets. `pw_workflow_vc-relax_dos` is regenerated here, since the BFGS fix changes the
-  path and both endpoints are converged. On the serial CPU build, 72 of the 73 pw, ph, hp, pp and tddfpt test
-  directories pass against the updated benchmarks. `ph_multipole` needs `spglib` in the environment. `tddfpt_hyb`
-  failed on vanilla 7.6 too; it now passes.
+  path and both endpoints are converged. On the serial CPU build, 74 of the 75 pw, ph, hp, pp and tddfpt test
+  directories pass against the updated benchmarks; `ph_multipole` needs `spglib` in the environment. 19 of the 21
+  EPW directories pass; `epw_lsda_metal` and `epw_mob_U` need pseudopotentials the QE server does not host.
+  `tddfpt_hyb` failed on vanilla 7.6 too and now passes. On an H100 the 32 GPU-relevant test directories pass,
+  including `ph_metal`, which vanilla 7.6 fails there; the one exception is `pw_metaGGA`'s SCAN case on a build
+  without Libxc.
 - ph.x, `electron_phonon='interpolated'`: the linewidths depended on the basis the nscf diagonalisation returned
   within degenerate sets, and on the eigenvector basis of degenerate phonon modes. Upstream has the same dependence.
   On `ph_metal` (Al, q at X) γ moved by up to 8 % with the nscf starting vectors, even with both starts converged to
