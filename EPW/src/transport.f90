@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -1241,20 +1242,20 @@
       ! Now open the sparse matrix mapping
       INQUIRE(IOLENGTH = direct_io_factor) dum_int
       unf_recl = direct_io_factor * INT(nind, KIND = KIND(unf_recl))
-      OPEN(UNIT = iunsparseq, FILE = 'sparseq'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparseq, FILE = 'sparseq'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparseq', 1)
-      OPEN(UNIT = iunsparsek, FILE = 'sparsek'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparsek, FILE = 'sparsek'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparsek', 1)
-      OPEN(UNIT = iunsparsei, FILE = 'sparsei'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparsei, FILE = 'sparsei'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparsei', 1)
-      OPEN(UNIT = iunsparsej, FILE = 'sparsej'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparsej, FILE = 'sparsej'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparsej', 1)
-      OPEN(UNIT = iunsparset, FILE = 'sparset'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparset, FILE = 'sparset'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparset', 1)
 #endif
       !
@@ -1415,20 +1416,20 @@
       ! Now open the sparse matrix mapping
       INQUIRE(IOLENGTH = direct_io_factor) dum_int
       unf_recl = direct_io_factor * INT(nind, KIND = KIND(unf_recl))
-      OPEN(UNIT = iunsparseqcb, FILE = 'sparseqcb'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparseqcb, FILE = 'sparseqcb'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparseqcb', 1)
-      OPEN(UNIT = iunsparsekcb, FILE = 'sparsekcb'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparsekcb, FILE = 'sparsekcb'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparsekcb', 1)
-      OPEN(UNIT = iunsparseicb, FILE = 'sparseicb'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparseicb, FILE = 'sparseicb'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparseicb', 1)
-      OPEN(UNIT = iunsparsejcb, FILE = 'sparsejcb'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparsejcb, FILE = 'sparsejcb'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparsejcb', 1)
-      OPEN(UNIT = iunsparsetcb, FILE = 'sparsetcb'// TRIM(fnm), IOSTAT = ierr, FORM = 'unformatted', &
-           STATUS = 'unknown', ACCESS = 'direct', RECL = unf_recl)
+      OPEN(UNIT = iunsparsetcb, FILE = 'sparsetcb'// TRIM(fnm) // '_' // TRIM(my_image_id_ch), IOSTAT = ierr, &
+           FORM = 'unformatted', STATUS = 'old', ACCESS = 'direct', RECL = unf_recl)
       IF (ierr /= 0) CALL errore('transport_ibte', 'Error in reading sparsetcb', 1)
 #endif
       !
