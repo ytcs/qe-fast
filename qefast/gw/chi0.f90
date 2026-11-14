@@ -15,7 +15,8 @@
 !
 ! Input namelist &inputchi0: prefix, outdir, q(3) (2 pi / alat, Cartesian), ecut_eps (Ry), emax, de, eta (eV),
 ! nbnd (0: all), fileout, filfull ('' : no full matrix), max_mem (GB, host path; 0: half the available), device (GPU path in CUDA builds), check_psd
-! (number of energies, evenly spread, at which the anti-Hermitian part of -eps^-1 is checked; >= nw: all).
+! (number of energies, evenly spread, at which the anti-Hermitian part of -eps^-1 is checked; >= nw: all), dev_reserve
+! (GB of device memory left free; a large value forces a small transition buffer and several flushes).
 !
 PROGRAM chi0
   USE kinds,            ONLY : DP
@@ -50,8 +51,9 @@ PROGRAM chi0
   INTEGER :: nbnd, ios
   LOGICAL :: device
   INTEGER :: check_psd
+  REAL(DP) :: dev_reserve
   NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device, &
-                         check_psd
+                         check_psd, dev_reserve
   !
   INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, iw, ng_max, b, iq_head, np, cap
   INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), tb(:), list(:)
@@ -67,6 +69,7 @@ PROGRAM chi0
   CALL environment_start('CHI0')
   prefix = 'pwscf'; outdir = './'; q = 0.0_DP; ecut_eps = 4.0_DP; emax = 60.0_DP; de = 0.02_DP; eta = 0.1_DP
   nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 0.0_DP; device = .TRUE.; check_psd = 100
+  dev_reserve = 2.0_DP
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputchi0, IOSTAT=ios)
@@ -79,7 +82,7 @@ PROGRAM chi0
   CALL mp_bcast(eta, ionode_id, intra_image_comm); CALL mp_bcast(nbnd, ionode_id, intra_image_comm)
   CALL mp_bcast(fileout, ionode_id, intra_image_comm); CALL mp_bcast(filfull, ionode_id, intra_image_comm)
   CALL mp_bcast(max_mem, ionode_id, intra_image_comm); CALL mp_bcast(device, ionode_id, intra_image_comm)
-  CALL mp_bcast(check_psd, ionode_id, intra_image_comm)
+  CALL mp_bcast(check_psd, ionode_id, intra_image_comm); CALL mp_bcast(dev_reserve, ionode_id, intra_image_comm)
 #if !defined(__CUDA)
   device = .FALSE.
 #endif
@@ -145,7 +148,8 @@ PROGRAM chi0
   ENDDO
 #if defined(__CUDA)
   IF (device) THEN
-    cap = dev_cap(dffts%nnr, npol, nv, nc, ng_max, nb, nw, 2.0_DP)
+    cap = dev_cap(dffts%nnr, npol, nv, nc, ng_max, nb, nw, dev_reserve)
+    WRITE(stdout, '(5x,"chi0: device transition buffer ",I0," (",F6.2," GB left free)")') cap, dev_reserve
     IF (cap < nc) THEN
       CALL qef_note('chi0 on the GPU', .FALSE., 'device memory too small for one k-point; host path')
       device = .FALSE.

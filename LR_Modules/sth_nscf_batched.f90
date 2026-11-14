@@ -47,7 +47,9 @@ CONTAINS
     USE sth_nscf_start,   ONLY : nscf_start_get
 #if defined(__CUDA)
     USE nscf_engine,      ONLY : nscf_eng_init, nscf_eng_set_k, nscf_eng_solve, nscf_eng_get_k, &
-                                 nscf_eng_free, nscf_eng_kmax, nscf_eng_nit, nscf_eng_t_eig, nscf_eng_t_tot
+                                 nscf_eng_free, nscf_eng_kmax, nscf_eng_nit, nscf_eng_t_eig, nscf_eng_t_tot, &
+                                 nscf_eng_resmax, nscf_eng_nret
+    USE random_numbers,   ONLY : randy
 #endif
     !
     INTEGER, INTENT(IN) :: ik_
@@ -62,8 +64,8 @@ CONTAINS
     INTEGER :: ios, ik, k0, j, nkc, chunk, npw, na, ih, jh, niter, nfail, maxit
     INTEGER(8) :: nhpsi
     INTEGER, ALLOCATABLE :: idx(:), kl(:)
-    INTEGER :: nkl
-    COMPLEX(DP), ALLOCATABLE :: dmat(:,:)
+    INTEGER :: nkl, nbuf, ib, ig
+    COMPLEX(DP), ALLOCATABLE :: dmat(:,:), evcb(:,:)
     LOGICAL :: ok, strict, unsup
     INTEGER(8) :: c0, c1, cr
     REAL(DP) :: tset, tsol, teig
@@ -118,12 +120,17 @@ CONTAINS
       CALL stop_clock('nscf_batch')
       RETURN
     ENDIF
-    chunk = MIN(nkl, nscf_eng_kmax(npwx, nbnd, MAX(nkb, 1), david, dffts%nnr))
+    ! buffer bands: converge nbnd + nbuf and return nbnd, so that a state the batched Davidson would skip near the top
+    ! falls into the buffer (diamond ahc2: band 9 returned 1.15 eV too high at one k without it)
+    nbuf = MAX(2, NINT(0.1_DP * nbnd))
+    ALLOCATE(evcb(npwx, nbnd + nbuf))
+    nscf_eng_nret = nbnd; nscf_eng_resmax = 0.0_DP
+    chunk = MIN(nkl, nscf_eng_kmax(npwx, nbnd + nbuf, MAX(nkb, 1), david, dffts%nnr))
     nfail = 0
     tset = 0; tsol = 0; teig = 0; nit = 0
     DO k0 = 1, nkl, chunk
       nkc = MIN(chunk, nkl - k0 + 1)
-      CALL nscf_eng_init(nkc, npwx, nbnd, nkb, david, dffts%nr1, dffts%nr2, dffts%nr3, dffts%nr1x, &
+      CALL nscf_eng_init(nkc, npwx, nbnd + nbuf, nkb, david, dffts%nr1, dffts%nr2, dffts%nr3, dffts%nr1x, &
                          dffts%nr2x, dffts%nr3x, dffts%nnr, vrs(:, 1), dmat, v_of_0)
       CALL SYSTEM_CLOCK(c0, cr)
       DO j = 1, nkc
@@ -140,7 +147,15 @@ CONTAINS
           !$acc update self(evc)
         ENDIF
         idx(1:npw) = dffts%nl(igk_k(1:npw, ik))
-        CALL nscf_eng_set_k(j, npw, idx, g2kin, vkb, evc)
+        ! start of the buffer bands: random, damped by 1/(1 + |k+G|^2) as QE's random wavefunctions
+        evcb = (0.d0, 0.d0)
+        evcb(:, 1:nbnd) = evc(:, 1:nbnd)
+        DO ib = nbnd + 1, nbnd + nbuf
+          DO ig = 1, npw
+            evcb(ig, ib) = CMPLX(randy() - 0.5d0, randy() - 0.5d0, KIND=DP) / (1.d0 + g2kin(ig))
+          ENDDO
+        ENDDO
+        CALL nscf_eng_set_k(j, npw, idx, g2kin, vkb, evcb)
       ENDDO
       CALL SYSTEM_CLOCK(c1)
       tset = tset + REAL(c1 - c0, DP) / REAL(cr, DP)
@@ -160,9 +175,10 @@ CONTAINS
       CALL nscf_eng_free()
     ENDDO
     !$acc update device(et)
-    DEALLOCATE(dmat, idx, kl)
-    WRITE(stdout, '(5x,"qef nscf: batched Davidson on ",I0," k-points (",I0," per chunk), ",I0, &
-         &" left to the per-k Davidson")') nkl - nfail, chunk, nfail
+    DEALLOCATE(dmat, idx, kl, evcb)
+    WRITE(stdout, '(5x,"qef nscf: batched Davidson on ",I0," k-points (",I0," per chunk, ",I0," buffer bands), ",I0, &
+         &" left to the per-k Davidson; largest residual of the returned bands ",ES9.2)') nkl - nfail, chunk, nbuf, &
+         nfail, nscf_eng_resmax
     WRITE(stdout, '(5x,"qef nscf: setup ",F7.2," s, solve ",F7.2," s (host eigensolver ",F7.2," s), ",I0, &
          &" steps")') tset, tsol, teig, nit
     CALL stop_clock('nscf_batch')

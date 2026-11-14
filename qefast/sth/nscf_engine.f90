@@ -33,6 +33,9 @@ MODULE nscf_engine
             nscf_eng_kmax
   ! statistics of the last solve: iterations, wall time in the host eigensolver and in total (s)
   INTEGER, PUBLIC, SAVE :: nscf_eng_nit = 0
+  ! bands the caller takes (the rest are buffer bands) and the largest residual |H psi - e psi| among them (diagnostic)
+  INTEGER, PUBLIC, SAVE :: nscf_eng_nret = 0
+  REAL(dp), PUBLIC, SAVE :: nscf_eng_resmax = 0.0_dp
   REAL(dp), PUBLIC, SAVE :: nscf_eng_t_eig = 0, nscf_eng_t_tot = 0
   !
   INTEGER, SAVE :: nk = 0, npwx, nbnd, nkb, nvx, nnr, nr(3), nrx(3)
@@ -182,6 +185,34 @@ CONTAINS
     ENDDO
     IF (t == 1) nrm(n, k) = sh(1)
   END SUBROUTINE k_norm
+  !
+  ATTRIBUTES(GLOBAL) SUBROUTINE k_resid(t1, t2, e, res, npwx, nbnd, nk)
+    ! res(n, k) = |t2(:, n, k) - e(n, k) t1(:, n, k)|^2, the residual of the Ritz pair (one block per column)
+    INTEGER, VALUE :: npwx, nbnd, nk
+    COMPLEX(dp) :: t1(npwx, nbnd, nk), t2(npwx, nbnd, nk)
+    REAL(dp) :: e(nbnd, nk), res(nbnd, nk)
+    REAL(dp), SHARED :: sh(RB)
+    INTEGER :: n, k, ig, t, st
+    REAL(dp) :: s
+    COMPLEX(dp) :: z
+    n = blockIdx%x
+    k = blockIdx%y
+    t = threadIdx%x
+    s = 0.0_dp
+    DO ig = t, npwx, RB
+      z = t2(ig, n, k) - e(n, k) * t1(ig, n, k)
+      s = s + REAL(z)**2 + AIMAG(z)**2
+    ENDDO
+    sh(t) = s
+    CALL syncthreads()
+    st = RB / 2
+    DO WHILE (st > 0)
+      IF (t <= st) sh(t) = sh(t) + sh(t + st)
+      CALL syncthreads()
+      st = st / 2
+    ENDDO
+    IF (t == 1) res(n, k) = sh(1)
+  END SUBROUTINE k_resid
   !
   ATTRIBUTES(GLOBAL) SUBROUTINE k_scal(x, nrm, ncol, npwx, nbnd, nk)
     INTEGER, VALUE :: npwx, nbnd, nk
@@ -378,13 +409,16 @@ CONTAINS
   END SUBROUTINE nscf_eng_set_k
   !
   SUBROUTINE nscf_eng_get_k(ik, evc, e, ok, niter)
+    !! the lowest SIZE(e) bands of k-point ik (the caller may ask for fewer than the engine converged: buffer bands)
     INTEGER, INTENT(IN) :: ik
-    COMPLEX(dp), INTENT(OUT) :: evc(npwx, nbnd)
-    REAL(dp), INTENT(OUT) :: e(nbnd)
+    COMPLEX(dp), INTENT(OUT) :: evc(:,:)
+    REAL(dp), INTENT(OUT) :: e(:)
     LOGICAL, INTENT(OUT) :: ok
     INTEGER, INTENT(OUT) :: niter
-    evc = h_evc(:, :, ik)
-    e = h_e(:, ik)
+    INTEGER :: nr
+    nr = MIN(SIZE(e), nbnd)
+    evc(:, 1:nr) = h_evc(:, 1:nr, ik)
+    e(1:nr) = h_e(1:nr, ik)
     ok = h_ok(ik)
     niter = h_iter(ik)
   END SUBROUTINE nscf_eng_get_k
@@ -564,6 +598,21 @@ CONTAINS
         CALL gemm_sb(CUBLAS_OP_N, CUBLAS_OP_N, npwx, nbnd, nvx, ONE, d_hpsi, npwx, snv, d_A, nvx, &
              INT(nvx, 8) * nbnd, ZERO, d_t2, npwx, sbn, nk)
         IF (ANY(flag == 2 .OR. flag == 3)) THEN
+          ! residuals of the Ritz pairs that stop now (diagnostic; the largest over returned bands is reported)
+          BLOCK
+            REAL(dp), DEVICE, ALLOCATABLE :: d_res(:,:), d_ee(:,:)
+            REAL(dp), ALLOCATABLE :: res(:,:)
+            ALLOCATE(d_res(nbnd, nk), d_ee(nbnd, nk), res(nbnd, nk))
+            d_ee = e
+            CALL k_resid<<<dim3(nbnd, nk, 1), RB, 0, strm>>>(d_t1, d_t2, d_ee, d_res, npwx, nbnd, nk)
+            CALL kerr('resid')
+            res = d_res
+            DO ik = 1, nk
+              IF (flag(ik) == 2) nscf_eng_resmax = MAX(nscf_eng_resmax, &
+                                   SQRT(MAXVAL(res(1:MERGE(nscf_eng_nret, nbnd, nscf_eng_nret > 0), ik))))
+            ENDDO
+            DEALLOCATE(d_res, d_ee, res)
+          END BLOCK
           istat = cudaStreamSynchronize(strm)
           ! final vectors of the k-points that stop now: copy only their (npwx, nbnd) slices (the whole
           ! d_t1 was copied at every such step before: ~0.4 GB per step at B1 q2, 7 GB per nscf)
