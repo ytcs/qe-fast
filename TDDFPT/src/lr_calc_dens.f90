@@ -131,7 +131,11 @@ SUBROUTINE lr_calc_dens( evc1, response_calc )
      ! If a double grid is used, interpolate onto the fine grid
      !
      IF ( doublegrid ) THEN
+        ! qe-fast: rho_1 lives on the device in this data region and fft_interpolate works on the host copy when
+        ! the grids differ: bring it over and send the result back (GPU builds)
+        !$acc update self(rho_1)
         CALL fft_interpolate(dffts, rho_1(:,1), dfftp, rho_1(:,1))
+        !$acc update device(rho_1)
      ENDIF
      !
 #if defined(__MPI)
@@ -163,6 +167,11 @@ SUBROUTINE lr_calc_dens( evc1, response_calc )
      !
      rhoaux(:,:) = (0.0d0, 0.0d0)
      CALL addusdens(rhoaux)
+     ! qe-fast: the ultrasoft term is added to the host copy of rho_1 below; take the device copy first and send the
+     ! sum back after, or the copyout at the end of the data region drops the term (GPU builds)
+     IF (gamma_only) THEN
+        !$acc update self(rho_1)
+     ENDIF
      !
      DO is = 1, nspin_mag
         !
@@ -186,6 +195,9 @@ SUBROUTINE lr_calc_dens( evc1, response_calc )
      ENDDO
      !
      DEALLOCATE(rhoaux)
+     IF (gamma_only) THEN
+        !$acc update device(rho_1)
+     ENDIF
      !
   ENDIF
   !

@@ -104,7 +104,15 @@ SUBROUTINE lr_calc_dens_eels (drhoscf, dpsi)
   ! to a thicker mesh (if doublegrid=.true.)
   ! drhoscfh -> drhoscf
   !
-  CALL fft_interpolate(dffts, drhoscfh, dfftp, drhoscf)
+  ! qe-fast: drhoscfh lives on the device. On different grids (doublegrid, e.g. ultrasoft) fft_interpolate works on
+  ! the host copies: bring the smooth density over and send the result back, or the dense density is stale (GPU)
+  IF (dffts%grid_id /= dfftp%grid_id) THEN
+     !$acc update self(drhoscfh)
+     CALL fft_interpolate(dffts, drhoscfh, dfftp, drhoscf)
+     !$acc update device(drhoscf)
+  ELSE
+     CALL fft_interpolate(dffts, drhoscfh, dfftp, drhoscf)
+  ENDIF
   !
   IF (okvan) THEN
      !
@@ -118,9 +126,8 @@ SUBROUTINE lr_calc_dens_eels (drhoscf, dpsi)
      ! Calculate the total charge density response
      ! (sum up the normal and ultrasoft terms)
      !
-     ! qe-fast: drhoscf lives on the device here (fft_interpolate filled the device copy) and lr_addusddens adds
-     ! the augmentation on the host: bring it over and back, or the copyout at the end of the data region
-     ! returns the density without augmentation (GPU builds)
+     ! qe-fast: drhoscf lives on the device here and lr_addusddens adds the augmentation on the host: bring it
+     ! over and back, or the copyout at the end of the data region returns the density without augmentation (GPU)
      !$acc update self(drhoscf) if_present
      CALL lr_addusddens (1, dbecsum, drhoscf)
      !$acc update device(drhoscf) if_present

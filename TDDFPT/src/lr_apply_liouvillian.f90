@@ -148,7 +148,7 @@ SUBROUTINE lr_apply_liouvillian( evc1, evc1_new, interaction )
            !$acc kernels     
            dvrs(:,1) = 0.0d0
            !$acc end kernels
-           CALL fft_interpolate (dfftp, dvrs(:,1), dffts, dvrss)
+           CALL interp_dvrs()
         ELSE
            dvrsc(:,1) = (0.0d0,0.0d0)
            CALL fft_interpolate (dfftp, dvrsc(:,1), dffts, dvrssc)
@@ -219,7 +219,7 @@ SUBROUTINE lr_apply_liouvillian( evc1, evc1_new, interaction )
         ! Put the interaction on the smooth grid.
         !
         IF (gamma_only) THEN
-           CALL fft_interpolate (dfftp, dvrs(:,1), dffts, dvrss)
+           CALL interp_dvrs()
         ELSE
            CALL fft_interpolate (dfftp, dvrsc(:,1), dffts, dvrssc)
         ENDIF
@@ -364,6 +364,19 @@ SUBROUTINE lr_apply_liouvillian( evc1, evc1_new, interaction )
   RETURN
   !
 CONTAINS
+  !
+  SUBROUTINE interp_dvrs()
+    ! qe-fast: dvrs and dvrss live on the device (enter data above). On different grids (doublegrid, e.g. ultrasoft)
+    ! fft_interpolate works on the host copies: bring dvrs over and send dvrss back, or the smooth-grid potential
+    ! used by the device code is stale (GPU builds)
+    IF (dffts%grid_id /= dfftp%grid_id) THEN
+       !$acc update self(dvrs)
+       CALL fft_interpolate (dfftp, dvrs(:,1), dffts, dvrss)
+       !$acc update device(dvrss)
+    ELSE
+       CALL fft_interpolate (dfftp, dvrs(:,1), dffts, dvrss)
+    ENDIF
+  END SUBROUTINE interp_dvrs
   !
   SUBROUTINE lr_apply_liouvillian_gamma()
     !
