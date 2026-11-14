@@ -204,6 +204,14 @@ SUBROUTINE normal_read()
            !
            CALL calbec(ngk(1),vkb,evc0(:,:,1),becp_1)
            becp%r = becp_1
+           ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+           IF (ALLOCATED(becp%r)) THEN
+              !$acc update device(becp%r) if_present
+           ELSEIF (ALLOCATED(becp%nc)) THEN
+              !$acc update device(becp%nc) if_present
+           ELSEIF (ALLOCATED(becp%k)) THEN
+              !$acc update device(becp%k) if_present
+           ENDIF
            CALL s_psi(npwx, ngk(1), nbnd, evc0(:,:,1), sevc0(:,:,1))
            !
         ENDIF
@@ -218,6 +226,14 @@ SUBROUTINE normal_read()
            !$acc update host(vkb)
            CALL calbec(ngk(ik),vkb,evc0(:,:,ik),becp1_c(:,:,ik))
            becp%k = becp1_c(:,:,ik)
+           ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+           IF (ALLOCATED(becp%r)) THEN
+              !$acc update device(becp%r) if_present
+           ELSEIF (ALLOCATED(becp%nc)) THEN
+              !$acc update device(becp%nc) if_present
+           ELSEIF (ALLOCATED(becp%k)) THEN
+              !$acc update device(becp%k) if_present
+           ENDIF
            CALL s_psi (npwx, ngk(ik), nbnd, evc0(:,:,ik), sevc0(:,:,ik)) 
            !
         ENDDO
@@ -359,6 +375,14 @@ SUBROUTINE virt_read()
         ELSE
            CALL calbec(ngk(1),vkb,evc_all(:,:,1),becp1_all)
            becp%r=becp1_all
+           ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+           IF (ALLOCATED(becp%r)) THEN
+              !$acc update device(becp%r) if_present
+           ELSEIF (ALLOCATED(becp%nc)) THEN
+              !$acc update device(becp%nc) if_present
+           ELSEIF (ALLOCATED(becp%k)) THEN
+              !$acc update device(becp%k) if_present
+           ENDIF
            CALL s_psi(npwx, ngk(1), nbnd, evc_all(:,:,1), sevc_all(:,:,1))
         ENDIF
         !
@@ -371,6 +395,14 @@ SUBROUTINE virt_read()
            CALL init_us_2(ngk(ik),igk_k(1,ik),xk(1,ik),vkb)
            CALL calbec(ngk(ik),vkb,evc_all(:,:,ik),becp1_c_all(:,:,ik),nbnd)
            becp%k=becp1_c_all(:,:,ik)
+           ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+           IF (ALLOCATED(becp%r)) THEN
+              !$acc update device(becp%r) if_present
+           ELSEIF (ALLOCATED(becp%nc)) THEN
+              !$acc update device(becp%nc) if_present
+           ELSEIF (ALLOCATED(becp%k)) THEN
+              !$acc update device(becp%k) if_present
+           ENDIF
            CALL s_psi (npwx, ngk(ik), nbnd, evc_all(:,:,ik), sevc_all(:,:,ik))
            !     
         ENDDO

@@ -100,7 +100,7 @@ CONTAINS
           ! Non real_space & nkb > 0 case
           !
           CALL calbec(ngk(1),vkb,evc1(:,:,1),becp)
-          !$acc update device(becp%r)   ! qe-fast: s_psi reads the device copy (GPU builds)
+          !$acc update device(becp%r) if_present   ! qe-fast: s_psi reads the device copy (GPU builds)
           CALL s_psi(npwx,ngk(1),nbnd,evc1(1,1,1),spsi)
           !
        ENDIF
@@ -145,9 +145,9 @@ CONTAINS
           CALL calbec(ngk(ik),vkb,evc1(:,:,ik),becp)
           ! qe-fast: s_psi reads the device copy of becp (GPU builds)
           IF (noncolin) THEN
-             !$acc update device(becp%nc)
+             !$acc update device(becp%nc) if_present
           ELSE
-             !$acc update device(becp%k)
+             !$acc update device(becp%k) if_present
           ENDIF
           !
        ENDIF
@@ -207,9 +207,9 @@ CONTAINS
           CALL calbec(npwq, vkb, evc1(:,:,ik), becp, nbnd_occ(ikk))
           ! qe-fast: s_psi reads the device copy of becp (GPU builds)
           IF (noncolin) THEN
-             !$acc update device(becp%nc)
+             !$acc update device(becp%nc) if_present
           ELSE
-             !$acc update device(becp%k)
+             !$acc update device(becp%k) if_present
           ENDIF
           !
        ENDIF

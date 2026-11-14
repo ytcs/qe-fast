@@ -99,6 +99,14 @@ SUBROUTINE lr_apply_s_optical()
           ! Not real space 
           !
           CALL calbec(ngk(1),vkb,vect(:,:,1),becp)
+          ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+          IF (ALLOCATED(becp%r)) THEN
+             !$acc update device(becp%r) if_present
+          ELSEIF (ALLOCATED(becp%nc)) THEN
+             !$acc update device(becp%nc) if_present
+          ELSEIF (ALLOCATED(becp%k)) THEN
+             !$acc update device(becp%k) if_present
+          ENDIF
           CALL s_psi(npwx,ngk(1),nbnd,vect(1,1,1),svect(1,1,1))
           !
        ENDIF
@@ -111,6 +119,14 @@ SUBROUTINE lr_apply_s_optical()
           !
           CALL init_us_2(ngk(ik),igk_k(1,ik),xk(1,ik),vkb)
           CALL calbec(ngk(ik),vkb,vect(:,:,ik),becp)
+          ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+          IF (ALLOCATED(becp%r)) THEN
+             !$acc update device(becp%r) if_present
+          ELSEIF (ALLOCATED(becp%nc)) THEN
+             !$acc update device(becp%nc) if_present
+          ELSEIF (ALLOCATED(becp%k)) THEN
+             !$acc update device(becp%k) if_present
+          ENDIF
           CALL s_psi(npwx,ngk(ik),nbnd,vect(1,1,ik),svect(1,1,ik))
           !
        ENDDO
@@ -154,6 +170,14 @@ SUBROUTINE lr_apply_s_eels()
       !
       ! Apply the S operator
       !
+      ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+      IF (ALLOCATED(becp%r)) THEN
+         !$acc update device(becp%r) if_present
+      ELSEIF (ALLOCATED(becp%nc)) THEN
+         !$acc update device(becp%nc) if_present
+      ELSEIF (ALLOCATED(becp%k)) THEN
+         !$acc update device(becp%k) if_present
+      ENDIF
       CALL s_psi(npwx, npwq, nbnd_occ(ikk), vect(:,:,ik), svect(:,:,ik))
       !
    ENDDO

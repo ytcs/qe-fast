@@ -123,6 +123,14 @@ SUBROUTINE lr_dvpsi_e(ik,ipol,dvpsi)
   IF (okvan) THEN
      ALLOCATE (spsi ( npwx*npol, nbnd))
      CALL calbec (npw, vkb, dvpsi, becp )
+     ! qe-fast: s_psi reads the device copy of becp; the calbec above filled the host copy (GPU)
+     IF (ALLOCATED(becp%r)) THEN
+        !$acc update device(becp%r) if_present
+     ELSEIF (ALLOCATED(becp%nc)) THEN
+        !$acc update device(becp%nc) if_present
+     ELSEIF (ALLOCATED(becp%k)) THEN
+        !$acc update device(becp%k) if_present
+     ENDIF
      CALL s_psi(npwx,npw,nbnd,dvpsi,spsi)
      CALL DCOPY(2*npwx*npol*nbnd,spsi,1,dvpsi,1)
      DEALLOCATE (spsi)
