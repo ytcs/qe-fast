@@ -48,6 +48,7 @@ PROGRAM chi0
   REAL(DP) :: q(3), ecut_eps, emax, de, eta, max_mem
   INTEGER :: nbnd, ios
   LOGICAL :: device
+  CHARACTER(LEN=8) :: dbg
   NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device
   !
   INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, wc, i0, iw, nwc, ng_max, nt, b, iq_head, np, cap
@@ -213,9 +214,14 @@ PROGRAM chi0
   !
   ! ---- chi0 on the energy grid by FFT (Kramers-Kronig as a convolution and a correlation), then eps^-1 per energy
   ALLOCATE(chi(ng_max, ng_max, nw))
+  CALL get_environment_variable('CHI0_DEBUG', dbg)
+  IF (LEN_TRIM(dbg) > 0) WRITE(stdout, '(5x,"chi0 debug host: sum|A| ",ES14.6,", A(1,1,b) sum ",2ES14.6)') &
+       SUM(ABS(a)), SUM(a(1, 1, :))
   CALL start_clock('chi0_kk')
   CALL kk_fft(a, chi, ng_max * ng_max)
   CALL stop_clock('chi0_kk')
+  IF (LEN_TRIM(dbg) > 0) WRITE(stdout, '(5x,"chi0 debug host: sum|chi| ",ES14.6,", chi(1,1,1) ",2ES14.6)') &
+       SUM(ABS(chi)), chi(1, 1, 1)
   DEALLOCATE(a)
   CALL open_full()
   CALL start_clock('chi0_inv')

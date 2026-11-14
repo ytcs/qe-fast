@@ -5,7 +5,7 @@
 !   pairs   rho_t(G) for all conduction bands of one (k, v) by one batched cuFFT, kept in a device buffer
 !   bin     buffered transitions sorted by energy bin on the host, one cuBLAS ZGEMM per occupied bin into A_b
 !   kk      chi0 on the energy grid: zero-padded convolution and correlation along the bins, strided 1D cuFFT
-!   inv     eps = 1 - v^1/2 chi0 v^1/2 and eps^-1 per energy, cuSOLVER LU, returned to the host in chunks
+!   inv     eps = 1 - v^1/2 chi0 v^1/2 and eps^-1, batched LU and inverse (cuBLAS), returned in chunks
 ! The host path in chi0.f90 is the reference for every stage.
 !
 MODULE chi0_dev
@@ -281,6 +281,18 @@ CONTAINS
       CALL k_store<<<g, TPB>>>(d_chi, d_p, ncol, mb, l, nb, nw, c0, m, -1.0_dp, pref / l)
       istat = cufftDestroy(pb)
     ENDDO
+    BLOCK
+      CHARACTER(LEN=8) :: dbg
+      COMPLEX(dp), ALLOCATABLE :: h(:,:)
+      CALL get_environment_variable('CHI0_DEBUG', dbg)
+      IF (LEN_TRIM(dbg) > 0) THEN
+        ALLOCATE(h(ncol, nb)); h = d_a
+        WRITE(*, '(5x,"chi0 debug dev: sum|A| ",ES14.6,", A(1,1,b) sum ",2ES14.6)') SUM(ABS(h)), SUM(h(1, :))
+        DEALLOCATE(h); ALLOCATE(h(ncol, nw)); h = d_chi
+        WRITE(*, '(5x,"chi0 debug dev: sum|chi| ",ES14.6,", chi(1,1,1) ",2ES14.6)') SUM(ABS(h)), h(1, 1)
+        DEALLOCATE(h)
+      ENDIF
+    END BLOCK
     DEALLOCATE(d_p, d_k1, d_k2, k1, k2)
     DEALLOCATE(d_a)
   END SUBROUTINE dev_kk
@@ -300,36 +312,34 @@ CONTAINS
   END SUBROUTINE k_eps
   !
   SUBROUTINE dev_inv_chunk(sv, i0, n, eps_h, einv_h)
-    !! eps and eps^-1 for energies i0 .. i0+n-1, returned to the host (eps_h only its full matrices, for the head)
+    !! eps and eps^-1 for energies i0 .. i0+n-1, returned to the host; batched LU and inverse (cuBLAS)
+    USE iso_c_binding, ONLY : c_devptr, c_devloc
     REAL(dp), INTENT(IN) :: sv(ng)
     INTEGER, INTENT(IN) :: i0, n
     COMPLEX(dp), INTENT(OUT) :: eps_h(ng, ng, n), einv_h(ng, ng, n)
     REAL(dp), DEVICE, ALLOCATABLE :: d_sv(:)
-    COMPLEX(dp), DEVICE, ALLOCATABLE :: d_e(:,:,:), d_b(:,:), d_w(:)
-    INTEGER, DEVICE, ALLOCATABLE :: d_piv(:)
-    INTEGER, DEVICE :: d_info
-    COMPLEX(dp), ALLOCATABLE :: ident(:,:)
-    INTEGER :: w, lw, istat, i
+    COMPLEX(dp), DEVICE, ALLOCATABLE, TARGET :: d_e(:,:,:), d_c(:,:,:)
+    INTEGER, DEVICE, ALLOCATABLE :: d_piv(:), d_info(:)
+    TYPE(c_devptr), ALLOCATABLE :: pa(:), pc(:)
+    TYPE(c_devptr), DEVICE, ALLOCATABLE :: d_pa(:), d_pc(:)
+    INTEGER, ALLOCATABLE :: info(:)
+    INTEGER :: w, istat
     TYPE(dim3) :: g
-    ALLOCATE(d_sv(ng), d_e(ng, ng, n), d_b(ng, ng), d_piv(ng), ident(ng, ng))
+    ALLOCATE(d_sv(ng), d_e(ng, ng, n), d_c(ng, ng, n), d_piv(ng * n), d_info(n), pa(n), pc(n), d_pa(n), d_pc(n), info(n))
     d_sv = sv
     g = dim3((ng + TPB - 1) / TPB, ng, n)
     CALL k_eps<<<g, TPB>>>(d_e, d_chi, d_sv, ng, i0, n, ng * ng)
     eps_h = d_e
-    istat = cusolverDnZgetrf_bufferSize(hs, ng, ng, d_e(:, :, 1), ng, lw); CALL chk(istat, 'getrf_bufferSize')
-    ALLOCATE(d_w(MAX(lw, 1)))
-    ident = (0.0_dp, 0.0_dp)
-    DO i = 1, ng
-      ident(i, i) = (1.0_dp, 0.0_dp)
-    ENDDO
     DO w = 1, n
-      istat = cusolverDnZgetrf(hs, ng, ng, d_e(:, :, w), ng, d_w, d_piv, d_info); CALL chk(istat, 'getrf')
-      d_b = ident
-      istat = cusolverDnZgetrs(hs, CUBLAS_OP_N, ng, ng, d_e(:, :, w), ng, d_piv, d_b, ng, d_info)
-      CALL chk(istat, 'getrs')
-      einv_h(:, :, w) = d_b
+      pa(w) = c_devloc(d_e(1, 1, w)); pc(w) = c_devloc(d_c(1, 1, w))
     ENDDO
-    DEALLOCATE(d_sv, d_e, d_b, d_piv, d_w, ident)
+    d_pa = pa; d_pc = pc
+    istat = cublasZgetrfBatched(hb, ng, d_pa, ng, d_piv, d_info, n); CALL chk(istat, 'getrfBatched')
+    info = d_info
+    IF (ANY(info /= 0)) CALL chk(MAXVAL(ABS(info)), 'singular eps (getrfBatched info)')
+    istat = cublasZgetriBatched(hb, ng, d_pa, ng, d_piv, d_pc, ng, d_info, n); CALL chk(istat, 'getriBatched')
+    einv_h = d_c
+    DEALLOCATE(d_sv, d_e, d_c, d_piv, d_info, pa, pc, d_pa, d_pc, info)
   END SUBROUTINE dev_inv_chunk
   !
   SUBROUTINE dev_free()
