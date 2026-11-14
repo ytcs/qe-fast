@@ -94,6 +94,23 @@ CONTAINS
     f(r, c) = t
   END SUBROUTINE k_prod
   !
+  ATTRIBUTES(GLOBAL) SUBROUTINE k_prod_all(f, ui, uf, nnr, npol, ni, nc, j1)
+    ! f(r, b, j) = sum_s conj(ui(r, s, b)) uf(r, s, j1 + j - 1)
+    INTEGER, VALUE :: nnr, npol, ni, nc, j1
+    COMPLEX(dp) :: f(nnr, ni, *), ui(nnr, npol, ni), uf(nnr, npol, nc)
+    INTEGER :: r, b, j, s
+    COMPLEX(dp) :: t
+    r = (blockIdx%x - 1) * blockDim%x + threadIdx%x
+    b = blockIdx%y
+    j = blockIdx%z
+    IF (r > nnr) RETURN
+    t = (0.0_dp, 0.0_dp)
+    DO s = 1, npol
+      t = t + CONJG(ui(r, s, b)) * uf(r, s, j1 + j - 1)
+    ENDDO
+    f(r, b, j) = t
+  END SUBROUTINE k_prod_all
+  !
   ATTRIBUTES(GLOBAL) SUBROUTINE k_gather(rr, f, idx, ng, nnr, nc, off, scal)
     ! rr(ig, off + c) = f(idx(ig), c) * scal
     INTEGER, VALUE :: ng, nnr, nc, off
@@ -546,6 +563,12 @@ CONTAINS
     IF (t == 1) out(e) = wt(e) * s(1)
   END SUBROUTINE k_dot
   !
+  INTEGER FUNCTION pgrp(ni)
+    !! final bands per batched pair transform: all of them, or as many as fit in 2 GB of boxes
+    INTEGER, INTENT(IN) :: ni
+    pgrp = INT(MAX(1_8, MIN(INT(nc, 8), 2000000000_8 / (16_8 * nnr * ni))))
+  END FUNCTION pgrp
+  !
   INTEGER FUNCTION dev_ctr_cap(ni, reserve_gb)
     !! contraction entries that one chunk can hold on the device (after dev_imw; the pair buffers counted)
     INTEGER, INTENT(IN) :: ni
@@ -554,7 +577,7 @@ CONTAINS
     INTEGER :: istat
     istat = cudaMemGetInfo(freeb, totb)
     bufs = 0
-    IF (.NOT. ALLOCATED(d_bf)) bufs = 16_8 * nnr * (npol * (nc + ni) + ni) + 16_8 * ng * ni * nc
+    IF (.NOT. ALLOCATED(d_bf)) bufs = 16_8 * nnr * (npol * (nc + ni) + ni * pgrp(ni)) + 16_8 * ng * ni * nc
     dev_ctr_cap = INT(MIN(4_8 * 1024 * 1024, MAX(0_8, (freeb - bufs - INT(reserve_gb * 1.0d9, 8)) / (32_8 * ng + 24))))
   END FUNCTION dev_ctr_cap
   !
@@ -572,18 +595,20 @@ CONTAINS
     !! phi(G, b, n') = <initial b (jk + g0)| e^{i(q+G)r} |final n' (ik)> for b = 1..ni (bands nv + b) and n' = 1..nc
     !! (bands nv + n'), column (n' - 1) ni + b; the columns of chunk entries e0 + 1 .. e0 + n go to their positions
     INTEGER, INTENT(IN) :: ik, jk, g0(3), nv, ni, e0, n
-    INTEGER :: jn, istat, pl
+    INTEGER :: j1, nj, istat, pl
     TYPE(dim3) :: g
-    IF (.NOT. ALLOCATED(d_bf)) ALLOCATE(d_bf(nnr, npol, nc), d_bi(nnr, npol, ni), d_ff(nnr, ni), d_phi(ng, ni * nc))
+    IF (.NOT. ALLOCATED(d_bf)) ALLOCATE(d_bf(nnr, npol, nc), d_bi(nnr, npol, ni), d_ff(nnr, ni * pgrp(ni)), &
+                                        d_phi(ng, ni * nc))
     CALL dev_box(ik, nv + 1, nc, (/0, 0, 0/), d_bf)
     CALL dev_box(jk, nv + 1, ni, g0, d_bi)
-    pl = plan_for(ni)
-    DO jn = 1, nc
-      g = dim3((nnr + TPB - 1) / TPB, ni, 1)
-      CALL k_prod<<<g, TPB>>>(d_ff, d_bi, d_bf, nnr, npol, ni, nc, jn)
+    DO j1 = 1, nc, pgrp(ni)                          ! final bands j1 .. j1 + nj - 1 in one batched transform
+      nj = MIN(pgrp(ni), nc - j1 + 1)
+      pl = plan_for(ni * nj)
+      g = dim3((nnr + TPB - 1) / TPB, ni, nj)
+      CALL k_prod_all<<<g, TPB>>>(d_ff, d_bi, d_bf, nnr, npol, ni, nc, j1)
       istat = cufftExecZ2Z(pl, d_ff, d_ff, CUFFT_INVERSE); CALL chk(istat, 'cufftExecZ2Z contraction pairs')
-      g = dim3((ng + TPB - 1) / TPB, ni, 1)
-      CALL k_gather<<<g, TPB>>>(d_phi, d_ff, d_idx, ng, nnr, ni, (jn - 1) * ni, 1.0_dp / (nr(1) * nr(2) * nr(3)))
+      g = dim3((ng + TPB - 1) / TPB, ni * nj, 1)
+      CALL k_gather<<<g, TPB>>>(d_phi, d_ff, d_idx, ng, nnr, ni * nj, (j1 - 1) * ni, 1.0_dp / (nr(1) * nr(2) * nr(3)))
     ENDDO
     IF (n == 0) RETURN
     CALL k_scols<<<INT((INT(ng, 8) * n + TPB - 1) / TPB), TPB>>>(d_cx, d_phi, d_ccol, d_cpos, ng, e0, n)
