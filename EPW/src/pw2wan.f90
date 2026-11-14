@@ -1,4 +1,4 @@
-! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-06; see NOTICE.
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-10-30 to 2026-11-14; see NOTICE.
   !
   ! Copyright (C) 2023-2026 EPW-Collaboration
   ! Copyright (C) 2016-2023 EPW-Collaboration
@@ -4623,17 +4623,14 @@
     INTEGER :: ierr
     !! Error status
     !
-    REAL(KIND = DP), PARAMETER :: xmin = -6.d0
-    !!
-    REAL(KIND = DP), PARAMETER :: dx = 0.025d0
-    !!
-    REAL(KIND = DP), PARAMETER :: rmax = 10.d0
+    REAL(KIND = DP), PARAMETER :: rmax_n = 30.d0
+    !! qe-fast: uniform mesh in units of 1/alfa up to rmax_n*rvalue (the integrand decays as exp(-alfa*r/rvalue));
+    !! the logarithmic mesh cut at 10/alfa truncated the r = 2 and r = 3 functions (as in pw2wannier90, QE 67d1343a)
+    REAL(KIND = DP), PARAMETER :: dr = 0.025d0
     !!
     REAL(KIND = DP) :: rad_int
     !!
     REAL(KIND = DP) :: pref
-    !!
-    REAL(KIND = DP) :: x
     !!
     REAL(KIND = DP), ALLOCATABLE :: bes(:)
     !!
@@ -4646,7 +4643,7 @@
     REAL(KIND = DP), ALLOCATABLE :: aux(:)
     !!
     !
-    mesh_r = NINT((log(rmax) - xmin) / dx + 1)
+    mesh_r = NINT(rmax_n * rvalue / dr) + 1
     !
     ALLOCATE(bes(mesh_r), STAT = ierr)
     IF (ierr /= 0) CALL errore('radialpart', 'Error allocating bes', 1)
@@ -4667,16 +4664,17 @@
     ! compute the radial mesh
     !
     DO ir = 1, mesh_r
-      x = xmin  + DBLE(ir - 1) * dx
-      r(ir) = EXP(x) / alfa
-      rij(ir) = dx  * r(ir)
+      r(ir) = DBLE(ir - 1) * dr / alfa
+      rij(ir) = dr / alfa
     ENDDO
     !
     IF (rvalue == 1) func_r(:) = 2.d0 * alfa**(3.d0 / 2.d0) * EXP(-alfa * r(:))
     IF (rvalue == 2) func_r(:) = 1.d0 / DSQRT(8.d0) * alfa**(3.d0 / 2.d0) * &
                                 (2.0d0 - alfa * r(:)) * EXP(-alfa * r(:) * 0.5d0)
-    IF (rvalue == 3) func_r(:) = DSQRT(4.d0 / 27.d0) * alfa**(2.0d0 / 3.0d0) * &
-                                (1.d0 - 1.5d0 * alfa * r(:) + &
+    ! qe-fast: hydrogenic R_30 is sqrt(4/27) alfa^(3/2) (1 - 2 alfa r / 3 + 2 (alfa r)^2 / 27) exp(-alfa r / 3)
+    ! (the exponent read 2/3 and the linear coefficient 1.5; pw2wannier90 has had the right form since before 7.6)
+    IF (rvalue == 3) func_r(:) = DSQRT(4.d0 / 27.d0) * alfa**(3.0d0 / 2.0d0) * &
+                                (1.d0 - 2.0d0 / 3.0d0 * alfa * r(:) + &
                                 2.d0 * (alfa * r(:))**2 / 27.d0) * &
                                 EXP(-alfa * r(:) / 3.0d0)
     pref = fpi / DSQRT(omega)
@@ -4748,17 +4746,14 @@
     INTEGER :: ierr
     !! Error status
     !
-    REAL(KIND = DP), PARAMETER :: xmin = -6.d0
-    !!
-    REAL(KIND = DP), PARAMETER :: dx = 0.025d0
-    !!
-    REAL(KIND = DP), PARAMETER :: rmax = 10.d0
+    REAL(KIND = DP), PARAMETER :: rmax_n = 30.d0
+    !! qe-fast: uniform mesh in units of 1/alfa up to rmax_n*rvalue (the integrand decays as exp(-alfa*r/rvalue));
+    !! the logarithmic mesh cut at 10/alfa truncated the r = 2 and r = 3 functions (as in pw2wannier90, QE 67d1343a)
+    REAL(KIND = DP), PARAMETER :: dr = 0.025d0
     !!
     REAL(KIND = DP) :: rad_int
     !!
     REAL(KIND = DP) :: pref
-    !!
-    REAL(KIND = DP) :: x
     !!
     REAL(KIND = DP), ALLOCATABLE :: bes(:)
     !!
@@ -4771,7 +4766,7 @@
     REAL(KIND = DP), ALLOCATABLE :: aux(:)
     !!
     !
-    mesh_r = NINT((log(rmax) - xmin) / dx + 1)
+    mesh_r = NINT(rmax_n * rvalue / dr) + 1
     !
     ALLOCATE(bes(mesh_r), STAT = ierr)
     IF (ierr /= 0) CALL errore('qef_radialpart', 'Error allocating bes', 1)
@@ -4792,16 +4787,17 @@
     ! compute the radial mesh
     !
     DO ir = 1, mesh_r
-      x = xmin  + DBLE(ir - 1) * dx
-      r(ir) = EXP(x) / alfa
-      rij(ir) = dx  * r(ir)
+      r(ir) = DBLE(ir - 1) * dr / alfa
+      rij(ir) = dr / alfa
     ENDDO
     !
     IF (rvalue == 1) func_r(:) = 2.d0 * alfa**(3.d0 / 2.d0) * EXP(-alfa * r(:))
     IF (rvalue == 2) func_r(:) = 1.d0 / DSQRT(8.d0) * alfa**(3.d0 / 2.d0) * &
                                 (2.0d0 - alfa * r(:)) * EXP(-alfa * r(:) * 0.5d0)
-    IF (rvalue == 3) func_r(:) = DSQRT(4.d0 / 27.d0) * alfa**(2.0d0 / 3.0d0) * &
-                                (1.d0 - 1.5d0 * alfa * r(:) + &
+    ! qe-fast: hydrogenic R_30 is sqrt(4/27) alfa^(3/2) (1 - 2 alfa r / 3 + 2 (alfa r)^2 / 27) exp(-alfa r / 3)
+    ! (the exponent read 2/3 and the linear coefficient 1.5; pw2wannier90 has had the right form since before 7.6)
+    IF (rvalue == 3) func_r(:) = DSQRT(4.d0 / 27.d0) * alfa**(3.0d0 / 2.0d0) * &
+                                (1.d0 - 2.0d0 / 3.0d0 * alfa * r(:) + &
                                 2.d0 * (alfa * r(:))**2 / 27.d0) * &
                                 EXP(-alfa * r(:) / 3.0d0)
     pref = fpi / DSQRT(omega)
