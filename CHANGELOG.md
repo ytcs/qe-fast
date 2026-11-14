@@ -18,7 +18,13 @@ All notable changes to qe-fast are recorded here. The format follows
   electron up to a carrier cutoff, from the RPA Im W of every q on the grid, and the partial rate into every final
   state (for the cascade). Host path; on Si 4³ it equals `gamma_ref.py` to the printed precision (7 digits) and takes
   half its time. The q = 0 term is left out (weight 1/N_k). It shares its stages with `chi0.x` through
-  `qefast/gw/gw_common.f90`. CI checks it against the reference.
+  `qefast/gw/gw_common.f90`. CI checks it against the reference. CUDA builds run it on the GPU and keep the
+  coefficients of every k there:
+  - the contraction is batched over k′ within each q, one ZGEMM per energy, in chunks sized to memory;
+  - the pair densities of all final bands go in one batched FFT;
+  - Si 8³ with 40 bands and carriers to 6 eV takes 90 s on an H100, against 300 s before the batching, with identical
+    rates; Si 10³ takes 348 s;
+  - the GPU path equals the reference in CI's case, also with forced small chunks and band groups.
 
 ### Fixed
 
@@ -34,12 +40,27 @@ All notable changes to qe-fast are recorded here. The format follows
   Ultrasoft with and without spin–orbit, collinear and noncollinear, now equal the CPU on the H100 to 4×10⁻⁶ (ε⁻¹ at
   1.44 eV); the norm-conserving case was right before and is unchanged. The same upstream commit (QE 4aead329) fixes
   host/device mixing in `lr_sm1_psi`, used by the Lanczos solver.
-- Known issue: ultrasoft Lanczos EELS on GPU still differs from the CPU (Al, collinear: β₁ 0.5962 against 0.5940
-  after the fixes below; norm-conserving agrees to 10⁻⁶). Being traced.
-- TDDFPT on GPU with ultrasoft pseudopotentials: several routines filled `becp` with the host `calbec` and then
-  called the offloaded `s_psi`, which read the stale device copy. Affected: `lr_apply_s`, which applies S to every new
-  Lanczos vector, plus `sd0psi`, `lr_read_wf`, `lr_dvpsi_e` and `lr_normalise`. `becp` now goes to the device in
-  between. `lr_sm1_psi` built the k+q projectors on the device only and then used the host copy. Not yet measured.
+- TDDFPT on GPU with ultrasoft pseudopotentials (Lanczos EELS and optical Lanczos). All of these are upstream bugs:
+  - several routines filled `becp` with the host `calbec` and then called the offloaded `s_psi`, which read the stale
+    device copy (`lr_apply_s`, `sd0psi`, `lr_read_wf`, `lr_dvpsi_e`, `lr_normalise`);
+  - `lr_sm1_psi` built the k+q projectors on the device only and took ⟨β|ψ⟩ from a stale host ψ, so S⁻¹ acted as
+    the identity in the optical Liouvillian;
+  - `fft_interpolate` works on host copies when the smooth and dense grids differ. `lr_calc_dens_eels`,
+    `lr_calc_dens` and `lr_apply_liouvillian` kept their arrays on the device, so on a double grid the dense
+    response density and the smooth-grid potential were stale;
+  - `lr_calc_dens` lost the augmentation term. Inside its data region the generic `invfft` resolved to the device
+    routine and left the host array in G-space. `addusdens` read the device `becsum`, and `rhoaux` had the wrong
+    shape for `nspin_mag = 2`, which was wrong on CPU too. `lr_calc_dens_eels` returned the density without
+    augmentation;
+  - in `lr_apply_liouvillian` the ultrasoft interaction term was added on the host to an array that lives on the
+    device, and `newq_acc` was given a host array, which stopped the run.
+
+  On an H100 the GPU now equals the CPU to 10⁻⁶:
+  - Al ultrasoft EELS: β₂ 2.065187, was 2.2518;
+  - CH4 ultrasoft optical: β₂ 4.391514 against 4.391508 on CPU; before the fixes the run stopped at iteration 2;
+  - Si₈ ultrasoft optical: β₂ 3.161235 against 3.161236.
+
+  The 26 TDDFPT test-suite cases pass on the GPU.
 - EPW iterative BTE in non-MPI builds: `transport_ibte` opened the merged sparse-matrix files without their image
   suffix, created empty files and stopped ('error in reading sparse_q'). Upstream development has the same lines.
 - XClib, LAXlib and upflib error routines flush the message before `MPI_Abort`. On MPI builds an input error such as

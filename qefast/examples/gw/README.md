@@ -176,12 +176,17 @@ q = 0 term left out. Mean Γ_ii (s⁻¹) per 0.5 eV bin:
 | E − E_cbm (eV) | 0.5–1 | 1.5–2 | 2.5–3 | 3.5–4 | 4.5–5 | 5.5–6 | time |
 |---|---|---|---|---|---|---|---|
 | 6³ k (215 q) | 8.6×10¹¹ | 6.4×10¹² | 4.2×10¹³ | 1.27×10¹⁴ | 3.1×10¹⁴ | 7.2×10¹⁴ | 41 s |
-| 8³ k (511 q) | 5.8×10¹¹ | 4.2×10¹² | 3.2×10¹³ | 1.09×10¹⁴ | 3.2×10¹⁴ | 6.9×10¹⁴ | 300 s |
+| 8³ k (511 q) | 5.8×10¹¹ | 4.2×10¹² | 3.2×10¹³ | 1.09×10¹⁴ | 3.2×10¹⁴ | 6.9×10¹⁴ | 90 s |
+| 10³ k (999 q) | 7.0×10¹¹ | 3.5×10¹² | 2.8×10¹³ | 1.05×10¹⁴ | 2.9×10¹⁴ | 6.8×10¹⁴ | 348 s |
 
-- Above about 4 eV the two grids agree within about 5 %. Below that the rate is not converged in k. The omitted
-  q = 0 term (weight 1/N_k) and the coarse sampling near threshold both contribute.
-- On 8³ the contraction takes 80 % of the time: one call per (q, k′), about 5×10⁵ in all. Batching over k′ within a
-  q is the next speed-up.
+- Above about 5 eV the 8³ and 10³ grids agree within a few percent; between 1 and 3 eV the bin means still move by
+  13–27 %. The omitted q = 0 term (weight 1/N_k) and the coarse sampling near threshold both contribute. Each bin
+  mean averages over the states that fall in it, which differ between grids.
+- Basis: 8 Ry instead of 4 Ry for ε⁻¹ (6³) changes every bin mean by 0.5 % or less.
+- The 6³ time is from before the batching below.
+- Speed: the contraction is batched over k′ within each q, one ZGEMM per grid energy, and the pair densities of all
+  final bands go in one batched FFT. On 8³ this took the run from 300 s to 90 s with bit-identical rates. On 10³,
+  pair densities and contraction take 152 s and 165 s.
 
 Stages from here to the issue's gate, each with its own check:
 
