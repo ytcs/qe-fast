@@ -93,6 +93,9 @@ chunks from a memory budget (`max_mem`) and writes the same columns, plus the wh
   1.9×10⁻¹² and 5×10⁻¹⁰). Its first run caught a real error: QE's `'Wave'` transform covers only the columns of
   the wavefunction sphere, and the k+q coefficients shifted by an umklapp vector fell partly outside them; the
   program now uses the full-box transform.
+- Kramers–Kronig is a convolution and a correlation on the uniform energy grid, done by FFT in both codes (equal to
+  the direct sum to 2×10⁻¹⁵). On the Si 8³ case (one thread) it cut that stage from 84 to 19 CPU s and the run from
+  150 to 89 CPU s; pair densities (38 s) are now the largest stage.
 
 ## Impact-ionization rate (E-13): contraction reference
 

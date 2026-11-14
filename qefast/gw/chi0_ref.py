@@ -184,6 +184,29 @@ def eps_inv(sy, A, q2, de, w_ev, eta_ev):
     return eps, np.linalg.inv(eps)
 
 
+def chi_kk_fft(sy, A, de, nw, eta_ev):
+    """chi0 on w_i = i de (i < nw) by FFT: both terms depend on w - D or w + D only, so on the uniform grid they are a
+    discrete convolution and a correlation of A_b with K(m) = 1/(m de + i eta). Returns chi (nw, NG, NG); equal to
+    eps_inv's direct sum up to rounding, at O(N_G^2 N log N) instead of O(N_G^2 N_w N_b)."""
+    nb = A.shape[0]
+    Af = A.reshape(nb, -1)
+    m1 = np.arange(-(nb - 1), nw)                       # w_i - D_b = (i - b) de
+    m2 = np.arange(0, nw + nb - 1)                      # w_i + D_b = (i + b) de
+    K1 = 1.0 / (m1 * de / HA + 1j * eta_ev / HA)
+    K2 = 1.0 / (m2 * de / HA + 1j * eta_ev / HA)
+    L = 1 << int(np.ceil(np.log2(2 * nb + nw)))
+    F1 = np.fft.fft(K1, L)[:, None]
+    F2 = np.fft.fft(K2, L)[:, None]
+    chi = np.empty((nw, Af.shape[1]), complex)
+    block = max(1, int(4e6 // L))                       # FFT temporaries <= ~64 MB
+    for c0 in range(0, Af.shape[1], block):
+        a = Af[:, c0:c0 + block]
+        t1 = np.fft.ifft(np.fft.fft(a, L, axis=0) * F1, axis=0)[nb - 1:nb - 1 + nw]
+        t2 = np.fft.ifft(np.fft.fft(a[::-1], L, axis=0) * F2, axis=0)[nb - 1:nb - 1 + nw]
+        chi[:, c0:c0 + block] = t1 - t2
+    return (sy.spin / (sy.nk * sy.omega)) * chi.reshape(nw, *A.shape[1:])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('outdir'); ap.add_argument('prefix')
@@ -211,8 +234,9 @@ def main():
     # memory: the binned matrices, one omega chunk (chi, eps, eps^-1, anti-Hermitian part, ...), the mapped output
     nb = int(np.ceil(a.emax / a.de)) + 2
     wgrid = np.arange(0.0, a.emax, a.de)
-    wc = max(1, min(len(wgrid), int(2.5e8 // (16 * NG * NG * 6 + 16 * nb))))
-    need = (16 * nb * NG * NG + wc * (16 * NG * NG * 6 + 16 * nb) + (16 * len(wgrid) * NG * NG if a.full else 0)) / 1e9
+    wc = max(1, min(len(wgrid), int(2.5e8 // (16 * NG * NG * 5))))
+    need = (16 * (nb + len(wgrid)) * NG * NG + 6.4e7 + wc * 16 * NG * NG * 5
+            + (16 * len(wgrid) * NG * NG if a.full else 0)) / 1e9
     print(f'chi0_ref: memory estimate {need:.2f} GB ({nb} bins x {NG}^2, omega chunks of {wc})')
     if need > a.max_mem:
         sys.exit(f'chi0_ref: {need:.2f} GB exceeds --max-mem {a.max_mem} GB; raise --de, lower --emax or --ecut-eps')
@@ -231,9 +255,13 @@ def main():
                 g.write(f'{i} {gg[0]} {gg[1]} {gg[2]} {qq:.8f}\n')
     eQQ = np.empty(len(wgrid), complex); einvQQ = np.empty(len(wgrid), complex)
     ahmin, ahmax = np.inf, 0.0
+    chi = chi_kk_fft(sy, A, a.de, len(wgrid), a.eta)    # Kramers-Kronig by FFT on the uniform grid
+    del A
+    sv = np.sqrt(4 * np.pi / q2)
     for i0 in range(0, len(wgrid), wc):
         ww = wgrid[i0:i0 + wc]
-        eps, einv = eps_inv(sy, A, q2, a.de, ww, a.eta)
+        eps = np.eye(NG)[None] - sv[None, :, None] * chi[i0:i0 + wc] * sv[None, None, :]
+        einv = np.linalg.inv(eps)
         eQQ[i0:i0 + wc] = eps[:, iQ, iQ]
         einvQQ[i0:i0 + wc] = einv[:, iQ, iQ]
         # retarded response: the anti-Hermitian part of -eps^-1 is positive semidefinite for w > 0

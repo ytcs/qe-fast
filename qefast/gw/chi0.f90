@@ -6,8 +6,9 @@
 !
 !   rho_t(G)    = <c, k+q| e^{i(q+G)r} |v, k>                   pair densities (QE FFTs)
 !   A_b(G,G')   = sum_t w_tb rho_t(G)^* rho_t(G')                 transitions binned in energy (one ZGEMM per bin)
-!   chi0(w)     = spin/(Nk Omega) sum_b A_b [1/(w - D_b + i eta) - 1/(w + D_b + i eta)]   (time reversal)
-!   eps         = 1 - v^1/2 chi0 v^1/2,  v = 4 pi / |q+G|^2;  eps^-1 by LU, in chunks of w
+!   chi0(w)     = spin/(Nk Omega) sum_b A_b [1/(w - D_b + i eta) - 1/(w + D_b + i eta)]   (time reversal),
+!                 on the uniform grid a convolution and a correlation in b, done by FFT
+!   eps         = 1 - v^1/2 chi0 v^1/2,  v = 4 pi / |q+G|^2;  eps^-1 by LU per energy
 !
 ! Supported: norm-conserving, fixed occupations, no spin polarisation or magnetisation, q /= 0, a pw.x nscf on a
 ! full k grid without symmetry (k + q on the grid), one MPI process. Hartree units inside, eV in the input/output.
@@ -47,8 +48,8 @@ PROGRAM chi0
   INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, wc, i0, iw, nwc, ng_max, nt, b, iq_head, np
   INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), tb(:), list(:)
   REAL(DP) :: qcr(3), qc(3), x, spin, need, ahmin, ahmax
-  REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), wgrid(:), dbin(:), tw(:)
-  COMPLEX(DP), ALLOCATABLE :: a(:,:,:), uk(:,:,:), uq(:,:,:), f(:), rho(:,:), xm(:,:), ym(:,:), kern(:,:), &
+  REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), wgrid(:), tw(:)
+  COMPLEX(DP), ALLOCATABLE :: a(:,:,:), uk(:,:,:), uq(:,:,:), f(:), rho(:,:), xm(:,:), ym(:,:), &
                               chi(:,:,:), epsm(:,:), work(:), eqq(:), einvqq(:), ah(:,:)
   INTEGER, ALLOCATABLE :: ipiv(:)
   REAL(DP), ALLOCATABLE :: rwork(:), evals(:)
@@ -123,10 +124,10 @@ PROGRAM chi0
   DO WHILE (nw * de < emax - 1.0d-12)
     nw = nw + 1
   ENDDO
-  wc = MAX(1, MIN(nw, INT(2.5d8 / (16.0_DP * ng_max * ng_max * 4 + 16.0_DP * nb))))
-  need = (16.0_DP * nb * ng_max * ng_max + wc * (16.0_DP * ng_max * ng_max * 4 + 16.0_DP * nb)) / 1.0d9
-  WRITE(stdout, '(5x,"chi0: memory estimate ",F6.2," GB (",I0," bins x ",I0,"^2, w chunks of ",I0,")")') &
-       need, nb, ng_max, wc
+  wc = nw
+  need = (16.0_DP * (nb + nw) * ng_max * ng_max + 6.4d7) / 1.0d9   ! A, chi on the grid, FFT block buffers
+  WRITE(stdout, '(5x,"chi0: memory estimate ",F6.2," GB (",I0," bins and ",I0," energies x ",I0,"^2)")') &
+       need, nb, nw, ng_max
   IF (need > max_mem) CALL errore('chi0', 'memory estimate exceeds max_mem; raise de, lower emax or ecut_eps', 1)
   !
   ! ---- A_b: pair densities and binning
@@ -135,9 +136,12 @@ PROGRAM chi0
   a = (0.0_DP, 0.0_DP)
   DO ik = 1, nks
     jk = kq(ik)
+    CALL start_clock('chi0_wfc')
     CALL wfc_r(ik, 1, nv, (/0, 0, 0/), uk)
     CALL wfc_r(jk, nv + 1, nbnd, g0(:, ik), uq)
+    CALL stop_clock('chi0_wfc')
     DO iv = 1, nv
+      CALL start_clock('chi0_pairs')
       DO ic = 1, nc
         f(:) = CONJG(uq(:, 1, ic)) * uk(:, 1, iv)
         IF (npol == 2) f(:) = f(:) + CONJG(uq(:, 2, ic)) * uk(:, 2, iv)
@@ -146,6 +150,8 @@ PROGRAM chi0
           rho(ig, ic) = f(idx_mg(ig))
         ENDDO
       ENDDO
+      CALL stop_clock('chi0_pairs')
+      CALL start_clock('chi0_bin')
       ! linear binning of D = e_c(k+q) - e_v(k) into bins b and b+1
       DO b = 1, 2
         DO ic = 1, nc
@@ -173,19 +179,21 @@ PROGRAM chi0
                      a(1, 1, i), ng_max)
         ENDDO
       ENDDO
+      CALL stop_clock('chi0_bin')
     ENDDO
   ENDDO
   DEALLOCATE(uk, uq, f, rho, xm, ym, tb, tw, list)
   !
-  ! ---- eps^-1 in w chunks
-  ALLOCATE(wgrid(nw), dbin(nb), kern(nb, wc), chi(ng_max, ng_max, wc), epsm(ng_max, ng_max), ipiv(ng_max), &
+  ! ---- chi0 on the energy grid by FFT (Kramers-Kronig as a convolution and a correlation), then eps^-1 per energy
+  ALLOCATE(wgrid(nw), chi(ng_max, ng_max, nw), epsm(ng_max, ng_max), ipiv(ng_max), &
            work(64 * ng_max), eqq(nw), einvqq(nw), ah(ng_max, ng_max), rwork(3 * ng_max), evals(ng_max))
   DO iw = 1, nw
     wgrid(iw) = (iw - 1) * de
   ENDDO
-  DO b = 1, nb
-    dbin(b) = (b - 1) * de / ha
-  ENDDO
+  CALL start_clock('chi0_kk')
+  CALL kk_fft(a, chi, ng_max * ng_max)
+  CALL stop_clock('chi0_kk')
+  DEALLOCATE(a)
   IF (LEN_TRIM(filfull) > 0 .AND. ionode) THEN
     OPEN(91, FILE=TRIM(filfull), FORM='unformatted', ACCESS='stream', STATUS='replace')
     OPEN(92, FILE=TRIM(filfull) // '.G.txt', STATUS='replace')
@@ -199,36 +207,27 @@ PROGRAM chi0
     CLOSE(92)
   ENDIF
   ahmin = HUGE(1.0_DP); ahmax = 0.0_DP
-  DO i0 = 1, nw, wc
-    nwc = MIN(wc, nw - i0 + 1)
-    DO iw = 1, nwc
-      DO b = 1, nb
-        kern(b, iw) = 1.0_DP / CMPLX(wgrid(i0 + iw - 1) / ha - dbin(b), eta / ha, KIND=DP) &
-                    - 1.0_DP / CMPLX(wgrid(i0 + iw - 1) / ha + dbin(b), eta / ha, KIND=DP)
+  CALL start_clock('chi0_inv')
+  DO iw = 1, nw
+    DO j = 1, ng_max
+      DO i = 1, ng_max
+        epsm(i, j) = - sv(i) * chi(i, j, iw) * sv(j)
       ENDDO
+      epsm(j, j) = epsm(j, j) + 1.0_DP
     ENDDO
-    CALL ZGEMM('N', 'N', ng_max * ng_max, nwc, nb, CMPLX(spin / (nks * omega), 0.0_DP, KIND=DP), a, &
-               ng_max * ng_max, kern, nb, (0.0_DP, 0.0_DP), chi, ng_max * ng_max)
-    DO iw = 1, nwc
-      DO j = 1, ng_max
-        DO i = 1, ng_max
-          epsm(i, j) = - sv(i) * chi(i, j, iw) * sv(j)
-        ENDDO
-        epsm(j, j) = epsm(j, j) + 1.0_DP
-      ENDDO
-      eqq(i0 + iw - 1) = epsm(iq_head, iq_head)
-      CALL ZGETRF(ng_max, ng_max, epsm, ng_max, ipiv, ios)
-      IF (ios /= 0) CALL errore('chi0', 'singular eps', ios)
-      CALL ZGETRI(ng_max, epsm, ng_max, ipiv, work, SIZE(work), ios)
-      einvqq(i0 + iw - 1) = epsm(iq_head, iq_head)
-      IF (wgrid(i0 + iw - 1) > 0.0_DP) THEN        ! anti-Hermitian part of -eps^-1 must be PSD for w > 0
-        ah = -(epsm - CONJG(TRANSPOSE(epsm))) / (0.0_DP, 2.0_DP)
-        CALL ZHEEV('N', 'U', ng_max, ah, ng_max, evals, work, SIZE(work), rwork, ios)
-        ahmin = MIN(ahmin, evals(1)); ahmax = MAX(ahmax, evals(ng_max))
-      ENDIF
-      IF (LEN_TRIM(filfull) > 0 .AND. ionode) WRITE(91) epsm
-    ENDDO
+    eqq(iw) = epsm(iq_head, iq_head)
+    CALL ZGETRF(ng_max, ng_max, epsm, ng_max, ipiv, ios)
+    IF (ios /= 0) CALL errore('chi0', 'singular eps', ios)
+    CALL ZGETRI(ng_max, epsm, ng_max, ipiv, work, SIZE(work), ios)
+    einvqq(iw) = epsm(iq_head, iq_head)
+    IF (wgrid(iw) > 0.0_DP) THEN        ! anti-Hermitian part of -eps^-1 must be PSD for w > 0
+      ah = -(epsm - CONJG(TRANSPOSE(epsm))) / (0.0_DP, 2.0_DP)
+      CALL ZHEEV('N', 'U', ng_max, ah, ng_max, evals, work, SIZE(work), rwork, ios)
+      ahmin = MIN(ahmin, evals(1)); ahmax = MAX(ahmax, evals(ng_max))
+    ENDIF
+    IF (LEN_TRIM(filfull) > 0 .AND. ionode) WRITE(91) epsm
   ENDDO
+  CALL stop_clock('chi0_inv')
   IF (LEN_TRIM(filfull) > 0 .AND. ionode) CLOSE(91)
   !
   ! ---- output (columns as chi0_ref.py)
@@ -245,10 +244,75 @@ PROGRAM chi0
        ahmin, ahmax
   WRITE(stdout, '(5x,"chi0: RPA loss peak ",F8.2," eV, Re eps_M(w=0) RPA ",F8.3,", no local fields ",F8.3)') &
        wgrid(MAXLOC(-AIMAG(einvqq), 1)), REAL(1.0_DP / einvqq(1)), REAL(eqq(1))
+  CALL print_clock('chi0_wfc'); CALL print_clock('chi0_pairs'); CALL print_clock('chi0_bin')
+  CALL print_clock('chi0_kk'); CALL print_clock('chi0_inv')
   CALL environment_end('CHI0')
   CALL stop_pp()
   !
 CONTAINS
+  !
+  SUBROUTINE kk_fft(af, cf, ncol)
+    !! cf(:, i) = spin/(Nk Omega) sum_b af(:, b) [K(i - b) - K(i + b)],  K(m) = 1/(m de + i eta) (Hartree), on the
+    !! uniform grid w_i = (i-1) de: a zero-padded convolution and a correlation along b, by QE's 1D FFTs (cft_1z)
+    USE fft_scalar, ONLY : cft_1z
+    INTEGER, INTENT(IN) :: ncol
+    COMPLEX(DP), INTENT(IN) :: af(ncol, nb)
+    COMPLEX(DP), INTENT(OUT) :: cf(ncol, nw)
+    INTEGER :: l, m, c0, nbl, c, jj
+    COMPLEX(DP), ALLOCATABLE :: k1(:), k2(:), k1f(:), k2f(:), buf(:), bf(:), d(:), df(:)
+    REAL(DP) :: sf, sb, scal
+    l = 1
+    DO WHILE (l < 2 * nb + nw)
+      l = 2 * l
+    ENDDO
+    ALLOCATE(k1(l), k2(l), k1f(l), k2f(l), d(l), df(l))
+    k1 = (0.0_DP, 0.0_DP); k2 = (0.0_DP, 0.0_DP)
+    DO jj = 1, nw + nb - 1
+      m = (jj - 1) - (nb - 1)                         ! w_i - D_b = (i - b) de
+      k1(jj) = 1.0_DP / CMPLX(m * de / ha, eta / ha, KIND=DP)
+      m = jj - 1                                      ! w_i + D_b = (i + b) de
+      k2(jj) = 1.0_DP / CMPLX(m * de / ha, eta / ha, KIND=DP)
+    ENDDO
+    CALL cft_1z(k1, 1, l, l, -1, k1f)
+    CALL cft_1z(k2, 1, l, l, -1, k2f)
+    ! the scalings of this FFT backend: forward and backward of a unit impulse
+    d = (0.0_DP, 0.0_DP); d(1) = (1.0_DP, 0.0_DP)
+    CALL cft_1z(d, 1, l, l, -1, df); sf = REAL(df(1))
+    CALL cft_1z(d, 1, l, l, +1, df); sb = REAL(df(1))
+    scal = spin / (nks * omega) / (sb * sf * sf * l)
+    nbl = MAX(1, MIN(ncol, INT(2.0d6 / l)))          ! two block buffers of <= ~32 MB each (column c at (c-1) l)
+    ALLOCATE(buf(l * nbl), bf(l * nbl))
+    DO c0 = 1, ncol, nbl
+      m = MIN(nbl, ncol - c0 + 1)
+      ! convolution term
+      buf = (0.0_DP, 0.0_DP)
+      DO c = 1, m
+        buf((c - 1) * l + 1:(c - 1) * l + nb) = af(c0 + c - 1, 1:nb)
+      ENDDO
+      CALL cft_1z(buf, m, l, l, -1, bf)
+      DO c = 1, m
+        bf((c - 1) * l + 1:c * l) = bf((c - 1) * l + 1:c * l) * k1f(:)
+      ENDDO
+      CALL cft_1z(bf, m, l, l, +1, buf)
+      DO c = 1, m
+        cf(c0 + c - 1, 1:nw) = buf((c - 1) * l + nb:(c - 1) * l + nb + nw - 1)
+      ENDDO
+      ! correlation term (A reversed in b)
+      buf = (0.0_DP, 0.0_DP)
+      DO c = 1, m
+        buf((c - 1) * l + 1:(c - 1) * l + nb) = af(c0 + c - 1, nb:1:-1)
+      ENDDO
+      CALL cft_1z(buf, m, l, l, -1, bf)
+      DO c = 1, m
+        bf((c - 1) * l + 1:c * l) = bf((c - 1) * l + 1:c * l) * k2f(:)
+      ENDDO
+      CALL cft_1z(bf, m, l, l, +1, buf)
+      DO c = 1, m
+        cf(c0 + c - 1, 1:nw) = (cf(c0 + c - 1, 1:nw) - buf((c - 1) * l + nb:(c - 1) * l + nb + nw - 1)) * scal
+      ENDDO
+    ENDDO
+    DEALLOCATE(k1, k2, k1f, k2f, d, df, buf, bf)
+  END SUBROUTINE kk_fft
   !
   INTEGER FUNCTION box_index(m)
     !! position of the Miller index m on the (serial) smooth FFT box, the layout of dffts%nl
