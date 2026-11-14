@@ -259,7 +259,7 @@ PROGRAM gamma_ii
         IF (e(n, jk) > ecbm + emax_carrier) CYCLE
         DO jn = 1, nc
           w = e(n, jk) - e(nv + jn, ik)
-          IF (w <= 0.0_DP) CYCLE
+          IF (w <= 1.0d-6) CYCLE                       ! degenerate pairs at equivalent k: w = +-1e-15 eV
           x = w / de; j0 = INT(x); fr = x - j0
           IF (j0 + 2 > nw) CYCLE
           np = np + 1; pn(np) = n; pj(np) = jn; pg(np) = j0 + 1; pf(np) = fr

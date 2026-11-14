@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from chi0_ref import HA, System, binned_A, eps_inv   # noqa: E402
 
 HBAR_HA = 2.4188843265857e-17   # s, hbar / E_h
+WMIN = 1e-6                     # eV: smallest energy transfer (degenerate pairs at equivalent k give w = +-1e-15)
 
 
 def main():
@@ -79,7 +80,7 @@ def main():
             phi = sy.pairs(kp, k, G0[kp], slice(nv, nbnd), slice(nv, nmax), Gm)   # (n initial, n' final, G)
             for n in range(nv, nmax):
                 w = e[k, n] - e[kp, nv:nbnd]                 # energy transfer to the pair
-                ok = (w > 0) & (e[k, n] <= ecbm + a.emax_carrier)
+                ok = (w > WMIN) & (e[k, n] <= ecbm + a.emax_carrier)
                 for jn in np.nonzero(ok)[0]:
                     x = w[jn] / a.de; j0 = int(x); f = x - j0
                     if j0 + 1 >= len(wgrid):
