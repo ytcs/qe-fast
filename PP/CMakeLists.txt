@@ -320,7 +320,6 @@ target_link_libraries(qe_pp_chi0_exe
         qe_lapack)
 if(QE_ENABLE_CUDA)
     target_link_libraries(qe_pp_chi0_exe PRIVATE CUDA::cufft CUDA::cublas)
-    target_link_libraries(qe_pp_gamma_ii_exe PRIVATE CUDA::cufft CUDA::cublas)
 endif()
 
 ###########################################################
@@ -338,6 +337,9 @@ target_link_libraries(qe_pp_gamma_ii_exe
         qe_pp
         qe_fftx
         qe_lapack)
+if(QE_ENABLE_CUDA)
+    target_link_libraries(qe_pp_gamma_ii_exe PRIVATE CUDA::cufft CUDA::cublas)
+endif()
 
 ###########################################################
 # initial_state.x
