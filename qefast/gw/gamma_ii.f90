@@ -51,7 +51,8 @@ PROGRAM gamma_ii
   USE klist,            ONLY : ngk, igk_k
   USE gvect,            ONLY : mill
   USE chi0_dev,         ONLY : dev_cap, dev_init, dev_kk, dev_free, dev_free_gb, dev_wfc_init, dev_wfc_put, &
-                               dev_wfc_free, dev_add_kq, dev_imw, dev_contract
+                               dev_wfc_free, dev_add_kq, dev_imw, dev_ctr_cap, dev_ctr_begin, &
+                               dev_ctr_pairs, dev_ctr_eval
 #endif
   IMPLICIT NONE
   REAL(DP), PARAMETER :: hbar_ha = 2.4188843265857d-17   ! s, hbar / E_h
@@ -62,9 +63,10 @@ PROGRAM gamma_ii
   NAMELIST / inputgii / prefix, outdir, emax_carrier, ecut_eps, de, eta, scissor, fileout, filpart, max_mem, &
                         device, dev_reserve
   !
-  INTEGER :: nv, nc, ni, nmax, ik, jk, iq, nq, iv, ic, n, jn, iw, nb, nw, ng, ihead, np, p, j0, cnt, ne, ie, cap
-  INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), pn(:), pj(:), pg(:), ecol(:), ep(:), ecnt(:), &
-                          eoff(:), epos(:), idx_pg(:), mtmp(:,:)
+  INTEGER :: nv, nc, ni, nmax, ik, jk, iq, nq, iv, ic, n, jn, iw, nb, nw, ng, ihead, np, p, j0, cnt, ne, ie, cap, &
+             ecap, pcap, ik0, ik1, t
+  INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), pn(:), pj(:), pg(:), ep(:), ecnt(:), &
+                          eoff(:), epos(:), idx_pg(:), mtmp(:,:), pk(:), pst(:), pen(:), kcol(:), kpos(:)
   REAL(DP) :: qcr(3), spin, wmax, ecbm, evbm, need, w, x, fr, lo, smax
   REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), e(:,:), tx(:), imsig(:,:), pf(:), pc(:), ewt(:), eout(:), &
                            xb(:,:)
@@ -165,8 +167,7 @@ PROGRAM gamma_ii
   ENDIF
 #endif
   ALLOCATE(uk(dffts%nnr, npol, nbnd), uq(dffts%nnr, npol, nc), f(dffts%nnr), tx(nc), xb(nc, nv))
-  ALLOCATE(pn(ni * nc), pj(ni * nc), pg(ni * nc), pf(ni * nc), pc(ni * nc), ecol(2 * ni * nc), ep(2 * ni * nc), &
-           ewt(2 * ni * nc), eout(2 * ni * nc), ecnt(nw), eoff(nw), epos(nw))
+  ALLOCATE(ecnt(nw), eoff(nw), epos(nw), pst(nks), pen(nks))
   !
   cnt = 0
   DO iq = 1, nks
@@ -247,23 +248,41 @@ PROGRAM gamma_ii
     ENDDO
     CALL stop_clock('gii_w')
     DEALLOCATE(epsm)
-    ALLOCATE(phi(ng, ni, nc), xm(ng, 2 * ni * nc), ym(ng, 2 * ni * nc))
+    ALLOCATE(phi(ng, ni, nc))
     ENDIF
     ! ---- contraction: final state (n', k' = ik), initial state (n, k = k' + q). Each pair interpolates Im W
-    ! between two grid energies: entries (pair, grid energy, weight), grouped by grid energy, one ZGEMM per energy
-    DO ik = 1, nks
-      jk = kq(ik)
+    ! between two grid energies: entries (pair, grid energy, weight). The k' go in chunks that fit in memory; in a
+    ! chunk the entries are grouped by grid energy, one ZGEMM per energy for all its k'
+    IF (device) THEN
+#if defined(__CUDA)
+      ecap = dev_ctr_cap(ni, dev_reserve)
+#endif
+    ELSE
+      ecap = INT(MIN(65536.0_DP, (max_mem - 16.0d-9 * ng * (nw * ng + ni * nc)) * 1.0d9 / (32.0_DP * ng + 24.0_DP)))
+    ENDIF
+    IF (ecap < 2 * ni * nc) CALL errore('gamma_ii', 'memory too small for the contraction of one k-point', 1)
+    pcap = ecap / 2
+    ALLOCATE(pn(pcap), pj(pcap), pg(pcap), pf(pcap), pc(pcap), pk(pcap), ep(ecap), ewt(ecap), eout(ecap), &
+             kcol(ecap), kpos(ecap))
+    IF (.NOT. device) ALLOCATE(xm(ng, ecap), ym(ng, ecap))
+    ik0 = 1
+    DO WHILE (ik0 <= nks)
       CALL start_clock('gii_contract')
-      np = 0
-      DO n = nv + 1, nmax
-        IF (e(n, jk) > ecbm + emax_carrier) CYCLE
-        DO jn = 1, nc
-          w = e(n, jk) - e(nv + jn, ik)
-          IF (w <= 1.0d-6) CYCLE                       ! degenerate pairs at equivalent k: w = +-1e-15 eV
-          x = w / de; j0 = INT(x); fr = x - j0
-          IF (j0 + 2 > nw) CYCLE
-          np = np + 1; pn(np) = n; pj(np) = jn; pg(np) = j0 + 1; pf(np) = fr
+      np = 0; ik1 = ik0 - 1
+      DO ik = ik0, nks
+        IF (np + ni * nc > pcap) EXIT
+        jk = kq(ik); ik1 = ik; pst(ik) = np + 1
+        DO n = nv + 1, nmax
+          IF (e(n, jk) > ecbm + emax_carrier) CYCLE
+          DO jn = 1, nc
+            w = e(n, jk) - e(nv + jn, ik)
+            IF (w <= 1.0d-6) CYCLE                     ! degenerate pairs at equivalent k: w = +-1e-15 eV
+            x = w / de; j0 = INT(x); fr = x - j0
+            IF (j0 + 2 > nw) CYCLE
+            np = np + 1; pn(np) = n; pj(np) = jn; pg(np) = j0 + 1; pf(np) = fr; pk(np) = ik
+          ENDDO
         ENDDO
+        pen(ik) = np
       ENDDO
       ecnt = 0
       DO p = 1, np
@@ -275,56 +294,69 @@ PROGRAM gamma_ii
       ENDDO
       ne = 2 * np
       epos = eoff
-      DO p = 1, np
+      DO p = 1, np                                     ! entry t = 2p - 1 + j0 (k' order) sits at position ie
         DO j0 = 0, 1
           iw = pg(p) + j0
-          epos(iw) = epos(iw) + 1; ie = epos(iw)
-          ep(ie) = p; ecol(ie) = (pj(p) - 1) * ni + (pn(p) - nv)
-          ewt(ie) = MERGE(pf(p), 1.0_DP - pf(p), j0 == 1)
+          epos(iw) = epos(iw) + 1; ie = epos(iw); t = 2 * p - 1 + j0
+          kcol(t) = (pj(p) - 1) * ni + (pn(p) - nv); kpos(t) = ie
+          ep(ie) = p; ewt(ie) = MERGE(pf(p), 1.0_DP - pf(p), j0 == 1)
         ENDDO
       ENDDO
       CALL stop_clock('gii_contract')
-      IF (np == 0) CYCLE
-      IF (device) THEN
+      IF (np > 0) THEN
+        IF (device) THEN
 #if defined(__CUDA)
-        CALL start_clock('gii_contract')
-        CALL dev_contract(ik, jk, g0(:, ik), nv, ni, nw, ne, ecol, ewt, ecnt, eoff, eout)
-        CALL stop_clock('gii_contract')
+          CALL start_clock('gii_contract')
+          CALL dev_ctr_begin(ne, kcol, kpos, ewt)
+          DO ik = ik0, ik1
+            IF (pen(ik) < pst(ik)) CYCLE
+            CALL dev_ctr_pairs(ik, kq(ik), g0(:, ik), nv, ni, 2 * (pst(ik) - 1), 2 * (pen(ik) - pst(ik) + 1))
+          ENDDO
+          CALL dev_ctr_eval(nw, ecnt, eoff, ne, eout)
+          CALL stop_clock('gii_contract')
 #endif
-      ELSE
-        CALL start_clock('gii_wfc')
-        CALL wfc_r(ik, nv + 1, nbnd, (/0, 0, 0/), uk)
-        CALL wfc_r(jk, nv + 1, nmax, g0(:, ik), uq)
-        CALL stop_clock('gii_wfc')
-        CALL start_clock('gii_pairs')
-        DO jn = 1, nc
-          CALL pair_row(uk(:, :, jn), uq, ni, idx_mg, phi(:, :, jn), f)
-        ENDDO
-        CALL stop_clock('gii_pairs')
-        CALL start_clock('gii_contract')
+        ELSE
+          DO ik = ik0, ik1
+            IF (pen(ik) < pst(ik)) CYCLE
+            jk = kq(ik)
+            CALL start_clock('gii_wfc')
+            CALL wfc_r(ik, nv + 1, nbnd, (/0, 0, 0/), uk)
+            CALL wfc_r(jk, nv + 1, nmax, g0(:, ik), uq)
+            CALL stop_clock('gii_wfc')
+            CALL start_clock('gii_pairs')
+            DO jn = 1, nc
+              CALL pair_row(uk(:, :, jn), uq, ni, idx_mg, phi(:, :, jn), f)
+            ENDDO
+            DO t = 2 * pst(ik) - 1, 2 * pen(ik)
+              xm(:, kpos(t)) = phi(:, MOD(kcol(t) - 1, ni) + 1, (kcol(t) - 1) / ni + 1)
+            ENDDO
+            CALL stop_clock('gii_pairs')
+          ENDDO
+          CALL start_clock('gii_contract')
+          DO iw = 1, nw
+            IF (ecnt(iw) == 0) CYCLE
+            CALL ZGEMM('N', 'N', ng, ecnt(iw), ng, (1.0_DP, 0.0_DP), chi(1, 1, iw), ng, xm(1, eoff(iw) + 1), ng, &
+                       (0.0_DP, 0.0_DP), ym(1, eoff(iw) + 1), ng)
+          ENDDO
+          DO ie = 1, ne
+            eout(ie) = ewt(ie) * REAL(DOT_PRODUCT(xm(:, ie), ym(:, ie)), DP)
+          ENDDO
+          CALL stop_clock('gii_contract')
+        ENDIF
+        pc(1:np) = 0.0_DP
         DO ie = 1, ne
-          xm(:, ie) = phi(:, MOD(ecol(ie) - 1, ni) + 1, (ecol(ie) - 1) / ni + 1)
+          pc(ep(ie)) = pc(ep(ie)) + eout(ie)
         ENDDO
-        DO iw = 1, nw
-          IF (ecnt(iw) == 0) CYCLE
-          CALL ZGEMM('N', 'N', ng, ecnt(iw), ng, (1.0_DP, 0.0_DP), chi(1, 1, iw), ng, xm(1, eoff(iw) + 1), ng, &
-                     (0.0_DP, 0.0_DP), ym(1, eoff(iw) + 1), ng)
+        DO p = 1, np
+          jk = kq(pk(p))
+          imsig(pn(p), jk) = imsig(pn(p), jk) + pc(p)
+          IF (LEN_TRIM(filpart) > 0 .AND. ionode) WRITE(93, '(4I6,ES16.8,2F10.4)') pn(p), jk, nv + pj(p), pk(p), &
+               2.0_DP * ABS(pc(p) / (nks * omega)) / hbar_ha, e(pn(p), jk) - ecbm, e(nv + pj(p), pk(p)) - ecbm
         ENDDO
-        DO ie = 1, ne
-          eout(ie) = ewt(ie) * REAL(DOT_PRODUCT(xm(:, ie), ym(:, ie)), DP)
-        ENDDO
-        CALL stop_clock('gii_contract')
       ENDIF
-      pc(1:np) = 0.0_DP
-      DO ie = 1, ne
-        pc(ep(ie)) = pc(ep(ie)) + eout(ie)
-      ENDDO
-      DO p = 1, np
-        imsig(pn(p), jk) = imsig(pn(p), jk) + pc(p)
-        IF (LEN_TRIM(filpart) > 0 .AND. ionode) WRITE(93, '(4I6,ES16.8,2F10.4)') pn(p), jk, nv + pj(p), ik, &
-             2.0_DP * ABS(pc(p) / (nks * omega)) / hbar_ha, e(pn(p), jk) - ecbm, e(nv + pj(p), ik) - ecbm
-      ENDDO
+      ik0 = ik1 + 1
     ENDDO
+    DEALLOCATE(pn, pj, pg, pf, pc, pk, ep, ewt, eout, kcol, kpos)
     IF (device) THEN
 #if defined(__CUDA)
       CALL dev_free()
