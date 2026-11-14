@@ -28,10 +28,12 @@ All notable changes to qe-fast are recorded here. The format follows
   development (QE commits b987d733 and 24c9753d, listed for 7.6.1). On `tddfpt_eels-al` (Al_uspp) the CPU ε⁻¹ moves
   by up to 2×10⁻³; the case now equals upstream's regenerated benchmark (taken from QE commit 4aead329) to 3×10⁻⁵.
   `pw_berry` and `pw_electric` still pass.
-- `turbo_eels.x` with ultrasoft pseudopotentials on GPU: ε⁻¹ was off by 2–7 % (Al_uspp on an H100, the same in
-  vanilla 7.6). `orthogonalize_omega` built `becp` on the host while `s_psi` read the stale device copy, and
-  `lr_sm1_psi` mixed host and device arrays. `ccg_psi`, the preconditioner of the frequency-dependent solver, ran on
-  host copies the solver never used. Backported from upstream development (QE commit 4aead329).
+- `turbo_eels.x` with ultrasoft pseudopotentials on GPU, Sternheimer solver: ε⁻¹ was off by 2–7 % (Al_uspp on an
+  H100, the same in vanilla 7.6). `orthogonalize_omega` built `becp` on the host while `s_psi` read the stale device
+  copy; `ccg_psi`, the preconditioner of the frequency-dependent solver, ran on host copies the solver never used.
+  Ultrasoft with and without spin–orbit, collinear and noncollinear, now equal the CPU on the H100 to 4×10⁻⁶ (ε⁻¹ at
+  1.44 eV); the norm-conserving case was right before and is unchanged. The same upstream commit (QE 4aead329) fixes
+  host/device mixing in `lr_sm1_psi`, used by the Lanczos solver; that path has no GPU measurement yet.
 
 - XML read of `pseudo_file`: the `l` attribute was read and broadcast without being allocated. FoX builds crashed on
   every read of a saved run (`ph.x`, `gipaw.x`, ...); other builds silently dropped it.
