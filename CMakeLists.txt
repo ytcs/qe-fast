@@ -1,4 +1,4 @@
-# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12 to 2026-11-14; see NOTICE.
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 # CMake < 3.13 cannot install external targets:
 # https://gitlab.kitware.com/cmake/cmake/merge_requests/2152
