@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # CI gate for chi0.x and gamma_ii.x: Si on a 4^3 grid without symmetry, 12 bands. chi0.x at Q = 0.5 (2pi/a, x)
 # against qefast/gw/chi0_ref.py, every output column and the whole eps^-1 matrix, to 1e-8; gamma_ii.x (carriers to
-# 2.5 eV) against qefast/gw/gamma_ref.py, the rate of every initial state and every final-state partial rate.
+# 2.5 eV) against qefast/gw/gamma_ref.py, the rate of every initial state and every final-state partial rate, and
+# the contraction against the golden rule (qefast/gw/gamma_golden.py).
 #   ci.sh <bin dir> <workdir>
 set -euo pipefail
 HERE=$(dirname "$(realpath "$0")")
@@ -65,3 +66,5 @@ print(f'gamma gate: {m.sum()} of {len(a)} states, Gamma rel |diff| {d_rel:.2e} (
       f'partial rates {len(gp)} / {len(gf)} ({len(set(gp) ^ set(gf))} keys in one only), |diff| {d_p:.2e} of the peak')
 sys.exit(0 if (same and d_rel < 1e-5 and d_abs < 1e-8 and d_p < 1e-7) else 1)
 EOP
+# the contraction against Fermi's golden rule (lowest order in the bare Coulomb interaction): prefactors, G order
+python3 "$HERE/../../../gw/gamma_golden.py" out si --emax-carrier 2.5 --ecut-eps 4 --de 0.05 --eta 0.05

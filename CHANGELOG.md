@@ -40,6 +40,11 @@ All notable changes to qe-fast are recorded here. The format follows
 
 ### Fixed
 
+- `gamma_ii.x` and `gamma_ref.py` contracted the pair densities with Im W in the wrong index order: φ†·Im W·φ
+  instead of φᵀ·Im W·φ*, where φ_G = ⟨nk|e^{i(q+G)r}|n′k′⟩. Im W_GG′ is not symmetric (phases of the atomic
+  positions), so state rates and partial rates were wrong; on Si 4³ the rates were 26 % high at lowest order.
+  `qefast/gw/gamma_golden.py` checks the contraction against Fermi's golden rule (agreement to 10⁻¹⁵), and CI runs
+  it.
 - Ultrasoft Q(q) for q ≠ 0 (`upflib/qvan2.f90`, `compute_qqr`/`compute_qqc`): |q|² was q₁² + q₂² + q₁², so the
   third component never entered. This affected EELS (`turbo_eels.x`) and Berry-phase/finite-field runs with ultrasoft
   pseudopotentials on every build. Q(q) was also left unset for norm-conserving species. Backported from upstream

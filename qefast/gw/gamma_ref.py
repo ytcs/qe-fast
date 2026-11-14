@@ -33,6 +33,13 @@ HBAR_HA = 2.4188843265857e-17   # s, hbar / E_h
 WMIN = 1e-6                     # eV: smallest energy transfer (degenerate pairs at equivalent k give w = +-1e-15)
 
 
+def contract(phi, imW):
+    """phi^T Im W phi^*. Im Sigma_nk ~ int int psi*_nk(r) psi_n'k'(r) Im W(r,r') psi*_n'k'(r') psi_nk(r') with
+    W(r,r') = 1/V sum e^{i(q+G)r} W_GG' e^{-i(q+G')r'} and phi_G = <nk|e^{i(q+G)r}|n'k'>. Im W_GG' is not symmetric
+    (phases of the atomic positions), so the order matters; gamma_golden.py checks this against the golden rule."""
+    return np.real(phi @ imW @ np.conj(phi))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('outdir'); ap.add_argument('prefix')
@@ -90,7 +97,7 @@ def main():
                         continue
                     M = (1 - f) * imW[j0] + f * imW[j0 + 1]
                     p = phi[n - nv, jn]
-                    contrib = np.real(np.conj(p) @ M @ p)
+                    contrib = contract(p, M)
                     imsig[k, n] += contrib
                     if a.partial:
                         part.append((n, k, nv + jn, kp, contrib))

@@ -530,7 +530,7 @@ CONTAINS
   END SUBROUTINE dev_imw
   !
   ATTRIBUTES(GLOBAL) SUBROUTINE k_scols(x, phi, col, pos, ng, e0, n)
-    ! x(:, pos(e)) = phi(:, col(e)) for e = e0 + 1 .. e0 + n
+    ! x(:, pos(e)) = conj(phi(:, col(e))) for e = e0 + 1 .. e0 + n (the contraction is phi^T Im W phi^*)
     INTEGER, VALUE :: ng, e0, n
     COMPLEX(dp) :: x(ng, *), phi(ng, *)
     INTEGER :: col(*), pos(*)
@@ -540,7 +540,7 @@ CONTAINS
     IF (t > INT(ng, 8) * n) RETURN
     e = INT((t - 1) / ng) + 1
     ig = INT(t - INT(e - 1, 8) * ng)
-    x(ig, pos(e0 + e)) = phi(ig, col(e0 + e))
+    x(ig, pos(e0 + e)) = CONJG(phi(ig, col(e0 + e)))
   END SUBROUTINE k_scols
   !
   ATTRIBUTES(GLOBAL) SUBROUTINE k_dot(out, x, y, wt, ng, ne)

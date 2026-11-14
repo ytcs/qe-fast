@@ -258,7 +258,11 @@ PROGRAM gamma_ii
     DEALLOCATE(epsm)
     ALLOCATE(phi(ng, ni, nc))
     ENDIF
-    ! ---- contraction: final state (n', k' = ik), initial state (n, k = k' + q). Each pair interpolates Im W
+    ! ---- contraction: final state (n', k' = ik), initial state (n, k = k' + q),
+    ! Im Sigma ~ int int psi*_nk(r) psi_n'k'(r) Im W(r,r') psi*_n'k'(r') psi_nk(r') = phi^T Im W phi^* with
+    ! phi_G = <nk|e^{i(q+G)r}|n'k'> and W(r,r') = 1/V sum e^{i(q+G)r} W_GG' e^{-i(q+G')r'}. Im W_GG' is not symmetric
+    ! (phases of the atomic positions), so the order matters; qefast/gw/gamma_golden.py checks it against the golden
+    ! rule. Each pair interpolates Im W
     ! between two grid energies: entries (pair, grid energy, weight). The k' go in chunks that fit in memory; in a
     ! chunk the entries are grouped by grid energy, one ZGEMM per energy for all its k'
     IF (device) THEN
@@ -335,8 +339,8 @@ PROGRAM gamma_ii
             DO jn = 1, nc
               CALL pair_row(uk(:, :, jn), uq, ni, idx_mg, phi(:, :, jn), f)
             ENDDO
-            DO t = 2 * pst(ik) - 1, 2 * pen(ik)
-              xm(:, kpos(t)) = phi(:, MOD(kcol(t) - 1, ni) + 1, (kcol(t) - 1) / ni + 1)
+            DO t = 2 * pst(ik) - 1, 2 * pen(ik)              ! columns phi^*: the contraction is phi^T Im W phi^*
+              xm(:, kpos(t)) = CONJG(phi(:, MOD(kcol(t) - 1, ni) + 1, (kcol(t) - 1) / ni + 1))
             ENDDO
             CALL stop_clock('gii_pairs')
           ENDDO
