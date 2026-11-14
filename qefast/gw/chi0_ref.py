@@ -83,7 +83,7 @@ def read_wfc(path):
 class System:
     """A pw.x nscf run: cell, k list (crystal), eigenvalues (Hartree), FFT grid, occupied-band count."""
 
-    def __init__(self, outdir, prefix, nbnd=0):
+    def __init__(self, outdir, prefix, nbnd=0, scissor_ev=0.0):
         self.save = os.path.join(outdir, prefix + '.save')
         d = read_xml(self.save)
         self.__dict__.update(d)
@@ -95,6 +95,10 @@ class System:
         self.nv = int(round(self.nelec / (1 if self.noncolin else 2)))
         self.spin = 1.0 if self.noncolin else 2.0                # spin degeneracy only for collinear wavefunctions
         self.kcr = self.xk * (2 * np.pi / self.alat) @ self.cell.T / (2 * np.pi)
+        # scissor: every empty band moved up by scissor_ev (eV); the wavefunctions and pair densities are unchanged
+        self.scissor = scissor_ev
+        if scissor_ev:
+            self.eig = self.eig.copy(); self.eig[:, self.nv:] += scissor_ev / HA
 
     def to_crystal(self, Qcart_2pi_alat):
         return np.array(Qcart_2pi_alat) * 2 * np.pi / self.alat @ self.cell.T / (2 * np.pi)
@@ -215,11 +219,12 @@ def main():
     ap.add_argument('--emax', type=float, default=60.0); ap.add_argument('--de', type=float, default=0.02)
     ap.add_argument('--eta', type=float, default=0.1); ap.add_argument('--out', default='chi0_ref.dat')
     ap.add_argument('--nbnd', type=int, default=0, help='use only the lowest nbnd bands (convergence tests)')
+    ap.add_argument('--scissor', type=float, default=0.0, help='shift of the empty bands (eV)')
     ap.add_argument('--max-mem', type=float, default=2.0, help='refuse to run above this estimate (GB)')
     ap.add_argument('--full', default='', help='also write the whole eps^-1_GG\'(w) to this .npy (memory-mapped) '
                     'and the G list to <name>.G.txt')
     a = ap.parse_args()
-    sy = System(a.outdir, a.prefix, a.nbnd)
+    sy = System(a.outdir, a.prefix, a.nbnd, a.scissor)
     Qcr = sy.to_crystal(a.q)
     GQ = np.ceil(Qcr - 0.5 - 1e-9).astype(int)      # q = Q - GQ in (-1/2, 1/2] (crystal)
     qcr = Qcr - GQ

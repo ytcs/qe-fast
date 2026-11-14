@@ -16,7 +16,8 @@
 ! Input namelist &inputchi0: prefix, outdir, q(3) (2 pi / alat, Cartesian), ecut_eps (Ry), emax, de, eta (eV),
 ! nbnd (0: all), fileout, filfull ('' : no full matrix), max_mem (GB, host path; 0: half the available), device (GPU path in CUDA builds), check_psd
 ! (number of energies, evenly spread, at which the anti-Hermitian part of -eps^-1 is checked; >= nw: all), dev_reserve
-! (GB of device memory left free), dev_buffer (most transitions buffered on the device before a flush; 0: from memory).
+! (GB of device memory left free), dev_buffer (most transitions buffered on the device before a flush; 0: from memory),
+! scissor (eV, shift of the empty bands).
 !
 PROGRAM chi0
   USE kinds,            ONLY : DP
@@ -53,8 +54,9 @@ PROGRAM chi0
   INTEGER :: check_psd
   REAL(DP) :: dev_reserve
   INTEGER :: dev_buffer
+  REAL(DP) :: scissor
   NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device, &
-                         check_psd, dev_reserve, dev_buffer
+                         check_psd, dev_reserve, dev_buffer, scissor
   !
   INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, iw, ng_max, b, iq_head, np, cap
   INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), tb(:), list(:)
@@ -70,7 +72,7 @@ PROGRAM chi0
   CALL environment_start('CHI0')
   prefix = 'pwscf'; outdir = './'; q = 0.0_DP; ecut_eps = 4.0_DP; emax = 60.0_DP; de = 0.02_DP; eta = 0.1_DP
   nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 0.0_DP; device = .TRUE.; check_psd = 100
-  dev_reserve = 2.0_DP; dev_buffer = 0
+  dev_reserve = 2.0_DP; dev_buffer = 0; scissor = 0.0_DP
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputchi0, IOSTAT=ios)
@@ -84,7 +86,7 @@ PROGRAM chi0
   CALL mp_bcast(fileout, ionode_id, intra_image_comm); CALL mp_bcast(filfull, ionode_id, intra_image_comm)
   CALL mp_bcast(max_mem, ionode_id, intra_image_comm); CALL mp_bcast(device, ionode_id, intra_image_comm)
   CALL mp_bcast(check_psd, ionode_id, intra_image_comm); CALL mp_bcast(dev_reserve, ionode_id, intra_image_comm)
-  CALL mp_bcast(dev_buffer, ionode_id, intra_image_comm)
+  CALL mp_bcast(dev_buffer, ionode_id, intra_image_comm); CALL mp_bcast(scissor, ionode_id, intra_image_comm)
 #if !defined(__CUDA)
   device = .FALSE.
 #endif
@@ -107,6 +109,8 @@ PROGRAM chi0
   ENDIF
   nc = nbnd - nv
   IF (nc < 1) CALL errore('chi0', 'no empty bands', 1)
+  ! scissor: every empty band moved up by scissor (eV); wavefunctions and pair densities are unchanged
+  IF (scissor /= 0.0_DP) et(nv + 1:, :) = et(nv + 1:, :) + scissor / rytoev
   !
   ! ---- q, k + q on the grid
   ALLOCATE(kcr(3, nks), kq(nks), g0(3, nks))

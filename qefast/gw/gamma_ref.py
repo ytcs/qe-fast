@@ -13,8 +13,11 @@ are the empty states between the conduction minimum and the initial energy (hole
 bands through Im W). Im W is built for each q on an energy grid and interpolated linearly. The q = 0 term
 (head and wings of W) is left out here: the run reports the weight it leaves out, 1/Nk.
 
-  gamma_ref.py <outdir> <prefix> [--emax-carrier eV] [--ecut-eps Ry] [--de eV] [--eta eV] [--out file]
-Writes n, k, E - E_cbm (eV), Im Sigma (eV), Gamma (1/s); prints Gamma averaged in 0.5 eV bins.
+  gamma_ref.py <outdir> <prefix> [--emax-carrier eV] [--ecut-eps Ry] [--de eV] [--eta eV] [--scissor eV]
+               [--out file] [--partial file.npz]
+Writes n, k, E - E_cbm (eV), Im Sigma (eV), Gamma (1/s); prints Gamma averaged in 0.5 eV bins. --partial writes the
+rate into every final state (n', k'), whose sum over final states is Gamma: the cascade draws the scattered carrier
+from it.
 """
 import argparse
 import os
@@ -37,8 +40,10 @@ def main():
     ap.add_argument('--eta', type=float, default=0.05)
     ap.add_argument('--out', default='gamma_ref.dat')
     ap.add_argument('--max-mem', type=float, default=2.0)
+    ap.add_argument('--scissor', type=float, default=0.0, help='shift of the empty bands (eV), in W and the states')
+    ap.add_argument('--partial', default='', help='also write the partial rates per final state (n\', k\') to this .npz')
     a = ap.parse_args()
-    sy = System(a.outdir, a.prefix)
+    sy = System(a.outdir, a.prefix, scissor_ev=a.scissor)
     nv, nbnd, nk = sy.nv, sy.nbnd, sy.nk
     ecbm = sy.eig[:, nv].min() * HA
     evbm = sy.eig[:, nv - 1].max() * HA
@@ -54,6 +59,7 @@ def main():
     print(f'gamma_ref: {nk} k, bands {nv + 1}-{nmax} as initial states, E_cbm {ecbm:.3f} eV, gap {ecbm - evbm:.3f} eV, '
           f'W on {len(wgrid)} energies to {wmax} eV; q = 0 left out (weight {1 / nk:.4f})')
     imsig = np.zeros((nk, nbnd))
+    part = []                                  # (n, k, n', k', Im Sigma contribution) for the cascade's final-state draw
     qlist = [iq for iq in range(nk) if np.abs(sy.kcr[iq] - np.round(sy.kcr[iq])).max() > 1e-8]
     for count, iq in enumerate(qlist):
         qcr = sy.kcr[iq] - np.ceil(sy.kcr[iq] - 0.5 - 1e-9)
@@ -80,10 +86,19 @@ def main():
                         continue
                     M = (1 - f) * imW[j0] + f * imW[j0 + 1]
                     p = phi[n - nv, jn]
-                    imsig[k, n] += np.real(np.conj(p) @ M @ p)
+                    contrib = np.real(np.conj(p) @ M @ p)
+                    imsig[k, n] += contrib
+                    if a.partial:
+                        part.append((n, k, nv + jn, kp, contrib))
         print(f'  q {count + 1}/{len(qlist)}  NG {NG}', flush=True)
     imsig /= nk * sy.omega
     gam = 2 * np.abs(imsig) / HBAR_HA
+    if a.partial:
+        pt = np.array(part)
+        np.savez(a.partial, n=pt[:, 0].astype(int) + 1, k=pt[:, 1].astype(int) + 1, nf=pt[:, 2].astype(int) + 1,
+                 kf=pt[:, 3].astype(int) + 1, gamma=2 * np.abs(pt[:, 4] / (nk * sy.omega)) / HBAR_HA,
+                 e_init=e[pt[:, 1].astype(int), pt[:, 0].astype(int)] - ecbm,
+                 e_final=e[pt[:, 3].astype(int), pt[:, 2].astype(int)] - ecbm)
     rows = [(n + 1, k + 1, e[k, n] - ecbm, imsig[k, n] * HA, gam[k, n])
             for k in range(nk) for n in range(nv, nmax) if e[k, n] <= ecbm + a.emax_carrier]
     np.savetxt(a.out, np.array(rows), fmt=['%d', '%d', '%.4f', '%.6e', '%.6e'],
