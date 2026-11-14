@@ -300,7 +300,7 @@ target_link_libraries(qe_pp_wfck2r_exe
 ###########################################################
 set(src_chi0_x ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/gw/chi0.f90)
 if(QE_ENABLE_CUDA)
-    list(PREPEND src_chi0_x ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/gw/chi0_dev.f90)   # device path (cuFFT, cuBLAS, cuSOLVER)
+    list(PREPEND src_chi0_x ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/gw/chi0_dev.f90)   # device path (cuFFT, cuBLAS)
 endif()
 qe_enable_cuda_fortran("${src_chi0_x}")
 qe_add_executable(qe_pp_chi0_exe ${src_chi0_x})
@@ -314,7 +314,7 @@ target_link_libraries(qe_pp_chi0_exe
         qe_fftx
         qe_lapack)
 if(QE_ENABLE_CUDA)
-    target_link_libraries(qe_pp_chi0_exe PRIVATE CUDA::cufft CUDA::cublas CUDA::cusolver)
+    target_link_libraries(qe_pp_chi0_exe PRIVATE CUDA::cufft CUDA::cublas)
 endif()
 
 ###########################################################

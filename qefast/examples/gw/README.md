@@ -105,10 +105,10 @@ ZGEMM per occupied bin, Kramers–Kronig by strided 1D cuFFTs, and batched cuBLA
 path when one k-point does not fit in device memory (`device = .false.` forces the host path). H100, Si 8³ k, 60
 bands, Q = 0.25:
 
-| run | whole ε⁻¹ against chi0_ref.py | time (s) |
+| run | whole ε⁻¹ against chi0_ref.py | program wall time (s) |
 |---|---|---|
-| device, 8 Ry (109 G), 400 energies | 1.7×10⁻¹³ | 8 |
-| host path in the same GPU build | 2.0×10⁻¹³ | 19 |
+| device, 8 Ry (109 G), 400 energies | 1.7×10⁻¹³ | 5.5 |
+| host path in the same GPU build (8 OpenMP threads) | 2.0×10⁻¹³ | 16.3 |
 | device, 8 Ry, 3000 energies to 60 eV | — | 5.4 (reading the wavefunctions 4.0) |
 | device, 16 Ry, 3000 energies | — | 8.1 |
 

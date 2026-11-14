@@ -12,7 +12,6 @@ MODULE chi0_dev
   USE cudafor
   USE cufft
   USE cublas_v2
-  USE cusolverDn
   IMPLICIT NONE
   PRIVATE
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200)
@@ -22,7 +21,6 @@ MODULE chi0_dev
   INTEGER, SAVE :: nr(3), nrx(3), nnr, npol, nc, ng, nb, cap, nt, ntot
   INTEGER, SAVE :: plan3 = 0, nplan3 = 0
   TYPE(cublasHandle), SAVE :: hb
-  TYPE(cusolverDnHandle), SAVE :: hs
   INTEGER, DEVICE, ALLOCATABLE, SAVE :: d_idx(:)
   COMPLEX(dp), DEVICE, ALLOCATABLE, SAVE :: d_uk(:,:,:), d_uq(:,:,:), d_f(:,:), d_r(:,:), d_a(:,:), d_chi(:,:)
   REAL(dp), ALLOCATABLE, SAVE :: h_x(:)
@@ -46,7 +44,7 @@ CONTAINS
     INTEGER :: istat
     istat = cudaMemGetInfo(freeb, totb)
     fixed = 16_8 * nnr_ * (npol_ * (nv_ + nc_) + nc_) + 16_8 * ng_ * ng_ * (nb_ + nw_)
-    per = 16_8 * ng_ * 3                                    ! rho, and the two weighted copies at flush
+    per = 16_8 * ng_ * 5             ! rho, and at flush two weighted copies with two entries per transition
     dev_cap = INT(MAX(0_8, (freeb - fixed - INT(reserve_gb * 1.0d9, 8)) / per))
     dev_cap = MIN(dev_cap, 4 * 1024 * 1024)
   END FUNCTION dev_cap
@@ -57,7 +55,6 @@ CONTAINS
     INTEGER :: istat, n(3), emb(3)
     nr = nr_; nrx = nrx_; nnr = nnr_; npol = npol_; nc = nc_; ng = ng_; nb = nb_; cap = cap_; nt = 0; ntot = 0
     istat = cublasCreate(hb); CALL chk(istat, 'cublasCreate')
-    istat = cusolverDnCreate(hs); CALL chk(istat, 'cusolverDnCreate')
     ALLOCATE(d_idx(ng), d_uk(nnr, npol, nv_), d_uq(nnr, npol, nc), d_f(nnr, nc), d_r(ng, cap), h_x(cap))
     ALLOCATE(d_a(ng * ng, nb), d_chi(ng * ng, nw_))
     d_idx = idx_
@@ -239,6 +236,7 @@ CONTAINS
     INTEGER(8) :: freeb, totb
     TYPE(dim3) :: g
     CALL dev_flush()
+    DEALLOCATE(d_uk, d_uq, d_f, d_r)                  ! pair stage done: room for the convolution blocks
     l = 1
     DO WHILE (l < 2 * nb + nw)
       l = 2 * l
@@ -281,18 +279,6 @@ CONTAINS
       CALL k_store<<<g, TPB>>>(d_chi, d_p, ncol, mb, l, nb, nw, c0, m, -1.0_dp, pref / l)
       istat = cufftDestroy(pb)
     ENDDO
-    BLOCK
-      CHARACTER(LEN=8) :: dbg
-      COMPLEX(dp), ALLOCATABLE :: h(:,:)
-      CALL get_environment_variable('CHI0_DEBUG', dbg)
-      IF (LEN_TRIM(dbg) > 0) THEN
-        ALLOCATE(h(ncol, nb)); h = d_a
-        WRITE(*, '(5x,"chi0 debug dev: sum|A| ",ES14.6,", A(1,1,b) sum ",2ES14.6)') SUM(ABS(h)), SUM(h(1, :))
-        DEALLOCATE(h); ALLOCATE(h(ncol, nw)); h = d_chi
-        WRITE(*, '(5x,"chi0 debug dev: sum|chi| ",ES14.6,", chi(1,1,1) ",2ES14.6)') SUM(ABS(h)), h(1, 1)
-        DEALLOCATE(h)
-      ENDIF
-    END BLOCK
     DEALLOCATE(d_p, d_k1, d_k2, k1, k2)
     DEALLOCATE(d_a)
   END SUBROUTINE dev_kk
@@ -345,10 +331,10 @@ CONTAINS
     INTEGER :: istat
     IF (ALLOCATED(d_chi)) DEALLOCATE(d_chi)
     IF (ALLOCATED(d_a)) DEALLOCATE(d_a)
-    IF (ALLOCATED(d_uk)) DEALLOCATE(d_uk, d_uq, d_f, d_r, d_idx, h_x)
+    IF (ALLOCATED(d_uk)) DEALLOCATE(d_uk, d_uq, d_f, d_r)
+    IF (ALLOCATED(d_idx)) DEALLOCATE(d_idx, h_x)
     istat = cufftDestroy(plan3)
     istat = cublasDestroy(hb)
-    istat = cusolverDnDestroy(hs)
   END SUBROUTINE dev_free
   !
 END MODULE chi0_dev

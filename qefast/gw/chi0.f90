@@ -14,7 +14,7 @@
 ! full k grid without symmetry (k + q on the grid), one MPI process. Hartree units inside, eV in the input/output.
 !
 ! Input namelist &inputchi0: prefix, outdir, q(3) (2 pi / alat, Cartesian), ecut_eps (Ry), emax, de, eta (eV),
-! nbnd (0: all), fileout, filfull ('' : no full matrix), max_mem (GB), device (GPU path in CUDA builds), check_psd
+! nbnd (0: all), fileout, filfull ('' : no full matrix), max_mem (GB, host path; 0: half the available), device (GPU path in CUDA builds), check_psd
 ! (number of energies, evenly spread, at which the anti-Hermitian part of -eps^-1 is checked; >= nw: all).
 !
 PROGRAM chi0
@@ -49,12 +49,11 @@ PROGRAM chi0
   REAL(DP) :: q(3), ecut_eps, emax, de, eta, max_mem
   INTEGER :: nbnd, ios
   LOGICAL :: device
-  CHARACTER(LEN=8) :: dbg
   INTEGER :: check_psd
   NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device, &
                          check_psd
   !
-  INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, wc, i0, iw, nwc, ng_max, nt, b, iq_head, np, cap
+  INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, iw, ng_max, b, iq_head, np, cap
   INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), tb(:), list(:)
   REAL(DP) :: qcr(3), qc(3), x, spin, need, ahmin, ahmax
   REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), wgrid(:), tw(:)
@@ -67,7 +66,7 @@ PROGRAM chi0
   CALL mp_startup()
   CALL environment_start('CHI0')
   prefix = 'pwscf'; outdir = './'; q = 0.0_DP; ecut_eps = 4.0_DP; emax = 60.0_DP; de = 0.02_DP; eta = 0.1_DP
-  nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 2.0_DP; device = .TRUE.; check_psd = 100
+  nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 0.0_DP; device = .TRUE.; check_psd = 100
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputchi0, IOSTAT=ios)
@@ -137,11 +136,7 @@ PROGRAM chi0
   DO WHILE (nw * de < emax - 1.0d-12)
     nw = nw + 1
   ENDDO
-  wc = nw
   need = (16.0_DP * (nb + nw) * ng_max * ng_max + 6.4d7) / 1.0d9   ! A, chi on the grid, FFT block buffers
-  WRITE(stdout, '(5x,"chi0: memory estimate ",F6.2," GB (",I0," bins and ",I0," energies x ",I0,"^2)")') &
-       need, nb, nw, ng_max
-  IF (need > max_mem) CALL errore('chi0', 'memory estimate exceeds max_mem; raise de, lower emax or ecut_eps', 1)
   !
   ALLOCATE(wgrid(nw), eqq(nw), einvqq(nw), ah(ng_max, ng_max), rwork(3 * ng_max), evals(ng_max), &
            work(64 * ng_max), epsm(ng_max, ng_max), ipiv(ng_max))
@@ -162,6 +157,11 @@ PROGRAM chi0
   ENDIF
 #endif
   IF (.NOT. device) THEN
+  ! host memory: binned matrices and chi on the grid; max_mem defaults to half of the memory available now
+  IF (max_mem <= 0.0_DP) max_mem = 0.5_DP * mem_avail_gb()
+  WRITE(stdout, '(5x,"chi0: host memory estimate ",F6.2," GB (",I0," bins and ",I0," energies x ",I0,"^2), limit ", &
+       & F6.2," GB")') need, nb, nw, ng_max, max_mem
+  IF (need > max_mem) CALL errore('chi0', 'memory estimate exceeds max_mem; raise de, lower emax or ecut_eps', 1)
   ! ---- A_b: pair densities and binning
   ALLOCATE(a(ng_max, ng_max, nb), uk(dffts%nnr, npol, nv), uq(dffts%nnr, npol, nc), f(dffts%nnr), &
            rho(ng_max, nc), xm(ng_max, nc), ym(ng_max, nc), tb(nc), tw(nc), list(nc))
@@ -218,14 +218,9 @@ PROGRAM chi0
   !
   ! ---- chi0 on the energy grid by FFT (Kramers-Kronig as a convolution and a correlation), then eps^-1 per energy
   ALLOCATE(chi(ng_max, ng_max, nw))
-  CALL get_environment_variable('CHI0_DEBUG', dbg)
-  IF (LEN_TRIM(dbg) > 0) WRITE(stdout, '(5x,"chi0 debug host: sum|A| ",ES14.6,", A(1,1,b) sum ",2ES14.6)') &
-       SUM(ABS(a)), SUM(a(1, 1, :))
   CALL start_clock('chi0_kk')
   CALL kk_fft(a, chi, ng_max * ng_max)
   CALL stop_clock('chi0_kk')
-  IF (LEN_TRIM(dbg) > 0) WRITE(stdout, '(5x,"chi0 debug host: sum|chi| ",ES14.6,", chi(1,1,1) ",2ES14.6)') &
-       SUM(ABS(chi)), chi(1, 1, 1)
   DEALLOCATE(a)
   CALL open_full()
   CALL start_clock('chi0_inv')
@@ -418,6 +413,26 @@ CONTAINS
     ENDDO
     DEALLOCATE(k1, k2, k1f, k2f, d, df, buf, bf)
   END SUBROUTINE kk_fft
+  !
+  REAL(DP) FUNCTION mem_avail_gb()
+    !! MemAvailable from /proc/meminfo (GB); 2 GB if it cannot be read
+    CHARACTER(LEN=128) :: line
+    INTEGER :: u, ios2
+    REAL(DP) :: kb
+    mem_avail_gb = 2.0_DP
+    OPEN(NEWUNIT=u, FILE='/proc/meminfo', STATUS='old', ACTION='read', IOSTAT=ios2)
+    IF (ios2 /= 0) RETURN
+    DO
+      READ(u, '(a)', IOSTAT=ios2) line
+      IF (ios2 /= 0) EXIT
+      IF (line(1:13) == 'MemAvailable:') THEN
+        READ(line(14:), *, IOSTAT=ios2) kb
+        IF (ios2 == 0) mem_avail_gb = kb / 1.0d6
+        EXIT
+      ENDIF
+    ENDDO
+    CLOSE(u)
+  END FUNCTION mem_avail_gb
   !
   INTEGER FUNCTION box_index(m)
     !! position of the Miller index m on the (serial) smooth FFT box, the layout of dffts%nl
