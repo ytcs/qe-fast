@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2001-2012 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -216,7 +217,7 @@ PROGRAM Q2QSTAR
     ENDDO
   ENDDO
   !
-  CALL q2qstar_ph (d2, at, bg, nat, nsym, s, invs, irt, rtau, t_rev, &
+  CALL q2qstar_ph (d2, at, bg, nat, nsym, s, invs, t_rev, irt, rtau, &
                    nqs, sxq, isq, imq, 1)
 
   IF (lrigid .and. .not. xmldyn ) call write_epsilon_and_zeu (zeu, epsilon, nat, 1)

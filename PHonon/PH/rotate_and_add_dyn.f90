@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2001 PWSCF group
 ! This file is distributed under the terms of the
@@ -6,7 +7,7 @@
 ! or http://www.gnu.org/copyleft/gpl.txt .
 !
 !-----------------------------------------------------------------------
-subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, t_rev, irt, &
+subroutine rotate_and_add_dyn_tr (phi, phi2, nat, isym, s, invs, t_rev, irt, &
      rtau, sxq)
   !-----------------------------------------------------------------------
   !! Rotates a dynamical matrix (\(\text{phi}\)) in crystal coordinates
@@ -82,4 +83,21 @@ subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, t_rev, irt, &
   enddo
   !
   return
+end subroutine rotate_and_add_dyn_tr
+!
+!-----------------------------------------------------------------------
+subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, irt, &
+     rtau, sxq)
+  !-----------------------------------------------------------------------
+  !! qe-fast: the 7.6 interface, kept for callers outside this tree (the d3q plugin's thermal2/decompose_d2.f90),
+  !! which have no explicit interface and would pass irt where the time-reversal flags now go. No operation is
+  !! taken with time reversal, which is the 7.6 behaviour.
+  USE kinds, only : DP
+  implicit none
+  integer :: nat, isym, s(3,3,48), invs(48), irt(48,nat)
+  real(DP) :: rtau(3,48,nat), sxq(3)
+  complex(DP) :: phi(3,3,nat,nat), phi2(3,3,nat,nat)
+  integer :: t_rev0(48)
+  t_rev0 = 0
+  call rotate_and_add_dyn_tr (phi, phi2, nat, isym, s, invs, t_rev0, irt, rtau, sxq)
 end subroutine rotate_and_add_dyn
