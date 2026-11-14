@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2001-2016 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -117,7 +118,12 @@ SUBROUTINE lr_calc_dens_eels (drhoscf, dpsi)
      ! Calculate the total charge density response
      ! (sum up the normal and ultrasoft terms)
      !
+     ! qe-fast: drhoscf lives on the device here (fft_interpolate filled the device copy) and lr_addusddens adds
+     ! the augmentation on the host: bring it over and back, or the copyout at the end of the data region
+     ! returns the density without augmentation (GPU builds)
+     !$acc update self(drhoscf) if_present
      CALL lr_addusddens (1, dbecsum, drhoscf)
+     !$acc update device(drhoscf) if_present
      !
   ENDIF
   !
