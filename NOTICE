@@ -146,6 +146,7 @@ outputs are data read by the test harness and carry none.
   PP/src/write_p_avg.f90                   2026-11-14
   PW/CMakeLists.txt                        2026-10-30
   PW/src/addusforce.f90                    2026-11-14
+  PW/src/average_pp.f90                    2026-11-14
   PW/src/c_bands.f90                       2026-10-30 to 2026-11-14
   PW/src/clean_pw.f90                      2026-11-14
   PW/src/dynamics_module.f90               2026-11-14
@@ -177,7 +178,53 @@ outputs are data read by the test harness and carry none.
   TDDFPT/src/lr_apply_liouvillian_eels.f90 2026-11-14
   TDDFPT/src/turbo_spectrum.f90            2026-11-14
   test-suite/CMakeLists.txt                2026-11-12
+  test-suite/epw_2D/benchmark.out.git.inp=scf.in.args=0
+                                           2026-11-14
+  test-suite/epw_hall/benchmark.out.git.inp=scf.in.args=0
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw1.in.args=3
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw2.in.args=3
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw2_dn.in.args=3
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw2_up.in.args=3
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw3.in.args=5
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw3_dn.in.args=5
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw3_up.in.args=5
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw4.in.args=3
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw5.in.args=10
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=epw6.in.args=11
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=nscf_epw.in.args=1
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=nscf_epw_lsda.in.args=1
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=scf_epw.in.args=1
+                                           2026-11-14
+  test-suite/epw_metal/benchmark.out.git.inp=scf_epw_lsda.in.args=1
+                                           2026-11-14
+  test-suite/epw_mob_ibte/benchmark.out.git.inp=scf.in.args=1
+                                           2026-11-14
+  test-suite/epw_mob_ibte_sym/benchmark.out.git.inp=scf.in.args=1
+                                           2026-11-14
+  test-suite/epw_mob_polar/benchmark.out.git.inp=epw2.in.args=3
+                                           2026-11-14
+  test-suite/epw_mob_polar/benchmark.out.git.inp=epw3.in.args=5
+                                           2026-11-14
+  test-suite/epw_mob_polar/benchmark.out.git.inp=scf.in.args=1
+                                           2026-11-14
+  test-suite/epw_qdpt/benchmark.out.git.inp=scf.in.args=1
+                                           2026-11-14
   test-suite/epw_tdbe/benchmark.out.git.inp=epw3.in.args=3
+                                           2026-11-14
+  test-suite/epw_tdbe/benchmark.out.git.inp=scf.in.args=1
                                            2026-11-14
   test-suite/jobconfig                     2026-11-12 to 2026-11-14
   test-suite/Makefile                      2026-11-12
@@ -199,6 +246,8 @@ outputs are data read by the test harness and carry none.
                                            2026-11-14
   test-suite/pw_hse/benchmark.out.git.inp=hse-si444_std.in
                                            2026-11-14
+  test-suite/pw_irrbz/benchmark.out.git.inp=scf.in
+                                           2026-11-14
   test-suite/pw_metaGGA/benchmark.out.git.inp=metaGGA-spin.in
                                            2026-11-14
   test-suite/pw_pbe/benchmark.out.git.inp=pbe0-si111.in
@@ -213,6 +262,8 @@ outputs are data read by the test harness and carry none.
   test-suite/pw_workflow_relax_relax/benchmark.out.git.inp=relax-1.in.args=1
                                            2026-11-14
   test-suite/pw_workflow_relax_relax/benchmark.out.git.inp=relax-2.in.args=2
+                                           2026-11-14
+  test-suite/pw_workflow_vc-relax_dos/benchmark.out.git.inp=vc-relax-dos-1.in.args=1
                                            2026-11-14
   test-suite/tddfpt_eels-al/benchmark.out.git.inp=Al_uspp.tddfpt-eels.in.args=5
                                            2026-11-14
