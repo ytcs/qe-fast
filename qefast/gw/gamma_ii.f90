@@ -18,8 +18,9 @@
 !
 ! Input namelist &inputgii: prefix, outdir, emax_carrier (eV), ecut_eps (Ry), de, eta (eV), scissor (eV),
 ! fileout (n, k, E - E_cbm, Im Sigma, Gamma per initial state), filpart ('': none; the rate into every final state
-! (n', k'), whose sum over final states is Gamma: the cascade draws the scattered carrier from it), max_mem (GB;
-! 0: half the available).
+! (n', k'), whose sum over final states is Gamma: the cascade draws the scattered carrier from it), max_mem (GB, host
+! path; 0: half the available), device (GPU path in CUDA builds: the coefficients of every k stay on the device),
+! dev_reserve (GB of device memory left free).
 !
 PROGRAM gamma_ii
   USE kinds,            ONLY : DP
@@ -39,18 +40,34 @@ PROGRAM gamma_ii
   USE lsda_mod,         ONLY : lsda
   USE uspp,             ONLY : okvan
   USE control_flags,    ONLY : gamma_only
-  USE gw_common,        ONLY : ha, kq_grid, gbasis_q, wfc_r, pair_row, bin_add, kk_fft, eps_invert, mem_avail_gb
+  USE gw_common,        ONLY : ha, kq_grid, gbasis_q, wfc_r, pair_row, bin_add, kk_fft, eps_invert, mem_avail_gb, &
+                               box_index
+  USE qef_config,       ONLY : qef_note
+#if defined(__CUDA)
+  USE io_files,         ONLY : restart_dir
+  USE pw_restart_new,   ONLY : read_collected_wfc
+  USE wavefunctions,    ONLY : evc
+  USE wvfct,            ONLY : npwx
+  USE klist,            ONLY : ngk, igk_k
+  USE gvect,            ONLY : mill
+  USE chi0_dev,         ONLY : dev_cap, dev_init, dev_kk, dev_free, dev_free_gb, dev_wfc_init, dev_wfc_put, &
+                               dev_wfc_free, dev_add_kq, dev_imw, dev_contract
+#endif
   IMPLICIT NONE
   REAL(DP), PARAMETER :: hbar_ha = 2.4188843265857d-17   ! s, hbar / E_h
   CHARACTER(LEN=256) :: outdir, fileout, filpart
-  REAL(DP) :: emax_carrier, ecut_eps, de, eta, scissor, max_mem
+  REAL(DP) :: emax_carrier, ecut_eps, de, eta, scissor, max_mem, dev_reserve
   INTEGER :: ios
-  NAMELIST / inputgii / prefix, outdir, emax_carrier, ecut_eps, de, eta, scissor, fileout, filpart, max_mem
+  LOGICAL :: device
+  NAMELIST / inputgii / prefix, outdir, emax_carrier, ecut_eps, de, eta, scissor, fileout, filpart, max_mem, &
+                        device, dev_reserve
   !
-  INTEGER :: nv, nc, ni, nmax, ik, jk, iq, nq, iv, ic, n, jn, iw, nb, nw, ng, ihead, np, p, j0, cnt, nrow
-  INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), pn(:), pj(:), pg(:), sel(:)
+  INTEGER :: nv, nc, ni, nmax, ik, jk, iq, nq, iv, ic, n, jn, iw, nb, nw, ng, ihead, np, p, j0, cnt, ne, ie, cap
+  INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), pn(:), pj(:), pg(:), ecol(:), ep(:), ecnt(:), &
+                          eoff(:), epos(:), idx_pg(:), mtmp(:,:)
   REAL(DP) :: qcr(3), spin, wmax, ecbm, evbm, need, w, x, fr, lo, smax
-  REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), e(:,:), tx(:), imsig(:,:), pf(:), pc(:), sw(:)
+  REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), e(:,:), tx(:), imsig(:,:), pf(:), pc(:), ewt(:), eout(:), &
+                           xb(:,:)
   COMPLEX(DP), ALLOCATABLE :: a(:,:,:), chi(:,:,:), epsm(:,:), uk(:,:,:), uq(:,:,:), f(:), rho(:,:), &
                               phi(:,:,:), xm(:,:), ym(:,:)
   COMPLEX(DP) :: eh
@@ -59,7 +76,7 @@ PROGRAM gamma_ii
   CALL mp_startup()
   CALL environment_start('GAMMA_II')
   prefix = 'pwscf'; outdir = './'; emax_carrier = 6.0_DP; ecut_eps = 4.0_DP; de = 0.05_DP; eta = 0.05_DP
-  scissor = 0.0_DP; fileout = 'gamma_ii.dat'; filpart = ' '; max_mem = 0.0_DP
+  scissor = 0.0_DP; fileout = 'gamma_ii.dat'; filpart = ' '; max_mem = 0.0_DP; device = .TRUE.; dev_reserve = 2.0_DP
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputgii, IOSTAT=ios)
@@ -71,6 +88,10 @@ PROGRAM gamma_ii
   CALL mp_bcast(de, ionode_id, intra_image_comm); CALL mp_bcast(eta, ionode_id, intra_image_comm)
   CALL mp_bcast(scissor, ionode_id, intra_image_comm); CALL mp_bcast(fileout, ionode_id, intra_image_comm)
   CALL mp_bcast(filpart, ionode_id, intra_image_comm); CALL mp_bcast(max_mem, ionode_id, intra_image_comm)
+  CALL mp_bcast(device, ionode_id, intra_image_comm); CALL mp_bcast(dev_reserve, ionode_id, intra_image_comm)
+#if !defined(__CUDA)
+  device = .FALSE.
+#endif
   tmp_dir = TRIM(outdir) // '/'
   CALL read_file_new(needwf)
   !
@@ -121,7 +142,31 @@ PROGRAM gamma_ii
     WRITE(93, '(a)') '# n k nf kf Gamma(1/s) E_init-E_cbm(eV) E_final-E_cbm(eV): rate of (n,k) -> (nf,kf), q = k - kf'
   ENDIF
   imsig = 0.0_DP
-  ALLOCATE(uk(dffts%nnr, npol, nbnd), uq(dffts%nnr, npol, nc), f(dffts%nnr), tx(nc))
+#if defined(__CUDA)
+  ! device path: the coefficients of every k on the device, read once
+  IF (device) THEN
+    need = 16.0_DP * npwx * npol * nbnd * nks / 1.0d9
+    IF (need > dev_free_gb() - dev_reserve - 1.0_DP) THEN
+      CALL qef_note('gamma_ii on the GPU', .FALSE., 'the coefficients of every k do not fit on the device; host path')
+      device = .FALSE.
+    ELSE
+      CALL qef_note('gamma_ii on the GPU', .TRUE.)
+      WRITE(stdout, '(5x,"gamma_ii: coefficients of every k on the device, ",F7.2," GB")') need
+      CALL dev_wfc_init(npwx * npol, nbnd, nks)
+      ALLOCATE(mtmp(3, npwx * npol))
+      DO ik = 1, nks
+        CALL read_collected_wfc(restart_dir(), ik, evc)
+        mtmp = 0
+        mtmp(:, 1:ngk(ik)) = mill(:, igk_k(1:ngk(ik), ik))
+        CALL dev_wfc_put(ik, evc, mtmp, ngk(ik))
+      ENDDO
+      DEALLOCATE(mtmp)
+    ENDIF
+  ENDIF
+#endif
+  ALLOCATE(uk(dffts%nnr, npol, nbnd), uq(dffts%nnr, npol, nc), f(dffts%nnr), tx(nc), xb(nc, nv))
+  ALLOCATE(pn(ni * nc), pj(ni * nc), pg(ni * nc), pf(ni * nc), pc(ni * nc), ecol(2 * ni * nc), ep(2 * ni * nc), &
+           ewt(2 * ni * nc), eout(2 * ni * nc), ecnt(nw), eoff(nw), epos(nw))
   !
   cnt = 0
   DO iq = 1, nks
@@ -129,11 +174,43 @@ PROGRAM gamma_ii
     cnt = cnt + 1
     qcr = kcr(:, iq) - CEILING(kcr(:, iq) - 0.5_DP - 1.0d-9)
     CALL gbasis_q(qcr, (/0, 0, 0/), ecut_eps, ng, gm, q2, idx_mg, ihead)
-    need = (16.0_DP * (nb + nw) * ng * ng + 16.0_DP * ng * nc * (ni + 1) + 6.4d7) / 1.0d9
-    IF (need > max_mem) CALL errore('gamma_ii', 'memory estimate exceeds max_mem; raise de or lower ecut_eps', 1)
-    ALLOCATE(sv(ng), a(ng, ng, nb), rho(ng, nc))
+    ALLOCATE(sv(ng))
     sv = SQRT(4.0_DP * pi / q2)
     CALL kq_grid(kcr, qcr, kq, g0)
+    IF (device) THEN
+#if defined(__CUDA)
+      ! ---- the same stages on the device; Im W stays there for the contraction
+      ALLOCATE(idx_pg(ng))
+      DO jn = 1, ng
+        idx_pg(jn) = box_index(gm(:, jn))
+      ENDDO
+      cap = dev_cap(dffts%nnr, npol, nv, nc, ng, nb, nw, dev_reserve)
+      IF (cap < nc) CALL errore('gamma_ii', 'device memory too small for one k-point of this q; device = .false.', 1)
+      CALL dev_init((/dffts%nr1, dffts%nr2, dffts%nr3/), (/dffts%nr1x, dffts%nr2x, dffts%nr3x/), dffts%nnr, npol, &
+                    nv, nc, ng, idx_pg, nb, nw, cap)
+      DEALLOCATE(idx_pg)
+      CALL start_clock('gii_pairs')
+      DO ik = 1, nks
+        jk = kq(ik)
+        DO iv = 1, nv
+          DO ic = 1, nc
+            xb(ic, iv) = (et(nv + ic, jk) - et(iv, ik)) * 0.5_DP * ha / de
+          ENDDO
+        ENDDO
+        CALL dev_add_kq(ik, jk, g0(:, ik), nv, xb)
+      ENDDO
+      CALL stop_clock('gii_pairs')
+      CALL start_clock('gii_kk')
+      CALL dev_kk(spin / (nks * omega), de / ha, eta / ha, nw)
+      CALL stop_clock('gii_kk')
+      CALL start_clock('gii_w')
+      CALL dev_imw(sv, nw)
+      CALL stop_clock('gii_w')
+#endif
+    ELSE
+    need = (16.0_DP * (nb + nw) * ng * ng + 16.0_DP * ng * nc * (ni + 1) + 6.4d7) / 1.0d9
+    IF (need > max_mem) CALL errore('gamma_ii', 'memory estimate exceeds max_mem; raise de or lower ecut_eps', 1)
+    ALLOCATE(a(ng, ng, nb), rho(ng, nc))
     ! ---- A_b (valence -> conduction transitions at transfer q), then chi0 by FFT and Im W per energy
     a = (0.0_DP, 0.0_DP)
     DO ik = 1, nks
@@ -170,20 +247,12 @@ PROGRAM gamma_ii
     ENDDO
     CALL stop_clock('gii_w')
     DEALLOCATE(epsm)
-    ! ---- contraction: final state (n', k' = ik), initial state (n, k = k' + q)
-    ALLOCATE(phi(ng, ni, nc), pn(ni * nc), pj(ni * nc), pg(ni * nc), pf(ni * nc), pc(ni * nc), sel(ni * nc), &
-             sw(ni * nc), xm(ng, ni * nc), ym(ng, ni * nc))
+    ALLOCATE(phi(ng, ni, nc), xm(ng, 2 * ni * nc), ym(ng, 2 * ni * nc))
+    ENDIF
+    ! ---- contraction: final state (n', k' = ik), initial state (n, k = k' + q). Each pair interpolates Im W
+    ! between two grid energies: entries (pair, grid energy, weight), grouped by grid energy, one ZGEMM per energy
     DO ik = 1, nks
       jk = kq(ik)
-      CALL start_clock('gii_wfc')
-      CALL wfc_r(ik, nv + 1, nbnd, (/0, 0, 0/), uk)
-      CALL wfc_r(jk, nv + 1, nmax, g0(:, ik), uq)
-      CALL stop_clock('gii_wfc')
-      CALL start_clock('gii_pairs')
-      DO jn = 1, nc
-        CALL pair_row(uk(:, :, jn), uq, ni, idx_mg, phi(:, :, jn), f)
-      ENDDO
-      CALL stop_clock('gii_pairs')
       CALL start_clock('gii_contract')
       np = 0
       DO n = nv + 1, nmax
@@ -196,37 +265,81 @@ PROGRAM gamma_ii
           np = np + 1; pn(np) = n; pj(np) = jn; pg(np) = j0 + 1; pf(np) = fr
         ENDDO
       ENDDO
+      ecnt = 0
+      DO p = 1, np
+        ecnt(pg(p)) = ecnt(pg(p)) + 1; ecnt(pg(p) + 1) = ecnt(pg(p) + 1) + 1
+      ENDDO
+      eoff(1) = 0
+      DO iw = 2, nw
+        eoff(iw) = eoff(iw - 1) + ecnt(iw - 1)
+      ENDDO
+      ne = 2 * np
+      epos = eoff
+      DO p = 1, np
+        DO j0 = 0, 1
+          iw = pg(p) + j0
+          epos(iw) = epos(iw) + 1; ie = epos(iw)
+          ep(ie) = p; ecol(ie) = (pj(p) - 1) * ni + (pn(p) - nv)
+          ewt(ie) = MERGE(pf(p), 1.0_DP - pf(p), j0 == 1)
+        ENDDO
+      ENDDO
+      CALL stop_clock('gii_contract')
+      IF (np == 0) CYCLE
+      IF (device) THEN
+#if defined(__CUDA)
+        CALL start_clock('gii_contract')
+        CALL dev_contract(ik, jk, g0(:, ik), nv, ni, nw, ne, ecol, ewt, ecnt, eoff, eout)
+        CALL stop_clock('gii_contract')
+#endif
+      ELSE
+        CALL start_clock('gii_wfc')
+        CALL wfc_r(ik, nv + 1, nbnd, (/0, 0, 0/), uk)
+        CALL wfc_r(jk, nv + 1, nmax, g0(:, ik), uq)
+        CALL stop_clock('gii_wfc')
+        CALL start_clock('gii_pairs')
+        DO jn = 1, nc
+          CALL pair_row(uk(:, :, jn), uq, ni, idx_mg, phi(:, :, jn), f)
+        ENDDO
+        CALL stop_clock('gii_pairs')
+        CALL start_clock('gii_contract')
+        DO ie = 1, ne
+          xm(:, ie) = phi(:, MOD(ecol(ie) - 1, ni) + 1, (ecol(ie) - 1) / ni + 1)
+        ENDDO
+        DO iw = 1, nw
+          IF (ecnt(iw) == 0) CYCLE
+          CALL ZGEMM('N', 'N', ng, ecnt(iw), ng, (1.0_DP, 0.0_DP), chi(1, 1, iw), ng, xm(1, eoff(iw) + 1), ng, &
+                     (0.0_DP, 0.0_DP), ym(1, eoff(iw) + 1), ng)
+        ENDDO
+        DO ie = 1, ne
+          eout(ie) = ewt(ie) * REAL(DOT_PRODUCT(xm(:, ie), ym(:, ie)), DP)
+        ENDDO
+        CALL stop_clock('gii_contract')
+      ENDIF
       pc(1:np) = 0.0_DP
-      DO iw = 1, nw
-        nrow = 0
-        DO p = 1, np
-          IF (pg(p) == iw) THEN
-            nrow = nrow + 1; sel(nrow) = p; sw(nrow) = 1.0_DP - pf(p)
-          ELSEIF (pg(p) + 1 == iw) THEN
-            nrow = nrow + 1; sel(nrow) = p; sw(nrow) = pf(p)
-          ENDIF
-        ENDDO
-        IF (nrow == 0) CYCLE
-        DO p = 1, nrow
-          xm(:, p) = phi(:, pn(sel(p)) - nv, pj(sel(p)))
-        ENDDO
-        CALL ZGEMM('N', 'N', ng, nrow, ng, (1.0_DP, 0.0_DP), chi(1, 1, iw), ng, xm, ng, (0.0_DP, 0.0_DP), ym, ng)
-        DO p = 1, nrow
-          pc(sel(p)) = pc(sel(p)) + sw(p) * REAL(DOT_PRODUCT(xm(:, p), ym(:, p)), DP)
-        ENDDO
+      DO ie = 1, ne
+        pc(ep(ie)) = pc(ep(ie)) + eout(ie)
       ENDDO
       DO p = 1, np
         imsig(pn(p), jk) = imsig(pn(p), jk) + pc(p)
         IF (LEN_TRIM(filpart) > 0 .AND. ionode) WRITE(93, '(4I6,ES16.8,2F10.4)') pn(p), jk, nv + pj(p), ik, &
              2.0_DP * ABS(pc(p) / (nks * omega)) / hbar_ha, e(pn(p), jk) - ecbm, e(nv + pj(p), ik) - ecbm
       ENDDO
-      CALL stop_clock('gii_contract')
     ENDDO
-    DEALLOCATE(phi, pn, pj, pg, pf, pc, sel, sw, xm, ym, chi, sv, gm, q2, idx_mg)
+    IF (device) THEN
+#if defined(__CUDA)
+      CALL dev_free()
+#endif
+    ELSE
+      DEALLOCATE(phi, xm, ym, chi)
+    ENDIF
+    DEALLOCATE(sv, gm, q2, idx_mg)
     WRITE(stdout, '(5x,"  q ",I0,"/",I0,"  NG ",I0)') cnt, nq, ng
     FLUSH(stdout)
   ENDDO
   IF (LEN_TRIM(filpart) > 0 .AND. ionode) CLOSE(93)
+#if defined(__CUDA)
+  IF (device) CALL dev_wfc_free()
+#endif
   imsig = imsig / (nks * omega)
   !
   ! ---- output (columns as gamma_ref.py)
