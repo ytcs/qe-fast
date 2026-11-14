@@ -168,6 +168,21 @@ CI case (12 bands; Γ_ii to 7 digits, 1916 partial rates to 8×10⁻¹⁰ of the
 (24 spinor bands; 126 states, 7664 partial rates to 10⁻⁹ of the peak) in 4.4 s, against 114 s for the host path on
 8 cores of the same machine. CI runs the comparison on 12 bands (carriers to 2.5 eV) in `si-chi0/ci.sh`.
 
+### First production runs (H100)
+
+Si, 40 bands, carriers up to 6 eV above E_cbm, 4 Ry basis, 0.02 eV grid (326 energies), 0.05 eV Lorentzian,
+q = 0 term left out. Mean Γ_ii (s⁻¹) per 0.5 eV bin:
+
+| E − E_cbm (eV) | 0.5–1 | 1.5–2 | 2.5–3 | 3.5–4 | 4.5–5 | 5.5–6 | time |
+|---|---|---|---|---|---|---|---|
+| 6³ k (215 q) | 8.6×10¹¹ | 6.4×10¹² | 4.2×10¹³ | 1.27×10¹⁴ | 3.1×10¹⁴ | 7.2×10¹⁴ | 41 s |
+| 8³ k (511 q) | 5.8×10¹¹ | 4.2×10¹² | 3.2×10¹³ | 1.09×10¹⁴ | 3.2×10¹⁴ | 6.9×10¹⁴ | 300 s |
+
+- Above about 4 eV the two grids agree within about 5 %. Below that the rate is not converged in k. The omitted
+  q = 0 term (weight 1/N_k) and the coarse sampling near threshold both contribute.
+- On 8³ the contraction takes 80 % of the time: one call per (q, k′), about 5×10⁵ in all. Batching over k′ within a
+  q is the next speed-up.
+
 Stages from here to the issue's gate, each with its own check:
 
 1. ε⁻¹ per q: the reference above, then the GPU program element-wise against it (full matrix, PSD check).
