@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2023 Quantum ESPRESSO  Foundation
 ! This file is distributed under the terms of the
@@ -191,10 +192,11 @@ subroutine compute_qqr ( tpiba, q, omega, qq_nt )
   !! when calling ylmr2 and qvan2 (both expect arrays with that dimension)
   !
   q_(:,1) = q(:)
-  qmod(1) = q(1)**2 + q(2)**2 + q(1)**2
+  qmod(1) = q(1)**2 + q(2)**2 + q(3)**2
   call ylmr2 (lmaxq * lmaxq, 1, q_, qmod, ylmk0)
   !
   qmod(1) = sqrt ( qmod(1) ) * tpiba
+  qq_nt = 0.0_dp
   do nt = 1, nsp
      if ( upf(nt)%tvanp ) then
         do ih = 1, nh (nt)
@@ -234,10 +236,11 @@ subroutine compute_qqc ( tpiba, q, omega, qq_nt )
   !! when calling ylmr2 and qvan2 (both expect arrays with that dimension)
   !
   q_(:,1) = q(:)
-  qmod(1) = q(1)**2 + q(2)**2 + q(1)**2
+  qmod(1) = q(1)**2 + q(2)**2 + q(3)**2
   call ylmr2 (lmaxq * lmaxq, 1, q_, qmod, ylmk0)
   !
   qmod(1) = sqrt ( qmod(1) ) * tpiba
+  qq_nt = 0.0_dp
   do nt = 1, nsp
      if ( upf(nt)%tvanp ) then
         do ih = 1, nh (nt)

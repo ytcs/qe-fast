@@ -1,6 +1,6 @@
-MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra process manager was found
+qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14 (upstream develop 4aead329); see NOTICE.
 
-     Program turboEELS v.7.5 starts on 31Jul2025 at 12:41:41 
+     Program turboEELS v.8.0dev starts on 31Aug2026 at 10: 4:13 
 
      This program is part of the open-source Quantum ESPRESSO suite
      for quantum simulation of materials; please cite
@@ -11,10 +11,11 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
      in publications or presentations arising from this work. More details at
      http://www.quantum-espresso.org/quote
 
-     Parallel version (MPI), running on     1 processors
+     Parallel version (MPI), running on     4 processors
 
      MPI processes distributed on     1 nodes
-     100912 MiB available memory on the printing compute node when the environment starts
+     R & G space division:  proc/nbgrp/npool/nimage =       4
+     7910 MiB available memory on the printing compute node when the environment starts
  
 
      Reading xml data from directory:
@@ -28,16 +29,19 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
      Please, verify this is what you really want
 
  
-     G-vector sticks info
+     Parallelization info
      --------------------
      sticks:   dense  smooth     PW     G-vecs:    dense   smooth      PW
+     Min          63      30     13                  682      234      64
+     Max          64      31     14                  685      238      65
      Sum         253     121     55                 2733      941     259
  
      Using Slab Decomposition
  
      Reading collected, re-writing distributed wavefunctions
      Subspace diagonalization in iterative solution of the eigenvalue problem:
-     a serial algorithm will be used
+     one sub-group per band group will be used
+     scalapack distributed-memory algorithm (size of sub-group:  2*  2 procs)
 
 
      --------------------------------------------------------------------------
@@ -70,9 +74,11 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
      ---------------------------- NSCF calculation ----------------------------
  
-     G-vector sticks info
+     Parallelization info
      --------------------
      sticks:   dense  smooth     PW     G-vecs:    dense   smooth      PW
+     Min          63      30     15                  682      234      82
+     Max          64      31     16                  685      238      83
      Sum         253     121     61                 2733      941     331
  
      Using Slab Decomposition
@@ -108,7 +114,7 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
 
      PseudoPot. # 1 for Al read from file:
-     ../../pseudo/Al.rel-pbe-nl-rrkjus_psl.1.0.0.UPF
+     /home/obaseggi/q-e-cpu/test-suite/..//pseudo/Al.rel-pbe-nl-rrkjus_psl.1.0.0.UPF
      MD5 check sum: 49f37f8fe9babba23f1e8de5949893df
      Pseudo is Ultrasoft + core correction, Zval =  3.0
      Generated using &quot;atomic&quot; code by A. Dal Corso  v.6.3
@@ -177,7 +183,9 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
      Smooth grid:      941 G-vectors     FFT dimensions: (  15,  15,  15)
 
-     Estimated max dynamical RAM per process >       7.36 MB
+     Estimated max dynamical RAM per process >       2.27 MB
+
+     Estimated total dynamical RAM >       9.06 MB
 
      The potential is recalculated from file :
      ./tmp_eels/Al_uspp.save/charge-density
@@ -187,7 +195,7 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
      Band Structure Calculation
      Davidson diagonalization with overlap
 
-     ethr =  1.00E-11,  avg # of iterations = 18.8
+     ethr =  1.00E-11,  avg # of iterations = 18.6
 
      total cpu time spent up to now is       -1.0 secs
 
@@ -196,7 +204,7 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
           k =-0.1667 0.1667 0.1667 (   122 PWs)   bands (ev):
 
     -2.4173  -2.4173  14.8071  14.8071  19.5923  19.5923  19.6099  19.6099
-    22.8388  22.8388  24.3618  24.3618
+    22.8388  22.8388  24.3619  24.3619
 
           k = 0.4543 0.1667 0.1667 (   124 PWs)   bands (ev):
 
@@ -225,7 +233,7 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
           k =-0.1667-1.1667 0.1667 (   114 PWs)   bands (ev):
 
-     3.5048   3.5048   9.1076   9.1076   9.6182   9.6182  14.3788  14.3788
+     3.5048   3.5048   9.1076   9.1076   9.6183   9.6183  14.3788  14.3788
     15.9454  15.9454  21.2015  21.2015
 
           k = 0.4543-1.1667 0.1667 (   115 PWs)   bands (ev):
@@ -256,7 +264,7 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
           k = 0.1667-0.1667-0.1667 (   122 PWs)   bands (ev):
 
     -2.4173  -2.4173  14.8071  14.8071  19.5923  19.5923  19.6099  19.6099
-    22.8388  22.8388  24.3618  24.3618
+    22.8388  22.8388  24.3619  24.3619
 
           k = 0.7877-0.1667-0.1667 (   118 PWs)   bands (ev):
 
@@ -325,7 +333,7 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
           k = 0.1667 1.1667-0.1667 (   114 PWs)   bands (ev):
 
-     3.5048   3.5048   9.1076   9.1076   9.6182   9.6182  14.3788  14.3788
+     3.5048   3.5048   9.1076   9.1076   9.6183   9.6183  14.3788  14.3788
     15.9454  15.9454  21.2015  21.2015
 
           k = 0.7877 1.1667-0.1667 (   116 PWs)   bands (ev):
@@ -335,17 +343,17 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
           k =-1.1667 0.1667-0.1667 (   114 PWs)   bands (ev):
 
-     3.5048   3.5048   9.1076   9.1076   9.6182   9.6182  14.3788  14.3788
+     3.5048   3.5048   9.1076   9.1076   9.6183   9.6183  14.3788  14.3788
     15.9454  15.9454  21.2015  21.2015
 
           k =-0.5457 0.1667-0.1667 (   120 PWs)   bands (ev):
 
-     0.0197   0.0197  10.7431  10.7431  15.7750  15.7750  15.7922  15.7922
+     0.0197   0.0197  10.7431  10.7431  15.7750  15.7750  15.7923  15.7923
     17.4627  17.4627  22.4943  22.4943
 
           k = 1.1667 0.1667 0.1667 (   114 PWs)   bands (ev):
 
-     3.5048   3.5048   9.1076   9.1076   9.6182   9.6182  14.3788  14.3788
+     3.5048   3.5048   9.1076   9.1076   9.6183   9.6183  14.3788  14.3788
     15.9454  15.9454  21.2015  21.2015
 
           k = 1.7877 0.1667 0.1667 (   122 PWs)   bands (ev):
@@ -505,8 +513,8 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
                   (  0.0000000  1.0000000  0.0000000 )
 
 
-     G cutoff =  187.2740  (   2733 G-vectors)     FFT grid: ( 20, 20, 20)
-     G cutoff =   93.6370  (    941 G-vectors)  smooth grid: ( 15, 15, 15)
+     G cutoff =  187.2740  (    682 G-vectors)     FFT grid: ( 20, 20, 20)
+     G cutoff =   93.6370  (    235 G-vectors)  smooth grid: ( 15, 15, 15)
 
      number of k points=    36  Methfessel-Paxton smearing, width (Ry)=  0.0200
                        cart. coord. in units 2pi/a_0
@@ -548,7 +556,7 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
         k(   36) = (   0.7876667   0.8333333   0.5000000), wk =   0.0000000
 
      PseudoPot. # 1 for Al read from file:
-     ../../pseudo/Al.rel-pbe-nl-rrkjus_psl.1.0.0.UPF
+     /home/obaseggi/q-e-cpu/test-suite/..//pseudo/Al.rel-pbe-nl-rrkjus_psl.1.0.0.UPF
      MD5 check sum: 49f37f8fe9babba23f1e8de5949893df
      Pseudo is Ultrasoft + core correction, Zval =  3.0
      Generated using &quot;atomic&quot; code by A. Dal Corso  v.6.3
@@ -574,29 +582,32 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  0.0000,   0.1000) Ry
 
-      iter #   1 total cpu time :     0.1 secs   av.it.:   3.5
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  1.945E-04
+      iter #   1 total cpu time :     2.4 secs   av.it.:   3.6
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  1.941E-04
 
-      iter #   2 total cpu time :     0.3 secs   av.it.:   5.0
-      thresh= 1.395E-03 alpha_mix =  0.700 |ddv_scf|^2 =  4.035E-04
+      iter #   2 total cpu time :     2.6 secs   av.it.:   5.2
+      thresh= 1.393E-03 alpha_mix =  0.700 |ddv_scf|^2 =  4.026E-04
 
-      iter #   3 total cpu time :     0.5 secs   av.it.:   4.8
-      thresh= 1.395E-03 alpha_mix =  0.700 |ddv_scf|^2 =  4.813E-11
+      iter #   3 total cpu time :     2.7 secs   av.it.:   4.8
+      thresh= 1.393E-03 alpha_mix =  0.700 |ddv_scf|^2 =  3.133E-11
 
-      iter #   4 total cpu time :     0.7 secs   av.it.:   7.2
-      thresh= 6.938E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.491E-11
+      iter #   4 total cpu time :     2.9 secs   av.it.:   7.3
+      thresh= 5.597E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.082E-11
 
-      iter #   5 total cpu time :     0.9 secs   av.it.:   5.1
-      thresh= 3.861E-07 alpha_mix =  0.700 |ddv_scf|^2 =  3.994E-13
+      iter #   5 total cpu time :     3.1 secs   av.it.:   5.3
+      thresh= 3.289E-07 alpha_mix =  0.700 |ddv_scf|^2 =  8.868E-13
+
+      iter #   6 total cpu time :     3.3 secs   av.it.:   5.0
+      thresh= 9.417E-08 alpha_mix =  0.700 |ddv_scf|^2 =  3.057E-15
 
       Inverse dielectric constant at frequency   0.0000 +   0.1000 i Ry
                                                  0.0000 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       0.226097       0.000000
+      epsilon^-1(q,w) =       0.226673      -0.000000
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =      -0.008116       0.000000
+      chirr(q,w) =      -0.008110      -0.000000
 
      ----------------------------------------------------------------------
 
@@ -604,35 +615,35 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  0.3600,   0.1000) Ry
 
-      iter #   1 total cpu time :     1.1 secs   av.it.:   4.0
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  3.022E-04
+      iter #   1 total cpu time :     3.5 secs   av.it.:   3.9
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  3.018E-04
 
-      iter #   2 total cpu time :     1.3 secs   av.it.:   5.6
-      thresh= 1.738E-03 alpha_mix =  0.700 |ddv_scf|^2 =  1.111E-03
+      iter #   2 total cpu time :     3.7 secs   av.it.:   5.6
+      thresh= 1.737E-03 alpha_mix =  0.700 |ddv_scf|^2 =  1.109E-03
 
-      iter #   3 total cpu time :     1.5 secs   av.it.:   5.4
-      thresh= 1.738E-03 alpha_mix =  0.700 |ddv_scf|^2 =  2.080E-04
+      iter #   3 total cpu time :     3.8 secs   av.it.:   5.4
+      thresh= 1.737E-03 alpha_mix =  0.700 |ddv_scf|^2 =  2.077E-04
 
-      iter #   4 total cpu time :     1.7 secs   av.it.:   5.0
-      thresh= 1.442E-03 alpha_mix =  0.700 |ddv_scf|^2 =  3.586E-10
+      iter #   4 total cpu time :     4.0 secs   av.it.:   5.0
+      thresh= 1.441E-03 alpha_mix =  0.700 |ddv_scf|^2 =  4.021E-10
 
-      iter #   5 total cpu time :     1.9 secs   av.it.:   7.5
-      thresh= 1.894E-06 alpha_mix =  0.700 |ddv_scf|^2 =  4.914E-11
+      iter #   5 total cpu time :     4.2 secs   av.it.:   7.4
+      thresh= 2.005E-06 alpha_mix =  0.700 |ddv_scf|^2 =  5.033E-11
 
-      iter #   6 total cpu time :     2.2 secs   av.it.:   6.1
-      thresh= 7.010E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.633E-12
+      iter #   6 total cpu time :     4.4 secs   av.it.:   6.0
+      thresh= 7.094E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.306E-12
 
-      iter #   7 total cpu time :     2.4 secs   av.it.:   6.4
-      thresh= 1.278E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.945E-14
+      iter #   7 total cpu time :     4.6 secs   av.it.:   6.4
+      thresh= 1.143E-07 alpha_mix =  0.700 |ddv_scf|^2 =  3.014E-14
 
       Inverse dielectric constant at frequency   0.3600 +   0.1000 i Ry
                                                  4.8980 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       0.158459      -0.120534
+      epsilon^-1(q,w) =       0.159029      -0.120924
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =      -0.008826      -0.001264
+      chirr(q,w) =      -0.008820      -0.001268
 
      ----------------------------------------------------------------------
 
@@ -640,32 +651,32 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  0.7200,   0.1000) Ry
 
-      iter #   1 total cpu time :     2.5 secs   av.it.:   4.5
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  3.206E-04
+      iter #   1 total cpu time :     4.8 secs   av.it.:   4.4
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  3.200E-04
 
-      iter #   2 total cpu time :     2.8 secs   av.it.:   6.5
-      thresh= 1.790E-03 alpha_mix =  0.700 |ddv_scf|^2 =  1.683E-03
+      iter #   2 total cpu time :     5.0 secs   av.it.:   6.6
+      thresh= 1.789E-03 alpha_mix =  0.700 |ddv_scf|^2 =  1.680E-03
 
-      iter #   3 total cpu time :     3.0 secs   av.it.:   5.2
-      thresh= 1.790E-03 alpha_mix =  0.700 |ddv_scf|^2 =  1.609E-03
+      iter #   3 total cpu time :     5.1 secs   av.it.:   5.3
+      thresh= 1.789E-03 alpha_mix =  0.700 |ddv_scf|^2 =  1.606E-03
 
-      iter #   4 total cpu time :     3.2 secs   av.it.:   6.5
-      thresh= 1.790E-03 alpha_mix =  0.700 |ddv_scf|^2 =  6.605E-10
+      iter #   4 total cpu time :     5.3 secs   av.it.:   6.6
+      thresh= 1.789E-03 alpha_mix =  0.700 |ddv_scf|^2 =  6.838E-10
 
-      iter #   5 total cpu time :     3.5 secs   av.it.:   8.3
-      thresh= 2.570E-06 alpha_mix =  0.700 |ddv_scf|^2 =  4.516E-11
+      iter #   5 total cpu time :     5.6 secs   av.it.:   8.4
+      thresh= 2.615E-06 alpha_mix =  0.700 |ddv_scf|^2 =  4.479E-11
 
-      iter #   6 total cpu time :     3.8 secs   av.it.:   6.9
-      thresh= 6.720E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.508E-13
+      iter #   6 total cpu time :     5.8 secs   av.it.:   7.1
+      thresh= 6.692E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.648E-13
 
       Inverse dielectric constant at frequency   0.7200 +   0.1000 i Ry
                                                  9.7961 +   1.3606 i eV
 
-      epsilon^-1(q,w) =      -0.013331      -0.328129
+      epsilon^-1(q,w) =      -0.012282      -0.328854
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =      -0.010627      -0.003441
+      chirr(q,w) =      -0.010616      -0.003449
 
      ----------------------------------------------------------------------
 
@@ -673,35 +684,35 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  1.0800,   0.1000) Ry
 
-      iter #   1 total cpu time :     4.0 secs   av.it.:   5.1
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  8.995E-05
+      iter #   1 total cpu time :     6.0 secs   av.it.:   5.0
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  8.994E-05
 
-      iter #   2 total cpu time :     4.2 secs   av.it.:   7.9
-      thresh= 9.484E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.902E-04
+      iter #   2 total cpu time :     6.2 secs   av.it.:   7.8
+      thresh= 9.484E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.900E-04
 
-      iter #   3 total cpu time :     4.5 secs   av.it.:   7.8
-      thresh= 9.484E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.499E-04
+      iter #   3 total cpu time :     6.5 secs   av.it.:   7.8
+      thresh= 9.484E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.498E-04
 
-      iter #   4 total cpu time :     4.8 secs   av.it.:   8.2
-      thresh= 9.484E-04 alpha_mix =  0.700 |ddv_scf|^2 =  3.319E-09
+      iter #   4 total cpu time :     6.7 secs   av.it.:   8.3
+      thresh= 9.484E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.975E-09
 
-      iter #   5 total cpu time :     5.2 secs   av.it.:   9.6
-      thresh= 5.761E-06 alpha_mix =  0.700 |ddv_scf|^2 =  1.106E-10
+      iter #   5 total cpu time :     7.0 secs   av.it.:   9.9
+      thresh= 4.444E-06 alpha_mix =  0.700 |ddv_scf|^2 =  1.575E-10
 
-      iter #   6 total cpu time :     5.5 secs   av.it.:   9.1
-      thresh= 1.052E-06 alpha_mix =  0.700 |ddv_scf|^2 =  6.515E-12
+      iter #   6 total cpu time :     7.3 secs   av.it.:   9.0
+      thresh= 1.255E-06 alpha_mix =  0.700 |ddv_scf|^2 =  9.365E-12
 
-      iter #   7 total cpu time :     5.9 secs   av.it.:   9.2
-      thresh= 2.552E-07 alpha_mix =  0.700 |ddv_scf|^2 =  4.099E-14
+      iter #   7 total cpu time :     7.6 secs   av.it.:   9.3
+      thresh= 3.060E-07 alpha_mix =  0.700 |ddv_scf|^2 =  9.152E-14
 
       Inverse dielectric constant at frequency   1.0800 +   0.1000 i Ry
                                                 14.6941 +   1.3606 i eV
 
-      epsilon^-1(q,w) =      -0.585344      -0.978514
+      epsilon^-1(q,w) =      -0.583284      -0.979690
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =      -0.016626      -0.010262
+      chirr(q,w) =      -0.016605      -0.010275
 
      ----------------------------------------------------------------------
 
@@ -709,38 +720,35 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  1.4400,   0.1000) Ry
 
-      iter #   1 total cpu time :     6.1 secs   av.it.:   5.8
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  1.529E-05
+      iter #   1 total cpu time :     7.7 secs   av.it.:   5.7
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  1.526E-05
 
-      iter #   2 total cpu time :     6.4 secs   av.it.:   9.1
-      thresh= 3.910E-04 alpha_mix =  0.700 |ddv_scf|^2 =  9.246E-06
+      iter #   2 total cpu time :     8.0 secs   av.it.:   9.1
+      thresh= 3.906E-04 alpha_mix =  0.700 |ddv_scf|^2 =  9.252E-06
 
-      iter #   3 total cpu time :     6.8 secs   av.it.:  10.1
-      thresh= 3.041E-04 alpha_mix =  0.700 |ddv_scf|^2 =  2.076E-06
+      iter #   3 total cpu time :     8.3 secs   av.it.:  10.1
+      thresh= 3.042E-04 alpha_mix =  0.700 |ddv_scf|^2 =  2.084E-06
 
-      iter #   4 total cpu time :     7.2 secs   av.it.:   9.9
-      thresh= 1.441E-04 alpha_mix =  0.700 |ddv_scf|^2 =  5.982E-08
+      iter #   4 total cpu time :     8.6 secs   av.it.:  10.1
+      thresh= 1.444E-04 alpha_mix =  0.700 |ddv_scf|^2 =  4.291E-08
 
-      iter #   5 total cpu time :     7.6 secs   av.it.:  10.6
-      thresh= 2.446E-05 alpha_mix =  0.700 |ddv_scf|^2 =  3.748E-09
+      iter #   5 total cpu time :     9.0 secs   av.it.:  10.7
+      thresh= 2.072E-05 alpha_mix =  0.700 |ddv_scf|^2 =  3.309E-09
 
-      iter #   6 total cpu time :     8.0 secs   av.it.:  10.6
-      thresh= 6.122E-06 alpha_mix =  0.700 |ddv_scf|^2 =  1.086E-10
+      iter #   6 total cpu time :     9.3 secs   av.it.:  10.5
+      thresh= 5.753E-06 alpha_mix =  0.700 |ddv_scf|^2 =  6.353E-11
 
-      iter #   7 total cpu time :     8.4 secs   av.it.:  10.8
-      thresh= 1.042E-06 alpha_mix =  0.700 |ddv_scf|^2 =  5.683E-13
-
-      iter #   8 total cpu time :     8.8 secs   av.it.:  11.1
-      thresh= 7.539E-08 alpha_mix =  0.700 |ddv_scf|^2 =  1.289E-14
+      iter #   7 total cpu time :     9.6 secs   av.it.:  11.1
+      thresh= 7.970E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.293E-13
 
       Inverse dielectric constant at frequency   1.4400 +   0.1000 i Ry
                                                 19.5922 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       2.476772      -1.377518
+      epsilon^-1(q,w) =       2.479206      -1.374640
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =       0.015488      -0.014447
+      chirr(q,w) =       0.015513      -0.014417
 
      ----------------------------------------------------------------------
 
@@ -748,35 +756,35 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  1.8000,   0.1000) Ry
 
-      iter #   1 total cpu time :     9.0 secs   av.it.:   6.7
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  5.118E-06
+      iter #   1 total cpu time :     9.8 secs   av.it.:   6.8
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  5.133E-06
 
-      iter #   2 total cpu time :     9.4 secs   av.it.:  10.9
-      thresh= 2.262E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.686E-06
+      iter #   2 total cpu time :    10.1 secs   av.it.:  10.8
+      thresh= 2.266E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.677E-06
 
-      iter #   3 total cpu time :     9.9 secs   av.it.:  11.4
-      thresh= 1.299E-04 alpha_mix =  0.700 |ddv_scf|^2 =  2.835E-08
+      iter #   3 total cpu time :    10.5 secs   av.it.:  11.3
+      thresh= 1.295E-04 alpha_mix =  0.700 |ddv_scf|^2 =  2.837E-08
 
-      iter #   4 total cpu time :    10.3 secs   av.it.:  11.9
-      thresh= 1.684E-05 alpha_mix =  0.700 |ddv_scf|^2 =  1.255E-09
+      iter #   4 total cpu time :    10.8 secs   av.it.:  11.8
+      thresh= 1.684E-05 alpha_mix =  0.700 |ddv_scf|^2 =  1.272E-09
 
-      iter #   5 total cpu time :    10.7 secs   av.it.:  11.8
-      thresh= 3.543E-06 alpha_mix =  0.700 |ddv_scf|^2 =  3.744E-11
+      iter #   5 total cpu time :    11.2 secs   av.it.:  11.9
+      thresh= 3.567E-06 alpha_mix =  0.700 |ddv_scf|^2 =  3.332E-11
 
-      iter #   6 total cpu time :    11.2 secs   av.it.:  12.4
-      thresh= 6.118E-07 alpha_mix =  0.700 |ddv_scf|^2 =  8.332E-12
+      iter #   6 total cpu time :    11.6 secs   av.it.:  12.4
+      thresh= 5.772E-07 alpha_mix =  0.700 |ddv_scf|^2 =  8.280E-12
 
-      iter #   7 total cpu time :    11.6 secs   av.it.:  11.7
-      thresh= 2.887E-07 alpha_mix =  0.700 |ddv_scf|^2 =  4.061E-14
+      iter #   7 total cpu time :    11.9 secs   av.it.:  11.6
+      thresh= 2.877E-07 alpha_mix =  0.700 |ddv_scf|^2 =  4.168E-14
 
       Inverse dielectric constant at frequency   1.8000 +   0.1000 i Ry
                                                 24.4902 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       1.676124      -0.220182
+      epsilon^-1(q,w) =       1.675955      -0.218926
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =       0.007091      -0.002309
+      chirr(q,w) =       0.007089      -0.002296
 
      ----------------------------------------------------------------------
 
@@ -784,35 +792,35 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  2.1600,   0.1000) Ry
 
-      iter #   1 total cpu time :    11.9 secs   av.it.:   7.1
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  2.238E-06
+      iter #   1 total cpu time :    12.2 secs   av.it.:   7.0
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  2.262E-06
 
-      iter #   2 total cpu time :    12.3 secs   av.it.:  12.2
-      thresh= 1.496E-04 alpha_mix =  0.700 |ddv_scf|^2 =  4.894E-07
+      iter #   2 total cpu time :    12.5 secs   av.it.:  12.2
+      thresh= 1.504E-04 alpha_mix =  0.700 |ddv_scf|^2 =  4.835E-07
 
-      iter #   3 total cpu time :    12.8 secs   av.it.:  12.6
-      thresh= 6.995E-05 alpha_mix =  0.700 |ddv_scf|^2 =  2.803E-09
+      iter #   3 total cpu time :    12.9 secs   av.it.:  12.7
+      thresh= 6.953E-05 alpha_mix =  0.700 |ddv_scf|^2 =  3.089E-09
 
-      iter #   4 total cpu time :    13.3 secs   av.it.:  13.7
-      thresh= 5.294E-06 alpha_mix =  0.700 |ddv_scf|^2 =  3.668E-10
+      iter #   4 total cpu time :    13.3 secs   av.it.:  13.5
+      thresh= 5.558E-06 alpha_mix =  0.700 |ddv_scf|^2 =  4.996E-10
 
-      iter #   5 total cpu time :    13.8 secs   av.it.:  13.1
-      thresh= 1.915E-06 alpha_mix =  0.700 |ddv_scf|^2 =  2.657E-11
+      iter #   5 total cpu time :    13.7 secs   av.it.:  12.9
+      thresh= 2.235E-06 alpha_mix =  0.700 |ddv_scf|^2 =  5.122E-11
 
-      iter #   6 total cpu time :    14.3 secs   av.it.:  13.3
-      thresh= 5.155E-07 alpha_mix =  0.700 |ddv_scf|^2 =  9.791E-13
+      iter #   6 total cpu time :    14.1 secs   av.it.:  13.0
+      thresh= 7.157E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.607E-12
 
-      iter #   7 total cpu time :    14.8 secs   av.it.:  13.9
-      thresh= 9.895E-08 alpha_mix =  0.700 |ddv_scf|^2 =  5.875E-15
+      iter #   7 total cpu time :    14.5 secs   av.it.:  12.9
+      thresh= 1.615E-07 alpha_mix =  0.700 |ddv_scf|^2 =  6.620E-14
 
       Inverse dielectric constant at frequency   2.1600 +   0.1000 i Ry
                                                 29.3883 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       1.375808      -0.074665
+      epsilon^-1(q,w) =       1.375717      -0.073897
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =       0.003941      -0.000783
+      chirr(q,w) =       0.003940      -0.000775
 
      ----------------------------------------------------------------------
 
@@ -820,29 +828,29 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  2.5200,   0.1000) Ry
 
-      iter #   1 total cpu time :    15.1 secs   av.it.:   7.8
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  1.039E-06
+      iter #   1 total cpu time :    14.7 secs   av.it.:   7.4
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  1.097E-06
 
-      iter #   2 total cpu time :    15.6 secs   av.it.:  13.5
-      thresh= 1.019E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.916E-07
+      iter #   2 total cpu time :    15.1 secs   av.it.:  13.5
+      thresh= 1.047E-04 alpha_mix =  0.700 |ddv_scf|^2 =  1.788E-07
 
-      iter #   3 total cpu time :    16.1 secs   av.it.:  13.7
-      thresh= 4.378E-05 alpha_mix =  0.700 |ddv_scf|^2 =  2.311E-10
+      iter #   3 total cpu time :    15.5 secs   av.it.:  13.7
+      thresh= 4.228E-05 alpha_mix =  0.700 |ddv_scf|^2 =  5.328E-10
 
-      iter #   4 total cpu time :    16.6 secs   av.it.:  15.0
-      thresh= 1.520E-06 alpha_mix =  0.700 |ddv_scf|^2 =  4.331E-12
+      iter #   4 total cpu time :    16.0 secs   av.it.:  15.1
+      thresh= 2.308E-06 alpha_mix =  0.700 |ddv_scf|^2 =  6.068E-11
 
-      iter #   5 total cpu time :    17.1 secs   av.it.:  14.2
-      thresh= 2.081E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.470E-13
+      iter #   5 total cpu time :    16.4 secs   av.it.:  14.1
+      thresh= 7.790E-07 alpha_mix =  0.700 |ddv_scf|^2 =  3.154E-13
 
       Inverse dielectric constant at frequency   2.5200 +   0.1000 i Ry
                                                 34.2863 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       1.237630      -0.038636
+      epsilon^-1(q,w) =       1.237937      -0.038129
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =       0.002492      -0.000405
+      chirr(q,w) =       0.002495      -0.000400
 
      ----------------------------------------------------------------------
 
@@ -850,29 +858,29 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  2.8800,   0.1000) Ry
 
-      iter #   1 total cpu time :    17.4 secs   av.it.:   8.5
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  6.175E-07
+      iter #   1 total cpu time :    16.6 secs   av.it.:   8.4
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  6.331E-07
 
-      iter #   2 total cpu time :    18.0 secs   av.it.:  15.0
-      thresh= 7.858E-05 alpha_mix =  0.700 |ddv_scf|^2 =  9.150E-08
+      iter #   2 total cpu time :    17.1 secs   av.it.:  14.8
+      thresh= 7.956E-05 alpha_mix =  0.700 |ddv_scf|^2 =  8.767E-08
 
-      iter #   3 total cpu time :    18.6 secs   av.it.:  15.2
-      thresh= 3.025E-05 alpha_mix =  0.700 |ddv_scf|^2 =  2.049E-10
+      iter #   3 total cpu time :    17.5 secs   av.it.:  15.2
+      thresh= 2.961E-05 alpha_mix =  0.700 |ddv_scf|^2 =  3.140E-10
 
-      iter #   4 total cpu time :    19.2 secs   av.it.:  16.4
-      thresh= 1.432E-06 alpha_mix =  0.700 |ddv_scf|^2 =  1.368E-11
+      iter #   4 total cpu time :    18.0 secs   av.it.:  16.3
+      thresh= 1.772E-06 alpha_mix =  0.700 |ddv_scf|^2 =  2.184E-11
 
-      iter #   5 total cpu time :    19.8 secs   av.it.:  15.4
-      thresh= 3.698E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.300E-13
+      iter #   5 total cpu time :    18.5 secs   av.it.:  15.6
+      thresh= 4.673E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.512E-13
 
       Inverse dielectric constant at frequency   2.8800 +   0.1000 i Ry
                                                 39.1844 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       1.169835      -0.033663
+      epsilon^-1(q,w) =       1.170012      -0.032721
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =       0.001781      -0.000353
+      chirr(q,w) =       0.001783      -0.000343
 
      ----------------------------------------------------------------------
 
@@ -880,29 +888,29 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  3.2400,   0.1000) Ry
 
-      iter #   1 total cpu time :    20.1 secs   av.it.:   9.2
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  3.781E-07
+      iter #   1 total cpu time :    18.7 secs   av.it.:   9.0
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  3.806E-07
 
-      iter #   2 total cpu time :    20.7 secs   av.it.:  16.2
-      thresh= 6.149E-05 alpha_mix =  0.700 |ddv_scf|^2 =  5.061E-08
+      iter #   2 total cpu time :    19.2 secs   av.it.:  16.1
+      thresh= 6.169E-05 alpha_mix =  0.700 |ddv_scf|^2 =  5.013E-08
 
-      iter #   3 total cpu time :    21.3 secs   av.it.:  15.7
-      thresh= 2.250E-05 alpha_mix =  0.700 |ddv_scf|^2 =  3.880E-11
+      iter #   3 total cpu time :    19.7 secs   av.it.:  15.4
+      thresh= 2.239E-05 alpha_mix =  0.700 |ddv_scf|^2 =  5.731E-11
 
-      iter #   4 total cpu time :    21.9 secs   av.it.:  17.9
-      thresh= 6.229E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.955E-12
+      iter #   4 total cpu time :    20.2 secs   av.it.:  17.6
+      thresh= 7.571E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.357E-12
 
-      iter #   5 total cpu time :    22.5 secs   av.it.:  15.7
-      thresh= 1.719E-07 alpha_mix =  0.700 |ddv_scf|^2 =  7.697E-15
+      iter #   5 total cpu time :    20.7 secs   av.it.:  16.5
+      thresh= 1.535E-07 alpha_mix =  0.700 |ddv_scf|^2 =  4.833E-15
 
       Inverse dielectric constant at frequency   3.2400 +   0.1000 i Ry
                                                 44.0824 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       1.129969      -0.021542
+      epsilon^-1(q,w) =       1.130001      -0.020948
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =       0.001363      -0.000226
+      chirr(q,w) =       0.001363      -0.000220
 
      ----------------------------------------------------------------------
 
@@ -910,72 +918,73 @@ MPI startup(): Warning: I_MPI_PMI_LIBRARY will be ignored since the hydra proces
 
              Frequency = (  3.6000,   0.1000) Ry
 
-      iter #   1 total cpu time :    22.8 secs   av.it.:   8.8
-      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  2.622E-07
+      iter #   1 total cpu time :    20.9 secs   av.it.:   8.5
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  2.601E-07
 
-      iter #   2 total cpu time :    23.5 secs   av.it.:  17.9
-      thresh= 5.121E-05 alpha_mix =  0.700 |ddv_scf|^2 =  2.987E-08
+      iter #   2 total cpu time :    21.5 secs   av.it.:  17.9
+      thresh= 5.100E-05 alpha_mix =  0.700 |ddv_scf|^2 =  3.025E-08
 
-      iter #   3 total cpu time :    24.1 secs   av.it.:  16.9
-      thresh= 1.728E-05 alpha_mix =  0.700 |ddv_scf|^2 =  5.529E-11
+      iter #   3 total cpu time :    21.9 secs   av.it.:  16.6
+      thresh= 1.739E-05 alpha_mix =  0.700 |ddv_scf|^2 =  4.481E-11
 
-      iter #   4 total cpu time :    24.8 secs   av.it.:  18.4
-      thresh= 7.436E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.039E-12
+      iter #   4 total cpu time :    22.5 secs   av.it.:  18.7
+      thresh= 6.694E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.595E-12
 
-      iter #   5 total cpu time :    25.4 secs   av.it.:  18.2
-      thresh= 1.019E-07 alpha_mix =  0.700 |ddv_scf|^2 =  9.547E-16
+      iter #   5 total cpu time :    23.0 secs   av.it.:  17.7
+      thresh= 1.263E-07 alpha_mix =  0.700 |ddv_scf|^2 =  2.537E-15
 
       Inverse dielectric constant at frequency   3.6000 +   0.1000 i Ry
                                                 48.9805 +   1.3606 i eV
 
-      epsilon^-1(q,w) =       1.104767      -0.015704
+      epsilon^-1(q,w) =       1.104814      -0.015103
 
       Charge-charge susceptibility:
 
-      chirr(q,w) =       0.001099      -0.000165
+      chirr(q,w) =       0.001099      -0.000158
 
      Finished linear response calculation...
  
-     lr_eels_main :     26.73s CPU     29.55s WALL (       1 calls)
-     lr_solve_e   :      0.01s CPU      0.07s WALL (       1 calls)
+     lr_eels_main :     20.06s CPU     23.02s WALL (       1 calls)
+     lr_solve_e   :      0.01s CPU      0.09s WALL (       1 calls)
  
  
-     h_psi        :     21.38s CPU     23.20s WALL (   54339 calls)
-     incdrhoscf   :      0.54s CPU      0.60s WALL (    1206 calls)
-                                        0.00s GPU  (    1206 calls)
+     h_psi        :     13.72s CPU     15.61s WALL (   53856 calls)
+     incdrhoscf   :      0.36s CPU      0.40s WALL (    1206 calls)
      lr_dv_setup  :      0.01s CPU      0.01s WALL (       1 calls)
-     dv_of_drho   :      0.05s CPU      0.05s WALL (      67 calls)
-     ortho        :      0.10s CPU      0.11s WALL (    2430 calls)
+     dv_of_drho   :      0.04s CPU      0.04s WALL (      67 calls)
+     ortho        :      0.13s CPU      0.15s WALL (    2430 calls)
  
  
      US routines
-     s_psi        :      0.65s CPU      0.72s WALL (  110355 calls)
+     s_psi        :      0.64s CPU      0.73s WALL (  109396 calls)
      addusdbec_nc :      0.03s CPU      0.03s WALL (    1206 calls)
+     lr_addusdden :      0.08s CPU      0.09s WALL (      67 calls)
      lr_addus_dvp :      0.00s CPU      0.00s WALL (      18 calls)
      lr_compute_i :      0.00s CPU      0.00s WALL (       2 calls)
  
      General routines
-     calbec       :      0.49s CPU      0.54s WALL (  111579 calls)
-     fft          :      0.06s CPU      0.11s WALL (    1060 calls)
+     calbec       :      1.10s CPU      1.26s WALL (  110620 calls)
+     fft          :      0.12s CPU      0.14s WALL (    1060 calls)
      ffts         :      0.00s CPU      0.00s WALL (     142 calls)
-     fftw         :     19.38s CPU     21.14s WALL (  789972 calls)
-     interpolate  :      0.01s CPU      0.02s WALL (     142 calls)
-     davcio       :      0.13s CPU      0.58s WALL (    8624 calls)
+     fftw         :     11.63s CPU     13.21s WALL (  780176 calls)
+     interpolate  :      0.02s CPU      0.02s WALL (     142 calls)
+     davcio       :      0.07s CPU      0.15s WALL (    9016 calls)
  
      Parallel routines
+     fft_scatter  :      5.92s CPU      6.73s WALL (  781378 calls)
  
      EELS routines
-     lr_run_nscf  :      1.07s CPU      1.23s WALL (       1 calls)
+     lr_run_nscf  :      1.41s CPU      1.57s WALL (       1 calls)
      lr_setup_nsc :      0.00s CPU      0.00s WALL (       1 calls)
      lr_dvpsi_eel :      0.01s CPU      0.01s WALL (      18 calls)
      lr_smallgq   :      0.00s CPU      0.00s WALL (       1 calls)
      lr_summary   :      0.00s CPU      0.00s WALL (       1 calls)
  
  
-     turboEELS    :     26.73s CPU     29.56s WALL
+     turboEELS    :     20.06s CPU     23.02s WALL
 
  
-   This run was terminated on:  12:42:11  31Jul2025            
+   This run was terminated on:  10: 4:36  31Aug2026            
 
 =------------------------------------------------------------------------------=
    JOB DONE.

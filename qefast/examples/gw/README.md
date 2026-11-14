@@ -157,10 +157,16 @@ threads on a shared desktop CPU:
 |---|---|---|---|
 | `gamma_ref.py` | – | 1929 | 350 s |
 | `gamma_ii.x` | equal to 7 digits (57 of 63 states; the other 6 are tail values below 10⁻⁶ of the peak) | same 1929 keys, equal to 8×10⁻¹⁰ of the peak | 188 s |
+| `gamma_ii.x`, H100 | equal to 9×10⁻⁵ (from its own nscf on the GPU) | – | 3.8 s |
 
-Three quarters of the time is the pair-density FFTs and a fifth the wavefunction reads, both repeated for every q;
-the GPU path keeps the wavefunctions on the device. CI runs the same comparison on 12 bands (carriers to 2.5 eV)
-in `si-chi0/ci.sh`.
+Three quarters of the host time is the pair-density FFTs and a fifth the wavefunction reads, both repeated for every
+q. In CUDA builds `gamma_ii.x` reads the plane-wave coefficients of every k once, keeps them on the device, and runs
+every stage there: periodic parts and pair densities (batched cuFFT), binning (cuBLAS ZGEMM per bin),
+Kramers–Kronig, the batched inversion to Im W, and the contraction (one ZGEMM per grid energy over the pairs that
+interpolate at it). `device = .false.` keeps the host path. On the H100 the device path equals the reference on the
+CI case (12 bands; Γ_ii to 7 digits, 1916 partial rates to 8×10⁻¹⁰ of the peak) and on a noncollinear Si 4³ run
+(24 spinor bands; 126 states, 7664 partial rates to 10⁻⁹ of the peak) in 4.4 s, against 114 s for the host path on
+8 cores of the same machine. CI runs the comparison on 12 bands (carriers to 2.5 eV) in `si-chi0/ci.sh`.
 
 Stages from here to the issue's gate, each with its own check:
 

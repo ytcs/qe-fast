@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2001-2019 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -190,16 +191,20 @@ CONTAINS
     ! Apply the operator S^{-1}, given by Eq.(13), to the functions psi.
     ! Let's DO this in 2 steps.
     !
-    ! Step 1 : calculate the product 
-    ! ps = lambda * <beta|psi>  
+    ! Step 1 : calculate the product
+    ! ps = lambda * <beta|psi>
     !
     CALL ZGEMM( 'N', 'N', nkb, m, nkb, (1.D0, 0.D0), bbk(1,1,ik), &
                           nkb, becp%k, nkb, (1.D0, 0.D0), ps, nkb )
     !
-    ! Step 2 : |spsi> = S^{-1} * |psi> = |psi> + ps * |beta> 
+    ! Step 2 : |spsi> = S^{-1} * |psi> = |psi> + ps * |beta>
     !
-    CALL ZGEMM( 'N', 'N', n, m, nkb, (1.D0, 0.D0), vkb, &
+    !$acc enter data copyin(ps)
+    !$acc host_data use_device(vkb, ps, spsi)
+    CALL MYZGEMM( 'N', 'N', n, m, nkb, (1.D0, 0.D0), vkb, &
                  lda, ps, nkb, (1.D0, 0.D0), spsi, lda )
+    !$acc end host_data
+    !$acc exit data delete(ps)
     !
     DEALLOCATE(ps)
     !
@@ -263,16 +268,20 @@ SUBROUTINE sm1_psi_nc()
     ! Apply the operator S^{-1}, given by Eq.(13), to the functions psi.
     ! Let's DO this in 2 steps.
     !
-    ! Step 1 : calculate the product 
-    ! ps = lambda * <beta|psi>  
+    ! Step 1 : calculate the product
+    ! ps = lambda * <beta|psi>
     !
     CALL ZGEMM( 'N', 'N', nkb*npol, m, nkb*npol, (1.D0, 0.D0), bbnc(1,1,ik), &
                   nkb*npol, becp%nc, nkb*npol, (1.D0, 0.D0), ps, nkb*npol )
     !
-    ! Step 2 : |spsi> = S^{-1} * |psi> = |psi> + ps * |beta> 
+    ! Step 2 : |spsi> = S^{-1} * |psi> = |psi> + ps * |beta>
     !
-    CALL ZGEMM( 'N', 'N', n, m*npol, nkb, (1.D0, 0.D0), vkb, &
+    !$acc enter data copyin(ps)
+    !$acc host_data use_device(vkb, ps, spsi)
+    CALL MYZGEMM( 'N', 'N', n, m*npol, nkb, (1.D0, 0.D0), vkb, &
                      & lda, ps, nkb, (1.D0, 0.D0), spsi, lda )
+    !$acc end host_data
+    !$acc exit data delete(ps)
     !
     DEALLOCATE(ps)
     !

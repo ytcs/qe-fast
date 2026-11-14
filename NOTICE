@@ -17,7 +17,7 @@ This file is a statement of the project's position. It is not legal advice.
 1. Modifications to Quantum ESPRESSO (GPL section 2a)
 -----------------------------------------------------
 
-All changes were made between 2026-10-27 and 2026-11-12. The commit history of
+All changes were made between 2026-10-27 and 2026-11-14. The commit history of
 this repository records each one. The modified upstream files, each of which
 also carries a notice in its first line, with the dates of their changes:
 
@@ -45,10 +45,13 @@ also carries a notice in its first line, with the dates of their changes:
   external/submodule_commit_hash_records   2026-10-27 to 2026-11-12
   external/wannier90.cmake                 2026-10-29 to 2026-11-13
   LR_Modules/c_bands_ph.f90                2026-10-28 to 2026-11-06
+  LR_Modules/ccg_psi.f90                   2026-11-14
   LR_Modules/CMakeLists.txt                2026-10-28 to 2026-11-14
   LR_Modules/dfpt_kernels.f90              2026-10-28 to 2026-11-13
   LR_Modules/dgradcorr.f90                 2026-10-30 to 2026-11-06
   LR_Modules/dv_of_drho.f90                2026-10-30 to 2026-11-12
+  LR_Modules/lr_sm1_psi.f90                2026-11-14
+  LR_Modules/orthogonalize_omega.f90       2026-11-14
   LR_Modules/response_kernels.f90          2026-10-28 to 2026-11-14
   LR_Modules/symdvscf.f90                  2026-10-28 to 2026-11-06
   Modules/environment.f90                  2026-11-06
@@ -71,7 +74,10 @@ also carries a notice in its first line, with the dates of their changes:
   test-suite/CMakeLists.txt                2026-11-12
   test-suite/jobconfig                     2026-11-12
   test-suite/Makefile                      2026-11-12
-  test-suite/userconfig.tmp                2026-11-12
+  test-suite/tddfpt_eels-al/benchmark.out.git.inp=Al_uspp.tddfpt-eels.in.args=5
+                                           2026-11-14
+  test-suite/userconfig.tmp                2026-11-12 to 2026-11-14
+  upflib/qvan2.f90                         2026-11-14
   UtilXlib/CMakeLists.txt                  2026-11-06
 
 external/submodule_commit_hash_records lost its devxlib line (2026-10-27) and its
