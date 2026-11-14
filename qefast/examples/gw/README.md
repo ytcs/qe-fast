@@ -141,6 +141,27 @@ of the zone); LDA gap on this grid 0.64 eV:
 - This is a prototype grid: the conduction minimum near X is not on 4³, the LDA gap is half the measured one, and
   the q = 0 term is missing. It fixes the output and the orientation, not the numbers.
 
+### gamma_ii.x (host path)
+
+`gamma_ii.x` computes the same rates: per q it bins the transitions, builds ε⁻¹ by Kramers–Kronig and inversion
+(the `chi0.x` stages, shared through `qefast/gw/gw_common.f90`), turns it into Im W on the energy grid, and
+contracts Im W with the pair densities of the hot carriers. Only one q is held in memory at a time. Input
+`&inputgii`: `prefix, outdir, emax_carrier` (eV above E_cbm), `ecut_eps` (Ry), `de, eta` (eV), `scissor` (eV),
+`fileout` (band, k, E − E_cbm, Im Σ, Γ_ii), `filpart` (the rate into every final state (n′, k′) with both energies;
+the rates into the final states of a carrier sum to its Γ_ii), `max_mem` (GB).
+
+Si, 4³ k without symmetry, 30 bands, carriers up to 2 eV, 4 Ry basis, 0.02 eV grid, 0.05 eV Lorentzian, two
+threads on a shared desktop CPU:
+
+| | Γ_ii per state | partial rates | time |
+|---|---|---|---|
+| `gamma_ref.py` | – | 1929 | 350 s |
+| `gamma_ii.x` | equal to 7 digits (57 of 63 states; the other 6 are tail values below 10⁻⁶ of the peak) | same 1929 keys, equal to 8×10⁻¹⁰ of the peak | 188 s |
+
+Three quarters of the time is the pair-density FFTs and a fifth the wavefunction reads, both repeated for every q;
+the GPU path keeps the wavefunctions on the device. CI runs the same comparison on 12 bands (carriers to 2.5 eV)
+in `si-chi0/ci.sh`.
+
 Stages from here to the issue's gate, each with its own check:
 
 1. ε⁻¹ per q: the reference above, then the GPU program element-wise against it (full matrix, PSD check).

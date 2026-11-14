@@ -21,32 +21,29 @@
 !
 PROGRAM chi0
   USE kinds,            ONLY : DP
-  USE constants,        ONLY : rytoev, pi, tpi
-  USE io_files,         ONLY : prefix, tmp_dir, restart_dir
+  USE constants,        ONLY : rytoev, pi
+  USE io_files,         ONLY : prefix, tmp_dir
   USE io_global,        ONLY : ionode, ionode_id, stdout
   USE mp,               ONLY : mp_bcast
   USE mp_global,        ONLY : mp_startup
   USE mp_images,        ONLY : intra_image_comm
   USE mp_pools,         ONLY : npool, nproc_pool
   USE environment,      ONLY : environment_start, environment_end
-  USE wvfct,            ONLY : nbnd_tot => nbnd, npwx, et
-  USE klist,            ONLY : xk, nks, ngk, igk_k, nelec, lgauss, ltetra
-  USE wavefunctions,    ONLY : evc
-  USE gvect,            ONLY : mill, ngm
-  USE cell_base,        ONLY : at, bg, tpiba2, omega
+  USE wvfct,            ONLY : nbnd_tot => nbnd, et
+  USE klist,            ONLY : xk, nks, nelec, lgauss, ltetra
+  USE cell_base,        ONLY : at, omega
   USE fft_base,         ONLY : dffts
-  USE fft_interfaces,   ONLY : invfft, fwfft
   USE noncollin_module, ONLY : npol, noncolin, domag
   USE lsda_mod,         ONLY : lsda
   USE uspp,             ONLY : okvan
   USE control_flags,    ONLY : gamma_only
-  USE pw_restart_new,   ONLY : read_collected_wfc
   USE qef_config,       ONLY : qef_note
+  USE gw_common,        ONLY : ha, kq_grid, gbasis_q, box_index, wfc_r, pair_row, bin_add, kk_fft, eps_invert, &
+                               mem_avail_gb
 #if defined(__CUDA)
   USE chi0_dev,         ONLY : dev_cap
 #endif
   IMPLICIT NONE
-  REAL(DP), PARAMETER :: ha = 2.0_DP * rytoev            ! eV per Hartree
   CHARACTER(LEN=256) :: outdir, fileout, filfull
   REAL(DP) :: q(3), ecut_eps, emax, de, eta, max_mem
   INTEGER :: nbnd, ios
@@ -58,13 +55,12 @@ PROGRAM chi0
   NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device, &
                          check_psd, dev_reserve, dev_buffer, scissor
   !
-  INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, iw, ng_max, b, iq_head, np, cap
-  INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), tb(:), list(:)
-  REAL(DP) :: qcr(3), qc(3), x, spin, need, ahmin, ahmax
-  REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), wgrid(:), tw(:)
-  COMPLEX(DP), ALLOCATABLE :: a(:,:,:), uk(:,:,:), uq(:,:,:), f(:), rho(:,:), xm(:,:), ym(:,:), &
+  INTEGER :: nv, nc, ik, jk, iv, ic, ig, nb, nw, iw, ng_max, iq_head, cap
+  INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:)
+  REAL(DP) :: qcr(3), qc(3), spin, need, ahmin, ahmax
+  REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), wgrid(:), tx(:)
+  COMPLEX(DP), ALLOCATABLE :: a(:,:,:), uk(:,:,:), uq(:,:,:), f(:), rho(:,:), &
                               chi(:,:,:), epsm(:,:), work(:), eqq(:), einvqq(:), ah(:,:)
-  INTEGER, ALLOCATABLE :: ipiv(:)
   REAL(DP), ALLOCATABLE :: rwork(:), evals(:)
   LOGICAL :: needwf = .TRUE.
   !
@@ -121,18 +117,10 @@ PROGRAM chi0
   qc = CEILING(qcr - 0.5_DP - 1.0d-9)                 ! G_Q, crystal
   qcr = qcr - qc
   IF (MAXVAL(ABS(qcr)) < 1.0d-8) CALL errore('chi0', 'q = 0 needs the head and wings treatment; not supported', 1)
-  DO ik = 1, nks
-    kq(ik) = 0
-    DO jk = 1, nks
-      IF (MAXVAL(ABS(kcr(:, ik) + qcr - kcr(:, jk) - NINT(kcr(:, ik) + qcr - kcr(:, jk)))) < 1.0d-6) THEN
-        kq(ik) = jk; g0(:, ik) = NINT(kcr(:, ik) + qcr - kcr(:, jk)); EXIT
-      ENDIF
-    ENDDO
-    IF (kq(ik) == 0) CALL errore('chi0', 'k + q is not on the k grid; choose q commensurate with the grid', ik)
-  ENDDO
+  CALL kq_grid(kcr, qcr, kq, g0)
   !
   ! ---- local-field basis |q+G|^2 <= ecut_eps (Ry = bohr^-2), sorted by |q+G| (stable), G_Q always in
-  CALL gbasis()
+  CALL gbasis_q(qcr, NINT(qc), ecut_eps, ng_max, gm, q2, idx_mg, iq_head)
   ALLOCATE(sv(ng_max))
   sv = SQRT(4.0_DP * pi / q2)
   WRITE(stdout, '(/5x,"chi0: ",I0," k, ",I0," bands (",I0," occupied), FFT ",3I4,", ",I0," G (|q+G|^2 <= ", &
@@ -148,7 +136,7 @@ PROGRAM chi0
   need = (16.0_DP * (nb + nw) * ng_max * ng_max + 6.4d7) / 1.0d9   ! A, chi on the grid, FFT block buffers
   !
   ALLOCATE(wgrid(nw), eqq(nw), einvqq(nw), ah(ng_max, ng_max), rwork(3 * ng_max), evals(ng_max), &
-           work(64 * ng_max), epsm(ng_max, ng_max), ipiv(ng_max))
+           work(64 * ng_max), epsm(ng_max, ng_max))
   DO iw = 1, nw
     wgrid(iw) = (iw - 1) * de
   ENDDO
@@ -175,7 +163,7 @@ PROGRAM chi0
   IF (need > max_mem) CALL errore('chi0', 'memory estimate exceeds max_mem; raise de, lower emax or ecut_eps', 1)
   ! ---- A_b: pair densities and binning
   ALLOCATE(a(ng_max, ng_max, nb), uk(dffts%nnr, npol, nv), uq(dffts%nnr, npol, nc), f(dffts%nnr), &
-           rho(ng_max, nc), xm(ng_max, nc), ym(ng_max, nc), tb(nc), tw(nc), list(nc))
+           rho(ng_max, nc), tx(nc))
   a = (0.0_DP, 0.0_DP)
   DO ik = 1, nks
     jk = kq(ik)
@@ -185,67 +173,29 @@ PROGRAM chi0
     CALL stop_clock('chi0_wfc')
     DO iv = 1, nv
       CALL start_clock('chi0_pairs')
-      DO ic = 1, nc
-        f(:) = CONJG(uq(:, 1, ic)) * uk(:, 1, iv)
-        IF (npol == 2) f(:) = f(:) + CONJG(uq(:, 2, ic)) * uk(:, 2, iv)
-        CALL fwfft('Rho', f, dffts)                     ! (1/N) sum_r f e^{-iGr}: rho(G) sits at -G
-        DO ig = 1, ng_max
-          rho(ig, ic) = f(idx_mg(ig))
-        ENDDO
-      ENDDO
+      CALL pair_row(uk(:, :, iv), uq, nc, idx_mg, rho, f)
       CALL stop_clock('chi0_pairs')
       CALL start_clock('chi0_bin')
       ! linear binning of D = e_c(k+q) - e_v(k) into bins b and b+1
-      DO b = 1, 2
-        DO ic = 1, nc
-          x = (et(nv + ic, jk) - et(iv, ik)) * 0.5_DP * ha / de
-          tb(ic) = FLOOR(x) + 1 + (b - 1)                   ! 1-based bin
-          IF (b == 1) THEN
-            tw(ic) = 1.0_DP - (x - FLOOR(x))
-          ELSE
-            tw(ic) = x - FLOOR(x)
-          ENDIF
-        ENDDO
-        DO i = 1, nb
-          np = 0
-          DO ic = 1, nc
-            IF (tb(ic) == i .AND. FLOOR((et(nv + ic, jk) - et(iv, ik)) * 0.5_DP * ha / de) + 2 <= nb) THEN
-              np = np + 1; list(np) = ic
-            ENDIF
-          ENDDO
-          IF (np == 0) CYCLE
-          DO j = 1, np
-            xm(:, j) = CONJG(rho(:, list(j))) * tw(list(j))
-            ym(:, j) = rho(:, list(j))
-          ENDDO
-          CALL ZGEMM('N', 'T', ng_max, ng_max, np, (1.0_DP, 0.0_DP), xm, ng_max, ym, ng_max, (1.0_DP, 0.0_DP), &
-                     a(1, 1, i), ng_max)
-        ENDDO
+      DO ic = 1, nc
+        tx(ic) = (et(nv + ic, jk) - et(iv, ik)) * 0.5_DP * ha / de
       ENDDO
+      CALL bin_add(a, rho, nc, tx)
       CALL stop_clock('chi0_bin')
     ENDDO
   ENDDO
-  DEALLOCATE(uk, uq, f, rho, xm, ym, tb, tw, list)
+  DEALLOCATE(uk, uq, f, rho, tx)
   !
   ! ---- chi0 on the energy grid by FFT (Kramers-Kronig as a convolution and a correlation), then eps^-1 per energy
   ALLOCATE(chi(ng_max, ng_max, nw))
   CALL start_clock('chi0_kk')
-  CALL kk_fft(a, chi, ng_max * ng_max)
+  CALL kk_fft(a, chi, ng_max * ng_max, nb, nw, de, eta, spin / (nks * omega))
   CALL stop_clock('chi0_kk')
   DEALLOCATE(a)
   CALL open_full()
   CALL start_clock('chi0_inv')
   DO iw = 1, nw
-    DO j = 1, ng_max
-      DO i = 1, ng_max
-        epsm(i, j) = - sv(i) * chi(i, j, iw) * sv(j)
-      ENDDO
-      epsm(j, j) = epsm(j, j) + 1.0_DP
-    ENDDO
-    eqq(iw) = epsm(iq_head, iq_head)
-    CALL ZGETRF(ng_max, ng_max, epsm, ng_max, ipiv, ios)
-    IF (ios /= 0) CALL errore('chi0', 'singular eps', ios)
-    CALL ZGETRI(ng_max, epsm, ng_max, ipiv, work, SIZE(work), ios)
+    CALL eps_invert(sv, chi(:, :, iw), epsm, eqq(iw), iq_head)
     CALL finish_w(iw, epsm)
   ENDDO
   CALL stop_clock('chi0_inv')
@@ -352,172 +302,5 @@ CONTAINS
     CALL dev_free()
   END SUBROUTINE device_path
 #endif
-  !
-  SUBROUTINE kk_fft(af, cf, ncol)
-    !! cf(:, i) = spin/(Nk Omega) sum_b af(:, b) [K(i - b) - K(i + b)],  K(m) = 1/(m de + i eta) (Hartree), on the
-    !! uniform grid w_i = (i-1) de: a zero-padded convolution and a correlation along b, by QE's 1D FFTs (cft_1z)
-    USE fft_scalar, ONLY : cft_1z
-    INTEGER, INTENT(IN) :: ncol
-    COMPLEX(DP), INTENT(IN) :: af(ncol, nb)
-    COMPLEX(DP), INTENT(OUT) :: cf(ncol, nw)
-    INTEGER :: l, m, c0, nbl, c, jj, mlast
-    COMPLEX(DP), ALLOCATABLE :: k1(:), k2(:), k1f(:), k2f(:), buf(:), bf(:), d(:), df(:)
-    REAL(DP) :: sf, sb, sf1, scal
-    l = 1
-    DO WHILE (l < 2 * nb + nw)
-      l = 2 * l
-    ENDDO
-    ALLOCATE(k1(l), k2(l), k1f(l), k2f(l), d(l), df(l))
-    k1 = (0.0_DP, 0.0_DP); k2 = (0.0_DP, 0.0_DP)
-    DO jj = 1, nw + nb - 1
-      m = (jj - 1) - (nb - 1)                         ! w_i - D_b = (i - b) de
-      k1(jj) = 1.0_DP / CMPLX(m * de / ha, eta / ha, KIND=DP)
-      m = jj - 1                                      ! w_i + D_b = (i + b) de
-      k2(jj) = 1.0_DP / CMPLX(m * de / ha, eta / ha, KIND=DP)
-    ENDDO
-    CALL cft_1z(k1, 1, l, l, -1, k1f)
-    CALL cft_1z(k2, 1, l, l, -1, k2f)
-    d = (0.0_DP, 0.0_DP); d(1) = (1.0_DP, 0.0_DP)
-    CALL cft_1z(d, 1, l, l, -1, df); sf1 = REAL(df(1))      ! forward scaling of the single (kernel) transforms
-    nbl = MAX(1, MIN(ncol, INT(2.0d6 / l)))          ! two block buffers of <= ~32 MB each (column c at (c-1) l)
-    ALLOCATE(buf(l * nbl), bf(l * nbl))
-    mlast = -1
-    DO c0 = 1, ncol, nbl
-      m = MIN(nbl, ncol - c0 + 1)
-      IF (m /= mlast) THEN
-        ! the scalings of this FFT backend, measured with the batch size of the block: QE's internal backend (GPU
-        ! builds) scales a batched call differently from a single transform
-        ! (QE's internal backend applies the forward scaling to its input array in place: reset before each call)
-        buf = (0.0_DP, 0.0_DP); buf(1) = (1.0_DP, 0.0_DP)
-        CALL cft_1z(buf, m, l, l, -1, bf); sf = REAL(bf(1))
-        buf = (0.0_DP, 0.0_DP); buf(1) = (1.0_DP, 0.0_DP)
-        CALL cft_1z(buf, m, l, l, +1, bf); sb = REAL(bf(1))
-        scal = spin / (nks * omega) / (sb * sf * sf1 * l)
-        mlast = m
-      ENDIF
-      ! convolution term
-      buf = (0.0_DP, 0.0_DP)
-      DO c = 1, m
-        buf((c - 1) * l + 1:(c - 1) * l + nb) = af(c0 + c - 1, 1:nb)
-      ENDDO
-      CALL cft_1z(buf, m, l, l, -1, bf)
-      DO c = 1, m
-        bf((c - 1) * l + 1:c * l) = bf((c - 1) * l + 1:c * l) * k1f(:)
-      ENDDO
-      CALL cft_1z(bf, m, l, l, +1, buf)
-      DO c = 1, m
-        cf(c0 + c - 1, 1:nw) = buf((c - 1) * l + nb:(c - 1) * l + nb + nw - 1)
-      ENDDO
-      ! correlation term (A reversed in b)
-      buf = (0.0_DP, 0.0_DP)
-      DO c = 1, m
-        buf((c - 1) * l + 1:(c - 1) * l + nb) = af(c0 + c - 1, nb:1:-1)
-      ENDDO
-      CALL cft_1z(buf, m, l, l, -1, bf)
-      DO c = 1, m
-        bf((c - 1) * l + 1:c * l) = bf((c - 1) * l + 1:c * l) * k2f(:)
-      ENDDO
-      CALL cft_1z(bf, m, l, l, +1, buf)
-      DO c = 1, m
-        cf(c0 + c - 1, 1:nw) = (cf(c0 + c - 1, 1:nw) - buf((c - 1) * l + nb:(c - 1) * l + nb + nw - 1)) * scal
-      ENDDO
-    ENDDO
-    DEALLOCATE(k1, k2, k1f, k2f, d, df, buf, bf)
-  END SUBROUTINE kk_fft
-  !
-  REAL(DP) FUNCTION mem_avail_gb()
-    !! MemAvailable from /proc/meminfo (GB); 2 GB if it cannot be read
-    CHARACTER(LEN=128) :: line
-    INTEGER :: u, ios2
-    REAL(DP) :: kb
-    mem_avail_gb = 2.0_DP
-    OPEN(NEWUNIT=u, FILE='/proc/meminfo', STATUS='old', ACTION='read', IOSTAT=ios2)
-    IF (ios2 /= 0) RETURN
-    DO
-      READ(u, '(a)', IOSTAT=ios2) line
-      IF (ios2 /= 0) EXIT
-      IF (line(1:13) == 'MemAvailable:') THEN
-        READ(line(14:), *, IOSTAT=ios2) kb
-        IF (ios2 == 0) mem_avail_gb = kb / 1.0d6
-        EXIT
-      ENDIF
-    ENDDO
-    CLOSE(u)
-  END FUNCTION mem_avail_gb
-  !
-  INTEGER FUNCTION box_index(m)
-    !! position of the Miller index m on the (serial) smooth FFT box, the layout of dffts%nl
-    INTEGER, INTENT(IN) :: m(3)
-    box_index = 1 + MODULO(m(1), dffts%nr1) + dffts%nr1x * (MODULO(m(2), dffts%nr2) + &
-                dffts%nr2x * MODULO(m(3), dffts%nr3))
-  END FUNCTION box_index
-  !
-  SUBROUTINE gbasis()
-    INTEGER :: n, i1, i2, i3, cnt, k, l, ti(3)
-    REAL(DP) :: v(3), t
-    INTEGER, ALLOCATABLE :: tmp(:,:)
-    REAL(DP), ALLOCATABLE :: tq(:)
-    n = CEILING(SQRT(ecut_eps / tpiba2) / MINVAL(SQRT(SUM(bg**2, 1)))) + 2
-    ALLOCATE(tmp(3, (2 * n + 1)**3), tq((2 * n + 1)**3))
-    cnt = 0
-    DO i1 = -n, n
-      DO i2 = -n, n
-        DO i3 = -n, n
-          v = (qcr(1) + i1) * bg(:, 1) + (qcr(2) + i2) * bg(:, 2) + (qcr(3) + i3) * bg(:, 3)
-          t = SUM(v**2) * tpiba2
-          IF (t <= ecut_eps .OR. ALL((/i1, i2, i3/) == NINT(qc))) THEN
-            cnt = cnt + 1; tmp(:, cnt) = (/i1, i2, i3/); tq(cnt) = t
-          ENDIF
-        ENDDO
-      ENDDO
-    ENDDO
-    ! stable insertion sort by |q+G|^2 rounded to 1e-10 bohr^-2, so that ties fall in enumeration order exactly as
-    ! in chi0_ref.py (numpy's stable argsort of the same rounded values)
-    DO k = 2, cnt
-      t = tq(k); ti = tmp(:, k); l = k - 1
-      DO WHILE (l >= 1)
-        IF (ANINT(tq(l) * 1.0d10) <= ANINT(t * 1.0d10)) EXIT
-        tq(l + 1) = tq(l); tmp(:, l + 1) = tmp(:, l); l = l - 1
-      ENDDO
-      tq(l + 1) = t; tmp(:, l + 1) = ti
-    ENDDO
-    ng_max = cnt
-    ALLOCATE(gm(3, cnt), q2(cnt), idx_mg(cnt))
-    gm = tmp(:, 1:cnt); q2 = tq(1:cnt)
-    iq_head = 0
-    DO k = 1, cnt
-      ! where fwfft puts -G: through QE's own map (dffts%nl of the G-vector index), not a box formula, so that it
-      ! holds for every FFT layout QE builds
-      idx_mg(k) = 0
-      DO l = 1, ngm
-        IF (ALL(mill(:, l) == -gm(:, k))) THEN
-          idx_mg(k) = dffts%nl(l); EXIT
-        ENDIF
-      ENDDO
-      IF (idx_mg(k) == 0) CALL errore('chi0', 'local-field G outside the density G sphere', k)
-      IF (ALL(gm(:, k) == NINT(qc))) iq_head = k
-    ENDDO
-    DEALLOCATE(tmp, tq)
-  END SUBROUTINE gbasis
-  !
-  SUBROUTINE wfc_r(ikk, n1, n2, shift, u)
-    !! u(:, :, n) = periodic part of bands n1..n2 at k-point ikk on the FFT box, coefficients moved by -shift
-    INTEGER, INTENT(IN) :: ikk, n1, n2, shift(3)
-    COMPLEX(DP), INTENT(OUT) :: u(:,:,:)
-    INTEGER :: n, igg, s, pos
-    CALL read_collected_wfc(restart_dir(), ikk, evc)
-    DO n = n1, n2
-      DO s = 1, npol
-        u(:, s, n - n1 + 1) = (0.0_DP, 0.0_DP)
-        DO igg = 1, ngk(ikk)
-          pos = box_index(mill(:, igk_k(igg, ikk)) - shift)
-          u(pos, s, n - n1 + 1) = evc(igg + (s - 1) * npwx, n)
-        ENDDO
-        ! full-box transform: 'Wave' transforms only the columns of the wavefunction sphere, and the coefficients
-        ! moved by -shift (k + q outside the first zone) can fall outside them
-        CALL invfft('Rho', u(:, s, n - n1 + 1), dffts)
-      ENDDO
-    ENDDO
-  END SUBROUTINE wfc_r
   !
 END PROGRAM chi0

@@ -54,6 +54,8 @@ if (QE_ENABLE_OSCDFT)
         src/oscdft_pp_mod.f90
         src/oscdft_et_mod.f90)
 endif()
+# qe-fast: the GW host stages shared by chi0.x and gamma_ii.x
+list(APPEND src_pp ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/gw/gw_common.f90)
 qe_enable_cuda_fortran("${src_pp}")
 
 qe_add_library(qe_pp ${src_pp})
@@ -316,6 +318,22 @@ target_link_libraries(qe_pp_chi0_exe
 if(QE_ENABLE_CUDA)
     target_link_libraries(qe_pp_chi0_exe PRIVATE CUDA::cufft CUDA::cublas)
 endif()
+
+###########################################################
+# gamma_ii.x (qe-fast: qefast/gw/gamma_ii.f90, impact-ionisation rate from the RPA Im W)
+###########################################################
+set(src_gamma_ii_x ${CMAKE_CURRENT_SOURCE_DIR}/../qefast/gw/gamma_ii.f90)
+qe_enable_cuda_fortran("${src_gamma_ii_x}")
+qe_add_executable(qe_pp_gamma_ii_exe ${src_gamma_ii_x})
+set_target_properties(qe_pp_gamma_ii_exe PROPERTIES OUTPUT_NAME gamma_ii.x)
+target_link_libraries(qe_pp_gamma_ii_exe
+    PRIVATE
+        qe_pw
+        qe_modules
+        qe_upflib
+        qe_pp
+        qe_fftx
+        qe_lapack)
 
 ###########################################################
 # initial_state.x
@@ -631,6 +649,7 @@ set(PP_EXE_TARGETS
     qe_pp_pw2critic_exe
     qe_pp_wfck2r_exe
     qe_pp_chi0_exe
+    qe_pp_gamma_ii_exe
     qe_pp_initial_state_exe
     qe_pp_pw2gw_exe
     qe_pp_pw2gt_exe

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 The qe-fast authors
 # SPDX-License-Identifier: GPL-2.0-or-later
-# CI gate for chi0.x: Si on a 4^3 grid without symmetry, 12 bands, Q = 0.5 (2pi/a, x); chi0.x against the
-# reference qefast/gw/chi0_ref.py, every output column and the whole eps^-1 matrix, to 1e-8.
+# CI gate for chi0.x and gamma_ii.x: Si on a 4^3 grid without symmetry, 12 bands. chi0.x at Q = 0.5 (2pi/a, x)
+# against qefast/gw/chi0_ref.py, every output column and the whole eps^-1 matrix, to 1e-8; gamma_ii.x (carriers to
+# 2.5 eV) against qefast/gw/gamma_ref.py, the rate of every initial state and every final-state partial rate.
 #   ci.sh <bin dir> <workdir>
 set -euo pipefail
 HERE=$(dirname "$(realpath "$0")")
@@ -36,4 +37,29 @@ same_g = rd('einv-py.npy.G.txt') == rd('einv-f90.bin.G.txt')
 d_full = np.abs(e - f).max()
 print(f'chi0 gate: columns max |diff| {d_col:.2e}, eps^-1 ({nw} x {ng}^2) max |diff| {d_full:.2e}, same G list {same_g}')
 sys.exit(0 if (d_col < 1e-8 and d_full < 1e-8 and same_g) else 1)
+EOP
+cat > gii.in <<EOI
+&inputgii
+  prefix = 'si', outdir = './out', emax_carrier = 2.5, ecut_eps = 4.0, de = 0.05, eta = 0.05
+  fileout = 'gii-f90.dat', filpart = 'part-f90.txt'
+/
+EOI
+"$BIN/gamma_ii.x" -in gii.in > gii.out
+grep 'gamma_ii:' gii.out
+python3 "$HERE/../../../gw/gamma_ref.py" out si --emax-carrier 2.5 --ecut-eps 4 --de 0.05 --eta 0.05 \
+  --out gii-py.dat --partial part-py.npz | grep 'gamma_ref:'
+python3 - <<'EOP'
+import numpy as np, sys
+a, b = np.loadtxt('gii-py.dat'), np.loadtxt('gii-f90.dat')
+same = a.shape == b.shape and np.array_equal(a[:, :2], b[:, :2])
+pk = a[:, 4].max(); m = a[:, 4] > 1e-6 * pk                 # below that the Lorentzian tail sits at print precision
+d_rel = (np.abs(a[m, 4] - b[m, 4]) / a[m, 4]).max(); d_abs = np.abs(a[:, 4] - b[:, 4]).max() / pk
+p, f = np.load('part-py.npz'), np.loadtxt('part-f90.txt')
+kp = np.stack([p['n'], p['k'], p['nf'], p['kf']], 1); kf = f[:, :4].astype(int)
+op, of = np.lexsort(kp.T[::-1]), np.lexsort(kf.T[::-1])
+same_p = np.array_equal(kp[op], kf[of])
+d_p = np.abs(p['gamma'][op] - f[of, 4]).max() / p['gamma'].max() if same_p else np.inf
+print(f'gamma gate: {m.sum()} of {len(a)} states, Gamma rel |diff| {d_rel:.2e} (all: {d_abs:.2e} of the peak), '
+      f'{len(kf)} partial rates, |diff| {d_p:.2e} of the peak, same keys {same and same_p}')
+sys.exit(0 if (same and same_p and d_rel < 1e-5 and d_abs < 1e-8 and d_p < 1e-7) else 1)
 EOP
