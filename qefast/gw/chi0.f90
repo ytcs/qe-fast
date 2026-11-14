@@ -38,14 +38,19 @@ PROGRAM chi0
   USE uspp,             ONLY : okvan
   USE control_flags,    ONLY : gamma_only
   USE pw_restart_new,   ONLY : read_collected_wfc
+  USE qef_config,       ONLY : qef_note
+#if defined(__CUDA)
+  USE chi0_dev,         ONLY : dev_cap
+#endif
   IMPLICIT NONE
   REAL(DP), PARAMETER :: ha = 2.0_DP * rytoev            ! eV per Hartree
   CHARACTER(LEN=256) :: outdir, fileout, filfull
   REAL(DP) :: q(3), ecut_eps, emax, de, eta, max_mem
   INTEGER :: nbnd, ios
-  NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem
+  LOGICAL :: device
+  NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device
   !
-  INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, wc, i0, iw, nwc, ng_max, nt, b, iq_head, np
+  INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, wc, i0, iw, nwc, ng_max, nt, b, iq_head, np, cap
   INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), tb(:), list(:)
   REAL(DP) :: qcr(3), qc(3), x, spin, need, ahmin, ahmax
   REAL(DP), ALLOCATABLE :: kcr(:,:), q2(:), sv(:), wgrid(:), tw(:)
@@ -58,7 +63,7 @@ PROGRAM chi0
   CALL mp_startup()
   CALL environment_start('CHI0')
   prefix = 'pwscf'; outdir = './'; q = 0.0_DP; ecut_eps = 4.0_DP; emax = 60.0_DP; de = 0.02_DP; eta = 0.1_DP
-  nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 2.0_DP
+  nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 2.0_DP; device = .TRUE.
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputchi0, IOSTAT=ios)
@@ -70,7 +75,10 @@ PROGRAM chi0
   CALL mp_bcast(emax, ionode_id, intra_image_comm); CALL mp_bcast(de, ionode_id, intra_image_comm)
   CALL mp_bcast(eta, ionode_id, intra_image_comm); CALL mp_bcast(nbnd, ionode_id, intra_image_comm)
   CALL mp_bcast(fileout, ionode_id, intra_image_comm); CALL mp_bcast(filfull, ionode_id, intra_image_comm)
-  CALL mp_bcast(max_mem, ionode_id, intra_image_comm)
+  CALL mp_bcast(max_mem, ionode_id, intra_image_comm); CALL mp_bcast(device, ionode_id, intra_image_comm)
+#if !defined(__CUDA)
+  device = .FALSE.
+#endif
   tmp_dir = TRIM(outdir) // '/'
   CALL read_file_new(needwf)
   !
@@ -130,6 +138,25 @@ PROGRAM chi0
        need, nb, nw, ng_max
   IF (need > max_mem) CALL errore('chi0', 'memory estimate exceeds max_mem; raise de, lower emax or ecut_eps', 1)
   !
+  ALLOCATE(wgrid(nw), eqq(nw), einvqq(nw), ah(ng_max, ng_max), rwork(3 * ng_max), evals(ng_max), &
+           work(64 * ng_max), epsm(ng_max, ng_max), ipiv(ng_max))
+  DO iw = 1, nw
+    wgrid(iw) = (iw - 1) * de
+  ENDDO
+#if defined(__CUDA)
+  IF (device) THEN
+    cap = dev_cap(dffts%nnr, npol, nv, nc, ng_max, nb, nw, 2.0_DP)
+    IF (cap < nc) THEN
+      CALL qef_note('chi0 on the GPU', .FALSE., 'device memory too small for one k-point; host path')
+      device = .FALSE.
+    ENDIF
+  ENDIF
+  IF (device) THEN
+    CALL qef_note('chi0 on the GPU', .TRUE.)
+    CALL device_path()
+  ENDIF
+#endif
+  IF (.NOT. device) THEN
   ! ---- A_b: pair densities and binning
   ALLOCATE(a(ng_max, ng_max, nb), uk(dffts%nnr, npol, nv), uq(dffts%nnr, npol, nc), f(dffts%nnr), &
            rho(ng_max, nc), xm(ng_max, nc), ym(ng_max, nc), tb(nc), tw(nc), list(nc))
@@ -185,28 +212,12 @@ PROGRAM chi0
   DEALLOCATE(uk, uq, f, rho, xm, ym, tb, tw, list)
   !
   ! ---- chi0 on the energy grid by FFT (Kramers-Kronig as a convolution and a correlation), then eps^-1 per energy
-  ALLOCATE(wgrid(nw), chi(ng_max, ng_max, nw), epsm(ng_max, ng_max), ipiv(ng_max), &
-           work(64 * ng_max), eqq(nw), einvqq(nw), ah(ng_max, ng_max), rwork(3 * ng_max), evals(ng_max))
-  DO iw = 1, nw
-    wgrid(iw) = (iw - 1) * de
-  ENDDO
+  ALLOCATE(chi(ng_max, ng_max, nw))
   CALL start_clock('chi0_kk')
   CALL kk_fft(a, chi, ng_max * ng_max)
   CALL stop_clock('chi0_kk')
   DEALLOCATE(a)
-  IF (LEN_TRIM(filfull) > 0 .AND. ionode) THEN
-    OPEN(91, FILE=TRIM(filfull), FORM='unformatted', ACCESS='stream', STATUS='replace')
-    OPEN(92, FILE=TRIM(filfull) // '.G.txt', STATUS='replace')
-    WRITE(92, '(a)') "# eps^-1(i, j, w) = eps^-1_{G_i G_j}(q, w), column-major, complex(8) per element, w outer;"
-    WRITE(92, '(a)') "# chi_GG' = sum rho*(G) rho(G'), rho(G) = <c,k+q|e^{i(q+G)r}|v,k>"
-    WRITE(92, '("# q crystal ",3F12.8,"  w = 0 .. ",F10.4," eV step ",F8.4,", ",I0," energies, ",I0," G")') &
-         qcr, emax, de, nw, ng_max
-    DO ig = 1, ng_max
-      WRITE(92, '(I6,3I5,F16.8)') ig - 1, gm(:, ig), q2(ig)
-    ENDDO
-    CLOSE(92)
-  ENDIF
-  ahmin = HUGE(1.0_DP); ahmax = 0.0_DP
+  CALL open_full()
   CALL start_clock('chi0_inv')
   DO iw = 1, nw
     DO j = 1, ng_max
@@ -219,15 +230,10 @@ PROGRAM chi0
     CALL ZGETRF(ng_max, ng_max, epsm, ng_max, ipiv, ios)
     IF (ios /= 0) CALL errore('chi0', 'singular eps', ios)
     CALL ZGETRI(ng_max, epsm, ng_max, ipiv, work, SIZE(work), ios)
-    einvqq(iw) = epsm(iq_head, iq_head)
-    IF (wgrid(iw) > 0.0_DP) THEN        ! anti-Hermitian part of -eps^-1 must be PSD for w > 0
-      ah = -(epsm - CONJG(TRANSPOSE(epsm))) / (0.0_DP, 2.0_DP)
-      CALL ZHEEV('N', 'U', ng_max, ah, ng_max, evals, work, SIZE(work), rwork, ios)
-      ahmin = MIN(ahmin, evals(1)); ahmax = MAX(ahmax, evals(ng_max))
-    ENDIF
-    IF (LEN_TRIM(filfull) > 0 .AND. ionode) WRITE(91) epsm
+    CALL finish_w(iw, epsm)
   ENDDO
   CALL stop_clock('chi0_inv')
+  ENDIF   ! host path
   IF (LEN_TRIM(filfull) > 0 .AND. ionode) CLOSE(91)
   !
   ! ---- output (columns as chi0_ref.py)
@@ -250,6 +256,86 @@ PROGRAM chi0
   CALL stop_pp()
   !
 CONTAINS
+  !
+  SUBROUTINE open_full()
+    ahmin = HUGE(1.0_DP); ahmax = 0.0_DP
+    IF (LEN_TRIM(filfull) > 0 .AND. ionode) THEN
+      OPEN(91, FILE=TRIM(filfull), FORM='unformatted', ACCESS='stream', STATUS='replace')
+      OPEN(92, FILE=TRIM(filfull) // '.G.txt', STATUS='replace')
+      WRITE(92, '(a)') "# eps^-1(i, j, w) = eps^-1_{G_i G_j}(q, w), column-major, complex(8) per element, w outer;"
+      WRITE(92, '(a)') "# chi_GG' = sum rho*(G) rho(G'), rho(G) = <c,k+q|e^{i(q+G)r}|v,k>"
+      WRITE(92, '("# q crystal ",3F12.8,"  w = 0 .. ",F10.4," eV step ",F8.4,", ",I0," energies, ",I0," G")') &
+           qcr, emax, de, nw, ng_max
+      DO ig = 1, ng_max
+        WRITE(92, '(I6,3I5,F16.8)') ig - 1, gm(:, ig), q2(ig)
+      ENDDO
+      CLOSE(92)
+    ENDIF
+  END SUBROUTINE open_full
+  !
+  SUBROUTINE finish_w(iw_, einvw)
+    !! per energy: the head of eps^-1, the PSD check of the anti-Hermitian part of -eps^-1, the full matrix
+    INTEGER, INTENT(IN) :: iw_
+    COMPLEX(DP), INTENT(IN) :: einvw(ng_max, ng_max)
+    INTEGER :: info
+    einvqq(iw_) = einvw(iq_head, iq_head)
+    IF (wgrid(iw_) > 0.0_DP) THEN
+      ah = -(einvw - CONJG(TRANSPOSE(einvw))) / (0.0_DP, 2.0_DP)
+      CALL ZHEEV('N', 'U', ng_max, ah, ng_max, evals, work, SIZE(work), rwork, info)
+      ahmin = MIN(ahmin, evals(1)); ahmax = MAX(ahmax, evals(ng_max))
+    ENDIF
+    IF (LEN_TRIM(filfull) > 0 .AND. ionode) WRITE(91) einvw
+  END SUBROUTINE finish_w
+  !
+#if defined(__CUDA)
+  SUBROUTINE device_path()
+    !! the same stages on the GPU (chi0_dev); per-energy results return to the host in chunks
+    USE chi0_dev, ONLY : dev_init, dev_add_k, dev_kk, dev_inv_chunk, dev_free
+    INTEGER :: iw0, nch, ikk, jkk, ivv, icc, ig2
+    INTEGER, ALLOCATABLE :: idx_pg(:)
+    REAL(DP), ALLOCATABLE :: xb(:,:)
+    COMPLEX(DP), ALLOCATABLE :: ukk(:,:,:), uqq(:,:,:), epsc(:,:,:), einvc(:,:,:)
+    ALLOCATE(idx_pg(ng_max), xb(nc, nv), ukk(dffts%nnr, npol, nv), uqq(dffts%nnr, npol, nc))
+    DO ig2 = 1, ng_max
+      idx_pg(ig2) = box_index(gm(:, ig2))           ! unnormalised inverse transform / N puts rho(G) at +G
+    ENDDO
+    CALL dev_init((/dffts%nr1, dffts%nr2, dffts%nr3/), (/dffts%nr1x, dffts%nr2x, dffts%nr3x/), dffts%nnr, npol, &
+                  nv, nc, ng_max, idx_pg, nb, nw, cap)
+    DO ikk = 1, nks
+      jkk = kq(ikk)
+      CALL start_clock('chi0_wfc')
+      CALL wfc_r(ikk, 1, nv, (/0, 0, 0/), ukk)
+      CALL wfc_r(jkk, nv + 1, nbnd, g0(:, ikk), uqq)
+      CALL stop_clock('chi0_wfc')
+      DO ivv = 1, nv
+        DO icc = 1, nc
+          xb(icc, ivv) = (et(nv + icc, jkk) - et(ivv, ikk)) * 0.5_DP * ha / de
+        ENDDO
+      ENDDO
+      CALL start_clock('chi0_pairs')
+      CALL dev_add_k(ukk, uqq, nv, xb)
+      CALL stop_clock('chi0_pairs')
+    ENDDO
+    DEALLOCATE(ukk, uqq, xb, idx_pg)
+    CALL start_clock('chi0_kk')
+    CALL dev_kk(spin / (nks * omega), de / ha, eta / ha, nw)
+    CALL stop_clock('chi0_kk')
+    CALL open_full()
+    nch = MAX(1, MIN(nw, INT(2.5d8 / (32.0_DP * ng_max * ng_max))))
+    ALLOCATE(epsc(ng_max, ng_max, nch), einvc(ng_max, ng_max, nch))
+    CALL start_clock('chi0_inv')
+    DO iw0 = 1, nw, nch
+      CALL dev_inv_chunk(sv, iw0, MIN(nch, nw - iw0 + 1), epsc, einvc)
+      DO ikk = 1, MIN(nch, nw - iw0 + 1)
+        eqq(iw0 + ikk - 1) = epsc(iq_head, iq_head, ikk)
+        CALL finish_w(iw0 + ikk - 1, einvc(:, :, ikk))
+      ENDDO
+    ENDDO
+    CALL stop_clock('chi0_inv')
+    DEALLOCATE(epsc, einvc)
+    CALL dev_free()
+  END SUBROUTINE device_path
+#endif
   !
   SUBROUTINE kk_fft(af, cf, ncol)
     !! cf(:, i) = spin/(Nk Omega) sum_b af(:, b) [K(i - b) - K(i + b)],  K(m) = 1/(m de + i eta) (Hartree), on the
