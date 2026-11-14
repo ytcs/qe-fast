@@ -71,6 +71,7 @@ outputs are data read by the test harness and carry none.
   FFTXlib/tests/fft_test.f90               2026-11-14
   HP/src/hp_dnsq.f90                       2026-11-14
   LAXlib/cdiagh.f90                        2026-11-14
+  LAXlib/la_error.f90                      2026-11-14
   LAXlib/rdiagh.f90                        2026-11-14
   LAXlib/test.f90                          2026-11-14
   LAXlib/tests/test_diagh_2.f90            2026-11-14
@@ -299,6 +300,7 @@ outputs are data read by the test harness and carry none.
   upflib/CMakeLists.txt                    2026-11-14
   upflib/qvan2.f90                         2026-11-14
   upflib/rhoat_mod.f90                     2026-11-14
+  upflib/upf_error.f90                     2026-11-14
   upflib/uspp.f90                          2026-11-14
   upflib/vloc_mod.f90                      2026-11-14
   upflib/wxml.f90                          2026-11-14
@@ -312,6 +314,7 @@ outputs are data read by the test harness and carry none.
   XClib/qe_drivers_lda_lsda.f90            2026-11-14
   XClib/qe_funct_exch_gga.f90              2026-11-14
   XClib/xc_wrapper_mgga.f90                2026-11-14
+  XClib/xclib_error.f90                    2026-11-14
   XClib/xclib_test.f90                     2026-11-14
 
 external/submodule_commit_hash_records lost its devxlib line (2026-10-27) and its
