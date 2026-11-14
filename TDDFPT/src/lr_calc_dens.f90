@@ -161,12 +161,17 @@ SUBROUTINE lr_calc_dens( evc1, response_calc )
   !
   IF (okvan) THEN
      ! 
-     ALLOCATE(rhoaux(dfftp%nnr,nspin_mag))
+     ! qe-fast: addusdens fills rho(G) as (ngm, nspin_mag); with (nnr, nspin_mag) the copy into psic below did not
+     ! conform, and for nspin_mag = 2 the second spin column was read from the wrong place
+     ALLOCATE(rhoaux(dfftp%ngm,nspin_mag))
      !
      ! Compute the US part of the response charge density in G-space
      ! and put the result in rhoaux
      !
      rhoaux(:,:) = (0.0d0, 0.0d0)
+     ! qe-fast: addusdens reads becsum on the device; the response becsum above was formed on the host, so the
+     ! device still held the ground-state one (GPU builds)
+     !$acc update device(becsum)
      CALL addusdens(rhoaux)
      ! qe-fast: the ultrasoft term is added to the host copy of rho_1 below; take the device copy first and send the
      ! sum back after, or the copyout at the end of the data region drops the term (GPU builds)
@@ -182,7 +187,14 @@ SUBROUTINE lr_calc_dens( evc1, response_calc )
         psic(:) = (0.d0, 0.d0)
         psic( dfftp%nl(:) ) = rhoaux(:,is)
         IF ( gamma_only ) psic( dfftp%nlm(:) ) = CONJG(rhoaux(:,is))
+        ! qe-fast: psic is in the data region above, where nvfortran resolves the generic invfft to the device
+        ! routine: the host psic was left in G-space and the ultrasoft term was lost. Transform on the device
+        ! explicitly and bring the result back (GPU builds)
+        !$acc update device(psic)
+        !$acc host_data use_device(psic)
         CALL invfft ('Rho', psic, dfftp)
+        !$acc end host_data
+        !$acc update self(psic)
         !
         ! Sum up the normal and the US parts of the response charge density
         ! in R-space

@@ -47,6 +47,12 @@ SUBROUTINE lr_sm1_psi (ik, lda, n, m, psi, spsi)
   CALL start_clock( 'lr_sm1_psi' )
   !
   !$acc data present_or_copyin(psi) present_or_copyout(spsi)
+  ! qe-fast: the variants below form spsi on the device but take <beta|psi> with the host calbec. A caller that
+  ! passes a device array (the optical Liouvillian: sevc1_new) left the host copy stale and S^-1 acted as the
+  ! identity: refresh the host copy first (GPU builds; a no-op copy when psi was just copied in)
+  IF (okvan .AND. nkb > 0) THEN
+     !$acc update self(psi)
+  ENDIF
   IF ( gamma_only ) THEN
      CALL sm1_psi_gamma()
   ELSEIF (noncolin) THEN

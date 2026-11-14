@@ -204,7 +204,11 @@ SUBROUTINE lr_apply_liouvillian( evc1, evc1_new, interaction )
               ELSE
                  ALLOCATE( psic(dfftp%nnr) )
                  psic(:) = (0.0d0,0.0d0)
+                 ! qe-fast: newq_acc works on a device copy of deeq (PW's deeq is device resident) and d_deeq is a
+                 ! host array: give it one and bring the result back, or the run stops in a use_device clause (GPU)
+                 !$acc data copy(d_deeq)
                  CALL newq_acc(dvrs,d_deeq,.TRUE.)
+                 !$acc end data
                  DEALLOCATE( psic )
               ENDIF
            ELSE
