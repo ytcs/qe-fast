@@ -14,7 +14,8 @@
 ! full k grid without symmetry (k + q on the grid), one MPI process. Hartree units inside, eV in the input/output.
 !
 ! Input namelist &inputchi0: prefix, outdir, q(3) (2 pi / alat, Cartesian), ecut_eps (Ry), emax, de, eta (eV),
-! nbnd (0: all), fileout, filfull ('' : no full matrix), max_mem (GB).
+! nbnd (0: all), fileout, filfull ('' : no full matrix), max_mem (GB), device (GPU path in CUDA builds), check_psd
+! (number of energies, evenly spread, at which the anti-Hermitian part of -eps^-1 is checked; >= nw: all).
 !
 PROGRAM chi0
   USE kinds,            ONLY : DP
@@ -49,7 +50,9 @@ PROGRAM chi0
   INTEGER :: nbnd, ios
   LOGICAL :: device
   CHARACTER(LEN=8) :: dbg
-  NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device
+  INTEGER :: check_psd
+  NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device, &
+                         check_psd
   !
   INTEGER :: nv, nc, ik, jk, iv, ic, ig, i, j, nb, nw, wc, i0, iw, nwc, ng_max, nt, b, iq_head, np, cap
   INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:), tb(:), list(:)
@@ -64,7 +67,7 @@ PROGRAM chi0
   CALL mp_startup()
   CALL environment_start('CHI0')
   prefix = 'pwscf'; outdir = './'; q = 0.0_DP; ecut_eps = 4.0_DP; emax = 60.0_DP; de = 0.02_DP; eta = 0.1_DP
-  nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 2.0_DP; device = .TRUE.
+  nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 2.0_DP; device = .TRUE.; check_psd = 100
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputchi0, IOSTAT=ios)
@@ -77,6 +80,7 @@ PROGRAM chi0
   CALL mp_bcast(eta, ionode_id, intra_image_comm); CALL mp_bcast(nbnd, ionode_id, intra_image_comm)
   CALL mp_bcast(fileout, ionode_id, intra_image_comm); CALL mp_bcast(filfull, ionode_id, intra_image_comm)
   CALL mp_bcast(max_mem, ionode_id, intra_image_comm); CALL mp_bcast(device, ionode_id, intra_image_comm)
+  CALL mp_bcast(check_psd, ionode_id, intra_image_comm)
 #if !defined(__CUDA)
   device = .FALSE.
 #endif
@@ -285,7 +289,7 @@ CONTAINS
     COMPLEX(DP), INTENT(IN) :: einvw(ng_max, ng_max)
     INTEGER :: info
     einvqq(iw_) = einvw(iq_head, iq_head)
-    IF (wgrid(iw_) > 0.0_DP) THEN
+    IF (wgrid(iw_) > 0.0_DP .AND. MOD(iw_ - 1, MAX(1, nw / MAX(1, check_psd))) == 0) THEN
       ah = -(einvw - CONJG(TRANSPOSE(einvw))) / (0.0_DP, 2.0_DP)
       CALL ZHEEV('N', 'U', ng_max, ah, ng_max, evals, work, SIZE(work), rwork, info)
       ahmin = MIN(ahmin, evals(1)); ahmax = MAX(ahmax, evals(ng_max))
@@ -377,8 +381,10 @@ CONTAINS
       IF (m /= mlast) THEN
         ! the scalings of this FFT backend, measured with the batch size of the block: QE's internal backend (GPU
         ! builds) scales a batched call differently from a single transform
+        ! (QE's internal backend applies the forward scaling to its input array in place: reset before each call)
         buf = (0.0_DP, 0.0_DP); buf(1) = (1.0_DP, 0.0_DP)
         CALL cft_1z(buf, m, l, l, -1, bf); sf = REAL(bf(1))
+        buf = (0.0_DP, 0.0_DP); buf(1) = (1.0_DP, 0.0_DP)
         CALL cft_1z(buf, m, l, l, +1, bf); sb = REAL(bf(1))
         scal = spin / (nks * omega) / (sb * sf * sf1 * l)
         mlast = m
