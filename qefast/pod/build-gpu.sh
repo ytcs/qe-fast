@@ -27,9 +27,11 @@ if [ "${NVTX:-0}" = 1 ]; then
 fi
 # MDX/CUTLASS set (qefast/sth/fdx/deps.sh): the engine's cuFFTDx path (QEF_STH_FFTDX) is built, else a stub
 if [ -n "${MDX:-}" ] && [ -n "${CUTLASS:-}" ]; then gpuflags+=(-DQEF_MATHDX_INC=$MDX -DQEF_CUTLASS_INC=$CUTLASS); fi
+# chi0.x only where the tree has it (a vanilla QE tree built with this script for comparisons does not)
+EXTRA=""; [ -f "$SRC/qefast/gw/chi0.f90" ] && EXTRA=chi0.x
 cmake -S "$SRC" -B "$SRC/build-gpu" "${common[@]}" "${gpuflags[@]}" -DQE_GPU_ARCHS=sm_$CC -DQE_GPU="openacc;cuda" \
       -DQE_ENABLE_MPI_GPU_AWARE=ON
-cmake --build "$SRC/build-gpu" -j "$J" --target pw.x ph.x epw.x q2r.x matdyn.x pw2wannier90.x wannier90.x open_grid.x chi0.x
+cmake --build "$SRC/build-gpu" -j "$J" --target pw.x ph.x epw.x q2r.x matdyn.x pw2wannier90.x wannier90.x open_grid.x $EXTRA
 [ "${CPU:-1}" = 1 ] || exit 0   # CPU=0: GPU build only (dev pod)
 cmake -S "$SRC" -B "$SRC/build-cpu" "${common[@]}"
-cmake --build "$SRC/build-cpu" -j "$J" --target pw.x ph.x epw.x q2r.x matdyn.x pw2wannier90.x wannier90.x open_grid.x chi0.x
+cmake --build "$SRC/build-cpu" -j "$J" --target pw.x ph.x epw.x q2r.x matdyn.x pw2wannier90.x wannier90.x open_grid.x $EXTRA
