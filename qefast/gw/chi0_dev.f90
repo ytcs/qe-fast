@@ -306,11 +306,12 @@ CONTAINS
     COMPLEX(dp), INTENT(OUT) :: eps_h(ng, ng, n), einv_h(ng, ng, n)
     REAL(dp), DEVICE, ALLOCATABLE :: d_sv(:)
     COMPLEX(dp), DEVICE, ALLOCATABLE :: d_e(:,:,:), d_b(:,:), d_w(:)
-    INTEGER, DEVICE, ALLOCATABLE :: d_piv(:), d_info(:)
+    INTEGER, DEVICE, ALLOCATABLE :: d_piv(:)
+    INTEGER, DEVICE :: d_info
     COMPLEX(dp), ALLOCATABLE :: ident(:,:)
     INTEGER :: w, lw, istat, i
     TYPE(dim3) :: g
-    ALLOCATE(d_sv(ng), d_e(ng, ng, n), d_b(ng, ng), d_piv(ng), d_info(1), ident(ng, ng))
+    ALLOCATE(d_sv(ng), d_e(ng, ng, n), d_b(ng, ng), d_piv(ng), ident(ng, ng))
     d_sv = sv
     g = dim3((ng + TPB - 1) / TPB, ng, n)
     CALL k_eps<<<g, TPB>>>(d_e, d_chi, d_sv, ng, i0, n, ng * ng)
@@ -328,7 +329,7 @@ CONTAINS
       CALL chk(istat, 'getrs')
       einv_h(:, :, w) = d_b
     ENDDO
-    DEALLOCATE(d_sv, d_e, d_b, d_piv, d_info, d_w, ident)
+    DEALLOCATE(d_sv, d_e, d_b, d_piv, d_w, ident)
   END SUBROUTINE dev_inv_chunk
   !
   SUBROUTINE dev_free()
