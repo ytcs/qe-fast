@@ -178,6 +178,8 @@ outputs are data read by the test harness and carry none.
   PW/src/wfcinit.f90                       2026-11-14
   PW/src/write_ns.f90                      2026-11-14
   TDDFPT/src/lr_apply_liouvillian_eels.f90 2026-11-14
+  TDDFPT/src/lr_calc_dens_eels.f90         2026-11-14
+  TDDFPT/src/lr_calc_dens_eels_nc.f90      2026-11-14
   TDDFPT/src/lr_dvpsi_e.f90                2026-11-14
   TDDFPT/src/lr_normalise.f90              2026-11-14
   TDDFPT/src/lr_read_wf.f90                2026-11-14
