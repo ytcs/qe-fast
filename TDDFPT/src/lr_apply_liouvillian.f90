@@ -596,8 +596,14 @@ CONTAINS
        !
        IF( nkb > 0 .and. okvan .and. .not.real_space) THEN
           !The non real_space part
-          CALL dgemm( 'N', 'N', 2*ngk(1), nbnd, nkb, 1.d0, vkb, &
+          ! qe-fast: evc1_new lives on the device here (zeroed and filled there above); a host dgemm added the
+          ! ultrasoft term to the stale host copy and it was lost (GPU builds)
+          !$acc data copyin(becp2)
+          !$acc host_data use_device(vkb, becp2, evc1_new)
+          CALL mydgemm( 'N', 'N', 2*ngk(1), nbnd, nkb, 1.d0, vkb, &
                2*npwx, becp2, nkb, 1.d0, evc1_new, 2*npwx )
+          !$acc end host_data
+          !$acc end data
           !
        ENDIF
        !
