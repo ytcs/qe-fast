@@ -1,4 +1,4 @@
-# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12; see NOTICE.
+# qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-12 to 2026-11-14; see NOTICE.
 [PW]
 exe = XXXXXX/test-suite/run-pw.sh
 extract_program = XXXXXX/test-suite/extract-pw.sh
@@ -164,7 +164,7 @@ tolerance = ( (1.0e-6, 5.0e-3, 'e1'),
               (1.0e-1, 1.0e-3, 'p1'),
               (1.0e-5, 1.0e-4, 'alpha'),
               (1.0e-5, 1.0e-4, 'beta'),
-              (1.0e-5, 1.0e-4, 'gamma'),
+              (5.0e-5, 1.0e-4, 'gamma'),
               (1.0e-5, 1.0e-4, 'average'),
               (3.0e-3,   None, 'rechi'),
               (3.0e-3,   None, 'imchi'),

@@ -1,3 +1,4 @@
+! qe-fast: modified from Quantum ESPRESSO 7.6 (tag qe-7.6), 2026-11-14; see NOTICE.
 !
 ! Copyright (C) 2008 Quantum ESPRESSO group
 ! This file is distributed under the terms of the
@@ -27,7 +28,7 @@ USE becmod,      ONLY : bec_type, becp, calbec
 USE uspp,        ONLY : vkb, okvan
 USE mp_bands,    ONLY : intra_bgrp_comm
 USE mp,          ONLY : mp_sum
-USE control_flags, ONLY : gamma_only
+USE control_flags, ONLY : gamma_only, offload_type
 USE gvect,       ONLY : gstart
 !
 IMPLICIT NONE
@@ -127,7 +128,7 @@ ENDIF
 !
 ! dpsi is used as work space to store S|evc>
 !
-IF (okvan) CALL calbec ( npwq, vkb, evq, becp, nbnd_eff)
+IF (okvan) CALL calbec ( offload_type, npwq, vkb, evq, becp, nbnd_eff)
 CALL s_psi (npwx, npwq, nbnd_eff, evq, dpsi)
 !
 ! |dvspi> =  -(|dvpsi> - S|evq><evq|dvpsi>)
