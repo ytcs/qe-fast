@@ -35,7 +35,7 @@ MODULE sth_nscf_symrot
   PUBLIC :: symrot_forget_plan
   ! qe-fast (QEF_PW_SYMROT=1): the same rotation in pw.x's nscf (c_bands_nscf), the
   ! Wannier k grid read by EPW. The module lives in PW/src so that both pw.x and ph.x use it.
-  PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
+  PUBLIC :: symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops, symrot_cache_ld
   PUBLIC :: symrot_pw_on, symrot_pw_tight, symrot_pw_check_on, symrot_note_notconv, symrot_rep_guard
   INTEGER, SAVE :: last_notconv = 0, nbadrep = 0
   !
@@ -915,6 +915,11 @@ CONTAINS
       gcd2 = aa
     END FUNCTION gcd2
   END SUBROUTINE symrot_count
+  !
+  INTEGER FUNCTION symrot_cache_ld()
+    !! leading dimension of the cache (running maximum of npwx; every entry's ngs fits)
+    symrot_cache_ld = npwc
+  END FUNCTION symrot_cache_ld
   !
   INTEGER FUNCTION symrot_cache_n()
     !! number of cached representatives (QEF_STH_KDEV keeps a device copy)

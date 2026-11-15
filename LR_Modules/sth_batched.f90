@@ -574,11 +574,13 @@ CONTAINS
                                  sth_fdxdp_req, sth_fdxdp_check, sth_obatch, sth_timing, &
                                  sth_engine_set_nlk, sth_qcache, sth_engine_wdev, sth_engine_set_wdev, &
                                  sth_cbsr, sth_cbsr_skip, &
-                                 sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_put, sth_engine_kdev_map, &
+                                 sth_engine_cbsr_map, sth_engine_rwf_count, sth_engine_rwf_ld, sth_engine_rwf_put, &
+                                 sth_engine_kdev_map, &
                                  sth_engine_rwf_free, &
                                  sth_engine_cbsr_plan, sth_cbsr_off, &
                                  sth_engine_set_wdev_n, sth_engine_kdev_op, sth_engine_cbsr_op
-    USE sth_nscf_symrot,  ONLY : symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops
+    USE sth_nscf_symrot,  ONLY : symrot_kmap, symrot_cache_n, symrot_cache_get, symrot_kop, symrot_count, symrot_nops, &
+                                 symrot_cache_ld
     USE qef_vkb,         ONLY : vkb_batch
     USE lrus,             ONLY : becp1
     !
@@ -651,9 +653,13 @@ CONTAINS
     nkd = 0
     IF (kdev) THEN
       IF (sth_timing) CALL SYSTEM_CLOCK(ca)
+      ! qe-fast: the host cache's width is the running maximum of npwx over the q points so far; a device cache built
+      ! at an earlier q is narrower when a later q has more plane waves: rebuild it at the new width (entries keep
+      ! their own ngs and Miller indices, so the refill is exact), and size the transfer buffers by that width
+      IF (sth_engine_rwf_count() > 0 .AND. sth_engine_rwf_ld() < symrot_cache_ld()) CALL sth_engine_rwf_free()
       ! the SYMROT cache entries not yet on the device
       IF (symrot_cache_n() > sth_engine_rwf_count()) THEN
-        ALLOCATE(wtmp(npwx, nbnd), mil(3, npwx))
+        ALLOCATE(wtmp(symrot_cache_ld(), nbnd), mil(3, symrot_cache_ld()))
         DO j = sth_engine_rwf_count() + 1, symrot_cache_n()
           CALL symrot_cache_get(j, ngsk, ich, wtmp, mil)
           CALL sth_engine_rwf_put(j, ngsk, ich, wtmp, mil, kdok)
@@ -876,9 +882,13 @@ CONTAINS
         ENDIF
       ENDIF
       ALLOCATE(imap(npwx), ph(npwx))
+      ! qe-fast: the host cache's width is the running maximum of npwx over the q points so far; a device cache built
+      ! at an earlier q is narrower when a later q has more plane waves: rebuild it at the new width (entries keep
+      ! their own ngs and Miller indices, so the refill is exact), and size the transfer buffers by that width
+      IF (sth_engine_rwf_count() > 0 .AND. sth_engine_rwf_ld() < symrot_cache_ld()) CALL sth_engine_rwf_free()
       ! the SYMROT cache entries (Miller indices for the device maps) not yet on the device
       IF (.NOT. lgamma .AND. symrot_cache_n() > sth_engine_rwf_count()) THEN
-        ALLOCATE(wtmp(npwx, nbnd), mil(3, npwx))
+        ALLOCATE(wtmp(symrot_cache_ld(), nbnd), mil(3, symrot_cache_ld()))
         DO j = sth_engine_rwf_count() + 1, symrot_cache_n()
           CALL symrot_cache_get(j, ngs, ich, wtmp, mil)
           CALL sth_engine_rwf_put(j, ngs, ich, wtmp, mil, ok)
