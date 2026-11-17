@@ -8,6 +8,16 @@ All notable changes to qe-fast are recorded here. The format follows
 
 ### Added
 
+- ph.x `inverse_moments` (`PHonon/PH/ph_imom.f90`): the inverse spectral moments I₂, I₃, I₄ of the phonon
+  perturbation, Σ_k w_k Σ_vc ⟨v|dV_μ†|c⟩⟨c|dV_ν|v⟩/Δ_cvⁿ, from two Sternheimer solves per occupied state after each
+  irrep converges (one with dV ψ_v as source, one with the first solution), for the self-consistent and the bare
+  vertex; no empty states. Symmetrized like the dynamical matrix and written for the star of q in the dyn format
+  (`fildyn.i2s` … `.i4b`). I₃ with the self-consistent vertex is the ω² coefficient of the static electronic response
+  on the imaginary axis (the electronic drag mass). At q = 0 the rigid-translation sum is printed with a check that the
+  translation response equals −P_c∇ψ_v; it equals the valence count only for a local potential (H₂ with a local
+  pseudopotential 2.01 for 2; Si with SG15 8.80 for 8 at 16³ k). Norm-conserving insulators, unpolarized. Tested in
+  serial CPU builds (Si at Q = 0, the 2³ Q star, and q = X against Q = 0 of the 8-atom cell: I₂ to 0.25 %); MPI and
+  GPU builds are untested.
 - `chi0.x` (`qefast/gw/chi0.f90`, issue #1): the inverse dielectric matrix ε⁻¹_GG′(q, ω) by sum over bands with
   local fields (RPA), for norm-conserving insulators; Kramers–Kronig by FFT on the energy grid; full-matrix output.
   CUDA builds run it on the GPU (`chi0_dev.f90`): Si 8³, 60 bands, 3000 energies in 5.4 s on an H100. Both paths equal

@@ -56,6 +56,7 @@ SUBROUTINE phq_readin()
   USE mp_pools,      ONLY : npool
   USE paw_variables, ONLY : okpaw
   USE ramanm,        ONLY : eth_rps, eth_ns, lraman, elop, dek
+  USE ph_imom,       ONLY : inverse_moments   ! qe-fast
   USE freq_ph,       ONLY : fpol, fiu, nfs
   USE cryst_ph,      ONLY : magnetic_sym
   USE ph_restart,    ONLY : ph_readfile
@@ -119,6 +120,7 @@ SUBROUTINE phq_readin()
                        modenum, prefix, fildyn, fildvscf, fildrho, &
                        ldisp, nq1, nq2, nq3, &
                        eth_rps, eth_ns, lraman, elop, dek, recover,  &
+                       inverse_moments, &
                        fpol, asr, lrpa, lnoloc, start_irr, last_irr, &
                        start_q, last_q, nogg, ldiag, search_sym, lqdir, &
                        nk1, nk2, nk3, k1, k2, k3, &
@@ -277,6 +279,7 @@ SUBROUTINE phq_readin()
   el_ph_ngauss = 1
   lraman       = .FALSE.
   elop         = .FALSE.
+  inverse_moments = .FALSE.
   max_seconds  =  1.E+7_DP
   reduce_io    = .FALSE.
   CALL get_environment_variable( 'ESPRESSO_TMPDIR', outdir )

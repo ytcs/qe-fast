@@ -45,6 +45,7 @@ SUBROUTINE phqscf
   USE sth_engine,       ONLY : sth_engine_set_npmax   ! qe-fast: the q's largest irrep (partial psi(r) cache reserve)
 #endif
   USE write_hub
+  USE ph_imom,          ONLY : imom_check, imom_irrep, imom_finish   ! qe-fast: inverse moments
 
   IMPLICIT NONE
 
@@ -62,6 +63,7 @@ SUBROUTINE phqscf
   ! the change of density due to perturbations
 
   CALL start_clock ('phqscf')
+  CALL imom_check()
 #if defined(__CUDA)
   IF (nirr > 0) CALL sth_engine_set_npmax(MAXVAL(npert(1:nirr)))
 #endif
@@ -125,6 +127,7 @@ SUBROUTINE phqscf
         !
         IF (convt) THEN
            CALL drhodv (imode0, npe, dfpt_data%drhos)
+           CALL imom_irrep (imode0, npe, dfpt_data%dvscfp)
            !
            !   add the contribution of the modes imode0+1 -> imode+npe
            !   to the effective charges Z(Us,E) (Us=scf,E=bare)
@@ -192,6 +195,7 @@ SUBROUTINE phqscf
      !
   ENDIF
   !
+  CALL imom_finish()
   CALL stop_clock ('phqscf')
   !
   RETURN

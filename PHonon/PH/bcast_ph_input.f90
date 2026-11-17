@@ -31,6 +31,7 @@ subroutine bcast_ph_input ( )
   use io_files, ONLY : tmp_dir, prefix
   USE control_flags, only: iverbosity, modenum, isolve
   USE ramanm, ONLY: lraman, elop, dek, eth_rps, eth_ns
+  USE ph_imom, ONLY: inverse_moments   ! qe-fast
   USE check_stop, ONLY: max_seconds
   USE ions_base,     ONLY : amass
   USE io_global,   ONLY : meta_ionode_id
@@ -59,6 +60,7 @@ subroutine bcast_ph_input ( )
   call mp_bcast (reduce_io, meta_ionode_id, world_comm )
   call mp_bcast (ldisp, meta_ionode_id, world_comm )
   call mp_bcast (lraman, meta_ionode_id, world_comm )
+  call mp_bcast (inverse_moments, meta_ionode_id, world_comm )
   call mp_bcast (elop, meta_ionode_id, world_comm )
   call mp_bcast (fpol, meta_ionode_id, world_comm )
   call mp_bcast (recover, meta_ionode_id, world_comm )

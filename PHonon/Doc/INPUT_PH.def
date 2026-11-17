@@ -214,6 +214,26 @@ input_description -distribution {Quantum ESPRESSO} -package PHonon -program ph.x
             }
         }
 
+        var inverse_moments -type LOGICAL {
+            default { .false. }
+            info {
+                If .true. (qe-fast) compute, for every q, the inverse spectral moments
+                I_n = sum_k w_k sum_vc <v|dV_mu^+|c><c|dV_nu|v> / (e_c - e_v)^n, n = 2, 3, 4,
+                of the phonon perturbation from two Sternheimer solves per occupied state
+                (no empty states), for the self-consistent and for the bare vertex.
+                I_3 is the frequency curvature of the static electronic response
+                (with the self-consistent vertex) and gives the electronic drag mass.
+                The symmetrized matrices are written for the star of q in the
+                dynamical-matrix format, Rydberg atomic units, to fildyn.i2s, .i3s, .i4s
+                (self-consistent vertex) and fildyn.i2b, .i3b, .i4b (bare vertex).
+                At q = 0 the sum over all atom pairs is the rigid-translation response;
+                with the self-consistent vertex 4*I_3 equals the number of valence electrons
+                only for a local potential (nonlocal projectors break the f-sum identity).
+                Norm-conserving pseudopotentials, insulators, no spin polarization;
+                each q must be computed in a single run.
+            }
+        }
+
         var lmultipole -type LOGICAL {
             default { .false. }
             info {
