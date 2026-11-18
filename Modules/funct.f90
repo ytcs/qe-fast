@@ -568,7 +568,9 @@ CONTAINS
     ! check for unrecognized labels
     !
     IF ( iexch<=0 .AND. icorr<=0 .AND. igcx<=0 .AND. igcc<=0 .AND. imeta<=0 .AND. imetac<=0) THEN
-       IF ( inlc <= 0 .AND. TRIM(dftout) /= 'NOX-NOC') THEN
+       ! NOX-NOC is written to the data file as its index form XC-000I-...; both are the no-xc functional
+       IF ( inlc <= 0 .AND. TRIM(dftout) /= 'NOX-NOC' .AND. &
+            TRIM(dftout) /= 'XC-000I-000I-000I-000I-000I-000I' ) THEN
           CALL errore( 'set_dft_from_name', TRIM(dftout)//': unrecognized dft', 1 )
        ELSE
           ! if inlc is the only nonzero index the label is likely wrong
