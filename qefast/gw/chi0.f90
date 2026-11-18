@@ -243,9 +243,9 @@ CONTAINS
     REAL(DP) :: d, cp, emin, mneed
     COMPLEX(DP) :: h0, h2
     COMPLEX(DP), ALLOCATABLE :: m0(:,:), m2(:,:), x0(:,:), x2(:,:), e0(:,:), t(:,:)
-    mneed = (16.0_DP * 4 * ng_max * ng_max + 16.0_DP * (2 * ng_max + dffts%nnr * npol) * nbnd + 6.4d7) / 1.0d9
+    mneed = (16.0_DP * 5 * ng_max * ng_max + 16.0_DP * (2 * ng_max + dffts%nnr * npol) * nbnd + 6.4d7) / 1.0d9
     IF (max_mem <= 0.0_DP) max_mem = 0.5_DP * mem_avail_gb()
-    WRITE(stdout, '(5x,"chi0: static moments, no energy grid; host memory estimate ",F6.2," GB (4 x ",I0, &
+    WRITE(stdout, '(5x,"chi0: static moments, no energy grid; host memory estimate ",F6.2," GB (5 x ",I0, &
          & "^2), limit ",F6.2," GB")') mneed, ng_max, max_mem
     IF (mneed > max_mem) CALL errore('chi0', 'memory estimate exceeds max_mem; lower ecut_eps', 1)
     ALLOCATE(m0(ng_max, ng_max), m2(ng_max, ng_max), uk(dffts%nnr, npol, nv), uq(dffts%nnr, npol, nc), &
