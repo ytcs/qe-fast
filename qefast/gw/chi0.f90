@@ -17,7 +17,14 @@
 ! nbnd (0: all), fileout, filfull ('' : no full matrix), max_mem (GB, host path; 0: half the available), device (GPU path in CUDA builds), check_psd
 ! (number of energies, evenly spread, at which the anti-Hermitian part of -eps^-1 is checked; >= nw: all), dev_reserve
 ! (GB of device memory left free), dev_buffer (most transitions buffered on the device before a flush; 0: from memory),
-! scissor (eV, shift of the empty bands).
+! scissor (eV, shift of the empty bands), moments (static limit only, below).
+!
+! moments = .true.: no energy grid. Below the gap with eta -> 0, chi0(w) = chi0(0) + w^2 chi2 + O(w^4) with
+!   chi0(0) = -2 spin/(Nk Omega) sum_t rho_t^* rho_t^T / D_t,   chi2 = -2 spin/(Nk Omega) sum_t rho_t^* rho_t^T / D_t^3
+! accumulated directly (two ng^2 matrices, one ZHERK each per k and occupied band), so ecut_eps can reach the
+! wavefunction cutoff; eps = eps0 + w^2 eps2, eps^-1 = eps0^-1 - w^2 eps0^-1 eps2 eps0^-1 + O(w^4). filfull holds
+! four ng x ng matrices: eps^-1(w = 0), d eps^-1 / d(w^2) (eV^-2), eps(w = 0), d eps / d(w^2) (eV^-2); fileout the
+! heads. emax, de, eta, device and check_psd are not used.
 !
 PROGRAM chi0
   USE kinds,            ONLY : DP
@@ -52,8 +59,9 @@ PROGRAM chi0
   REAL(DP) :: dev_reserve
   INTEGER :: dev_buffer
   REAL(DP) :: scissor
+  LOGICAL :: moments
   NAMELIST / inputchi0 / prefix, outdir, q, ecut_eps, emax, de, eta, nbnd, fileout, filfull, max_mem, device, &
-                         check_psd, dev_reserve, dev_buffer, scissor
+                         check_psd, dev_reserve, dev_buffer, scissor, moments
   !
   INTEGER :: nv, nc, ik, jk, iv, ic, ig, nb, nw, iw, ng_max, iq_head, cap
   INTEGER, ALLOCATABLE :: kq(:), g0(:,:), gm(:,:), idx_mg(:)
@@ -68,7 +76,7 @@ PROGRAM chi0
   CALL environment_start('CHI0')
   prefix = 'pwscf'; outdir = './'; q = 0.0_DP; ecut_eps = 4.0_DP; emax = 60.0_DP; de = 0.02_DP; eta = 0.1_DP
   nbnd = 0; fileout = 'chi0.dat'; filfull = ' '; max_mem = 0.0_DP; device = .TRUE.; check_psd = 100
-  dev_reserve = 2.0_DP; dev_buffer = 0; scissor = 0.0_DP
+  dev_reserve = 2.0_DP; dev_buffer = 0; scissor = 0.0_DP; moments = .FALSE.
   IF (ionode) THEN
     CALL input_from_file()
     READ(5, inputchi0, IOSTAT=ios)
@@ -83,9 +91,11 @@ PROGRAM chi0
   CALL mp_bcast(max_mem, ionode_id, intra_image_comm); CALL mp_bcast(device, ionode_id, intra_image_comm)
   CALL mp_bcast(check_psd, ionode_id, intra_image_comm); CALL mp_bcast(dev_reserve, ionode_id, intra_image_comm)
   CALL mp_bcast(dev_buffer, ionode_id, intra_image_comm); CALL mp_bcast(scissor, ionode_id, intra_image_comm)
+  CALL mp_bcast(moments, ionode_id, intra_image_comm)
 #if !defined(__CUDA)
   device = .FALSE.
 #endif
+  IF (moments) device = .FALSE.
   tmp_dir = TRIM(outdir) // '/'
   CALL read_file_new(needwf)
   !
@@ -127,6 +137,9 @@ PROGRAM chi0
        & F6.2," Ry), q crystal ",3F9.4," + G ",3I3)') nks, nbnd, nv, dffts%nr1, dffts%nr2, dffts%nr3, ng_max, &
        ecut_eps, qcr, NINT(qc)
   !
+  IF (moments) THEN
+  CALL moments_path()
+  ELSE
   ! ---- memory: binned matrices + one w chunk (chi, eps, work); shrink the chunk, stop only if A alone is too big
   nb = CEILING(emax / de) + 2
   nw = 0
@@ -216,12 +229,113 @@ PROGRAM chi0
        ahmin, ahmax
   WRITE(stdout, '(5x,"chi0: RPA loss peak ",F8.2," eV, Re eps_M(w=0) RPA ",F8.3,", no local fields ",F8.3)') &
        wgrid(MAXLOC(-AIMAG(einvqq), 1)), REAL(1.0_DP / einvqq(1)), REAL(eqq(1))
+  ENDIF   ! energy grid
   CALL print_clock('chi0_wfc'); CALL print_clock('chi0_pairs'); CALL print_clock('chi0_bin')
-  CALL print_clock('chi0_kk'); CALL print_clock('chi0_inv')
+  CALL print_clock('chi0_kk'); CALL print_clock('chi0_inv'); CALL print_clock('chi0_mom')
   CALL environment_end('CHI0')
   CALL stop_pp()
   !
 CONTAINS
+  !
+  SUBROUTINE moments_path()
+    !! the static limit (moments = .true.): chi0(0) and its w^2 coefficient summed over transitions, no energy grid
+    INTEGER :: ikk, jkk, ivv, icc, i, j, info
+    REAL(DP) :: d, cp, emin, mneed
+    COMPLEX(DP) :: h0, h2
+    COMPLEX(DP), ALLOCATABLE :: m0(:,:), m2(:,:), x0(:,:), x2(:,:), e0(:,:), t(:,:)
+    mneed = (16.0_DP * 4 * ng_max * ng_max + 16.0_DP * (2 * ng_max + dffts%nnr * npol) * nbnd + 6.4d7) / 1.0d9
+    IF (max_mem <= 0.0_DP) max_mem = 0.5_DP * mem_avail_gb()
+    WRITE(stdout, '(5x,"chi0: static moments, no energy grid; host memory estimate ",F6.2," GB (4 x ",I0, &
+         & "^2), limit ",F6.2," GB")') mneed, ng_max, max_mem
+    IF (mneed > max_mem) CALL errore('chi0', 'memory estimate exceeds max_mem; lower ecut_eps', 1)
+    ALLOCATE(m0(ng_max, ng_max), m2(ng_max, ng_max), uk(dffts%nnr, npol, nv), uq(dffts%nnr, npol, nc), &
+             f(dffts%nnr), rho(ng_max, nc), x0(ng_max, nc), x2(ng_max, nc))
+    m0 = (0.0_DP, 0.0_DP); m2 = (0.0_DP, 0.0_DP); emin = HUGE(1.0_DP)
+    DO ikk = 1, nks
+      jkk = kq(ikk)
+      CALL start_clock('chi0_wfc')
+      CALL wfc_r(ikk, 1, nv, (/0, 0, 0/), uk)
+      CALL wfc_r(jkk, nv + 1, nbnd, g0(:, ikk), uq)
+      CALL stop_clock('chi0_wfc')
+      DO ivv = 1, nv
+        CALL start_clock('chi0_pairs')
+        CALL pair_row(uk(:, :, ivv), uq, nc, idx_mg, rho, f)
+        CALL stop_clock('chi0_pairs')
+        CALL start_clock('chi0_mom')
+        DO icc = 1, nc
+          d = (et(nv + icc, jkk) - et(ivv, ikk)) * 0.5_DP              ! Ha
+          IF (d <= 0.0_DP) CALL errore('chi0', 'moments: a transition at or below zero energy (no gap)', 1)
+          emin = MIN(emin, d)
+          x0(:, icc) = CONJG(rho(:, icc)) / SQRT(d)
+          x2(:, icc) = CONJG(rho(:, icc)) / SQRT(d) ** 3
+        ENDDO
+        ! m += x x^H = sum_t rho_t^* rho_t^T / D_t^(1 or 3), upper triangle
+        CALL ZHERK('U', 'N', ng_max, nc, 1.0_DP, x0, ng_max, 1.0_DP, m0, ng_max)
+        CALL ZHERK('U', 'N', ng_max, nc, 1.0_DP, x2, ng_max, 1.0_DP, m2, ng_max)
+        CALL stop_clock('chi0_mom')
+      ENDDO
+    ENDDO
+    DEALLOCATE(uk, uq, f, rho, x0, x2)
+    DO j = 1, ng_max
+      DO i = j + 1, ng_max
+        m0(i, j) = CONJG(m0(j, i)); m2(i, j) = CONJG(m2(j, i))
+      ENDDO
+    ENDDO
+    ! eps0 = 1 - v^1/2 chi0(0) v^1/2 = 1 + 2c v^1/2 m0 v^1/2; eps2 = 2c v^1/2 m2 v^1/2 / ha^2 (eV^-2)
+    cp = 2.0_DP * spin / (nks * omega)
+    ALLOCATE(e0(ng_max, ng_max), t(ng_max, ng_max), epsm(ng_max, ng_max), evals(ng_max), work(64 * ng_max), &
+             rwork(3 * ng_max))
+    m0 = -cp * m0                                                        ! chi0(0)
+    DO j = 1, ng_max
+      DO i = 1, ng_max
+        m2(i, j) = cp * sv(i) * m2(i, j) * sv(j) / ha ** 2               ! eps2
+        e0(i, j) = - sv(i) * m0(i, j) * sv(j)
+      ENDDO
+      e0(j, j) = e0(j, j) + 1.0_DP
+    ENDDO
+    CALL start_clock('chi0_inv')
+    CALL eps_invert(sv, m0, epsm, h0, iq_head)                           ! epsm = eps0^-1
+    CALL stop_clock('chi0_inv')
+    ! d eps^-1 / d(w^2) = - eps0^-1 eps2 eps0^-1, into m0
+    CALL ZGEMM('N', 'N', ng_max, ng_max, ng_max, (1.0_DP, 0.0_DP), epsm, ng_max, m2, ng_max, (0.0_DP, 0.0_DP), &
+               t, ng_max)
+    CALL ZGEMM('N', 'N', ng_max, ng_max, ng_max, (-1.0_DP, 0.0_DP), t, ng_max, epsm, ng_max, (0.0_DP, 0.0_DP), &
+               m0, ng_max)
+    ! check: eps0 Hermitian positive definite (a stable insulator)
+    t = e0
+    CALL ZHEEV('N', 'U', ng_max, t, ng_max, evals, work, SIZE(work), rwork, info)
+    IF (info /= 0) CALL errore('chi0', 'moments: ZHEEV', info)
+    WRITE(stdout, '(5x,"chi0: lowest transition ",F8.4," eV; eps(w=0) eigenvalues in [",ES12.4,",",ES12.4,"]")') &
+         emin * ha, evals(1), evals(ng_max)
+    IF (evals(1) <= 0.0_DP) CALL errore('chi0', 'moments: eps(w=0) not positive definite', 1)
+    h2 = (0.0_DP, 0.0_DP)
+    IF (iq_head > 0) h2 = m2(iq_head, iq_head)
+    WRITE(stdout, '(5x,"chi0: head: eps_NLF(0) ",F10.5,", eps_M(0) RPA ",F10.5,", d eps_NLF/d(w^2) ",ES12.4, &
+         & " eV^-2, d(eps^-1)_head/d(w^2) ",ES12.4," eV^-2")') REAL(h0), 1.0_DP / REAL(epsm(iq_head, iq_head)), &
+         REAL(h2), REAL(m0(iq_head, iq_head))
+    IF (ionode) THEN
+      OPEN(90, FILE=TRIM(fileout), STATUS='replace')
+      WRITE(90, '(a)') '# static moments: eps_NLF(0)  eps_M(0) RPA  d eps_NLF/d(w^2) (eV^-2)  ' // &
+                       'd(eps^-1)_head/d(w^2) (eV^-2)'
+      WRITE(90, '(4ES20.10)') REAL(h0), 1.0_DP / REAL(epsm(iq_head, iq_head)), REAL(h2), REAL(m0(iq_head, iq_head))
+      CLOSE(90)
+    ENDIF
+    IF (LEN_TRIM(filfull) > 0 .AND. ionode) THEN
+      OPEN(91, FILE=TRIM(filfull), FORM='unformatted', ACCESS='stream', STATUS='replace')
+      WRITE(91) epsm; WRITE(91) m0; WRITE(91) e0; WRITE(91) m2
+      CLOSE(91)
+      OPEN(92, FILE=TRIM(filfull) // '.G.txt', STATUS='replace')
+      WRITE(92, '(a)') "# moments: eps^-1(w=0), d eps^-1/d(w^2) (eV^-2), eps(w=0), d eps/d(w^2) (eV^-2), column-major"
+      WRITE(92, '(a)') "# chi_GG' = sum rho*(G) rho(G'), rho(G) = <c,k+q|e^{i(q+G)r}|v,k>"
+      WRITE(92, '("# q crystal ",3F12.8,"  w = 0 .. ",F10.4," eV step ",F8.4,", ",I0," energies, ",I0," G")') &
+           qcr, 0.0_DP, 0.0_DP, 4, ng_max
+      DO ig = 1, ng_max
+        WRITE(92, '(I6,3I5,F16.8)') ig - 1, gm(:, ig), q2(ig)
+      ENDDO
+      CLOSE(92)
+    ENDIF
+    DEALLOCATE(m0, m2, e0, t)
+  END SUBROUTINE moments_path
   !
   SUBROUTINE open_full()
     ahmin = HUGE(1.0_DP); ahmax = 0.0_DP
